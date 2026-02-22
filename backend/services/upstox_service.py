@@ -134,7 +134,7 @@ def fetch_option_chain_data(
                 "call_ask_price": item["call_options"]["market_data"].get("ask_price"),
                 "call_ask_qty": item["call_options"]["market_data"].get("ask_qty"),
                 "call_prev_oi": item["call_options"]["market_data"].get("prev_oi"),
-                "call_oi_chg": item["call_options"]["market_data"].get("oi_day_change"),
+                "call_oi_chg": (item["call_options"]["market_data"].get("oi") or 0) - (item["call_options"]["market_data"].get("prev_oi") or 0),
 
                 "put_ltp": item["put_options"]["market_data"].get("ltp"),
                 "put_oi": item["put_options"]["market_data"].get("oi"),
@@ -153,7 +153,7 @@ def fetch_option_chain_data(
                 "put_ask_price": item["put_options"]["market_data"].get("ask_price"),
                 "put_ask_qty": item["put_options"]["market_data"].get("ask_qty"),
                 "put_prev_oi": item["put_options"]["market_data"].get("prev_oi"),
-                "put_oi_chg": item["put_options"]["market_data"].get("oi_day_change"),
+                "put_oi_chg": (item["put_options"]["market_data"].get("oi") or 0) - (item["put_options"]["market_data"].get("prev_oi") or 0),
             }
             records.append(record)
 

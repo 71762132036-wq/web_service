@@ -37,8 +37,17 @@ const DashboardPage = (() => {
       ]
     },
     OI: {
-      'Options Interest': [
-        { key: 'oi_dist', label: 'OI Strike Map', id: 'chart-oi-main' },
+      'OI Strike Map': [
+        { key: 'oi_dist', label: 'Analysis', id: 'chart-oi-main' },
+      ],
+      'OI Change': [
+        { key: 'oi_change', label: 'Daily Shift', id: 'chart-oi-change' },
+      ],
+      'Premium Flow': [
+        { key: 'premium_flow', label: 'Net Direction', id: 'chart-prem-flow' },
+      ],
+      'OI Flow': [
+        { key: 'oi_flow', label: 'OI vs Vol', id: 'chart-oi-flow' },
       ]
     },
     'Others': {

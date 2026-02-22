@@ -399,3 +399,27 @@ def calculate_quant_power(
         'blended'           : by_strike['blended'].values.tolist(),
         'cum_delta'         : cum_delta.tolist()
     }
+
+def calculate_premium_flow(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Bought vs Sold (Net Flow Direction).
+    Logic:
+    If IV > ATM_IV → Buyer initiated (Paying up)
+    If IV < ATM_IV → Seller initiated (Hitting bid)
+    """
+    df = df.copy()
+    spot = df["Spot"].iloc[0]
+    atm_row = df.iloc[(df["Strike"] - spot).abs().argsort().iloc[0]]
+    atm_iv = (atm_row["call_iv"] + atm_row["put_iv"]) / 2.0
+    
+    # Calculate net premium flow per strike
+    df["call_prem_flow"] = df.apply(
+        lambda r: r["call_ltp"] * (1 if r["call_iv"] > atm_iv else -1) if not pd.isna(r["call_iv"]) else 0,
+        axis=1
+    )
+    df["put_prem_flow"] = df.apply(
+        lambda r: r["put_ltp"] * (1 if r["put_iv"] > atm_iv else -1) if not pd.isna(r["put_iv"]) else 0,
+        axis=1
+    )
+    
+    return df

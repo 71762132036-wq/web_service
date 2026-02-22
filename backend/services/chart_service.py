@@ -1019,3 +1019,148 @@ def build_standard_oi_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
     return fig.to_json()
+
+def build_oi_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    OI vs Volume Strike Map.
+    Red: Call OI, Rose: Call Vol.
+    Green: Put OI, Emerald: Put Vol.
+    """
+    spot = df["Spot"].iloc[0]
+    atm  = get_atm_strike(df)
+    
+    fig = go.Figure()
+
+    # Call OI (Red #F43F5E)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Call_OI"].tolist(),
+        marker_color="#F43F5E", name="Call OI", opacity=0.9,
+    ))
+
+    # Call Volume (Rose #FDA4AF)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["call_vol"].tolist(),
+        marker_color="#FDA4AF", name="Call Volume", opacity=0.7,
+    ))
+
+    # Put OI (Green #10B981)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Put_OI"].tolist(),
+        marker_color="#10B981", name="Put OI", opacity=0.9,
+    ))
+
+    # Put Volume (Emerald #A7F3D0)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["put_vol"].tolist(),
+        marker_color="#A7F3D0", name="Put Volume", opacity=0.7,
+    ))
+
+    # Spot & ATM
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(f"{index_name} — OI Flow (OI vs Volume)")
+    layout["yaxis"]["title"] = "Qty / Contracts"
+    layout["barmode"] = "group"
+    layout["bargap"] = 0.25
+    layout["bargroupgap"] = 0.05
+    fig.update_layout(**layout)
+    return fig.to_json()
+
+def build_oi_change_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Daily OI Change Strike Map.
+    Red: Call OI Change, Green: Put OI Change.
+    Negative values represent positions being closed.
+    """
+    df = df.copy()
+    
+    # Fallback calculation if columns are empty or missing
+    if "call_oi_chg" not in df.columns or df["call_oi_chg"].isna().all():
+        if "call_oi" in df.columns and "call_prev_oi" in df.columns:
+            df["call_oi_chg"] = df["call_oi"].fillna(0) - df["call_prev_oi"].fillna(0)
+            
+    if "put_oi_chg" not in df.columns or df["put_oi_chg"].isna().all():
+        if "put_oi" in df.columns and "put_prev_oi" in df.columns:
+            df["put_oi_chg"] = df["put_oi"].fillna(0) - df["put_prev_oi"].fillna(0)
+
+    spot = df["Spot"].iloc[0]
+    atm  = get_atm_strike(df)
+    
+    fig = go.Figure()
+
+    # Call OI Change (Red #F43F5E)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["call_oi_chg"].tolist(),
+        marker_color="#F43F5E", name="Call OI Change", opacity=0.9,
+    ))
+
+    # Put OI Change (Green #10B981)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["put_oi_chg"].tolist(),
+        marker_color="#10B981", name="Put OI Change", opacity=0.9,
+    ))
+
+    # Spot & ATM
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(f"{index_name} — OI Change (Daily Shift)")
+    layout["yaxis"]["title"] = "OI Change Contracts"
+    layout["barmode"] = "group"
+    layout["bargap"] = 0.35
+    layout["bargroupgap"] = 0.05
+    fig.update_layout(**layout)
+    return fig.to_json()
+
+def build_premium_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Premium Bought vs Sold (Net Flow Direction).
+    Red: Call Premium Flow, Green: Put Premium Flow.
+    """
+    from services.calculations import calculate_premium_flow
+    df = calculate_premium_flow(df)
+    
+    spot = df["Spot"].iloc[0]
+    atm  = get_atm_strike(df)
+    
+    fig = go.Figure()
+
+    # Call Premium Flow (Red #F43F5E)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["call_prem_flow"].tolist(),
+        marker_color="#F43F5E", name="Call Prem Flow", opacity=0.9,
+    ))
+
+    # Put Premium Flow (Green #10B981)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["put_prem_flow"].tolist(),
+        marker_color="#10B981", name="Put Prem Flow", opacity=0.9,
+    ))
+
+    # Spot & ATM
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(f"{index_name} — Premium Flow (Bought vs Sold)")
+    layout["yaxis"]["title"] = "Net Premium Flow"
+    layout["barmode"] = "group"
+    layout["bargap"] = 0.35
+    layout["bargroupgap"] = 0.05
+    fig.update_layout(**layout)
+    return fig.to_json()

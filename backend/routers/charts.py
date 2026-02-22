@@ -26,11 +26,14 @@ from services.chart_service import (
     build_cumulative_charm_chart,
     build_iv_cone_chart,
     build_standard_oi_chart,
+    build_oi_flow_chart,
+    build_oi_change_chart,
+    build_premium_flow_chart,
 )
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow"}
 
 
 @router.get("/charts/{index}/{chart_type}")
@@ -80,6 +83,12 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             json_str = build_iv_cone_chart(df_cone, index)
         elif chart_type == "oi_dist":
             json_str = build_standard_oi_chart(df, index)
+        elif chart_type == "oi_flow":
+            json_str = build_oi_flow_chart(df, index)
+        elif chart_type == "oi_change":
+            json_str = build_oi_change_chart(df, index)
+        elif chart_type == "premium_flow":
+            json_str = build_premium_flow_chart(df, index)
         elif chart_type == "rr_bf":
             vs       = calculate_vol_surface(df)
             json_str = build_rr_bf(vs)
