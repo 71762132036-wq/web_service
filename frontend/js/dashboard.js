@@ -25,11 +25,18 @@ const DashboardPage = (() => {
         { key: 'cum_cex', label: 'Cumulative Charm', id: 'chart-cum-cex' },
       ],
     },
-    'Others': {
-      'Volatility': [
+    'Volatility': {
+      'IV Smile/Skew': [
         { key: 'iv_smile', label: 'IV Smile', id: 'chart-iv-smile' },
+      ],
+      'Risk Reversal': [
         { key: 'rr_bf', label: 'RR & BF', id: 'chart-rr-bf' },
       ],
+      'Expected Range': [
+        { key: 'iv_cone', label: 'IV Cone', id: 'chart-iv-cone' },
+      ]
+    },
+    'Others': {
       'Quant': [
         { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
         { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
@@ -200,7 +207,7 @@ const DashboardPage = (() => {
           </div>
 
           <!-- Contextual Surface Details -->
-          ${st.selectedCategory === 'Volatility' ? `
+          ${st.selectedBucket === 'Volatility' ? `
             <div class="section-overlay">
               <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
               <div class="card glass-card">${buildVolSurface(vs)}</div>

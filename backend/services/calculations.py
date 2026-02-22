@@ -234,6 +234,44 @@ def calculate_vol_surface(df: pd.DataFrame) -> dict:
     }
 
 
+def calculate_iv_cone(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate 1SD and 2SD price paths based on ATM IV.
+    move = spot * iv * sqrt(days/252)
+    """
+    import numpy as np
+    
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+    
+    # Get ATM IV (using mean of call/put IV for stability)
+    atm_row = df.iloc[(df["Strike"] - spot).abs().argsort().iloc[0]]
+    iv = (atm_row["call_iv"] + atm_row["put_iv"]) / 2.0 / 100.0
+    
+    # Horizon: days to nearest expiry (max 30 days for better visualization)
+    today = pd.Timestamp("today").normalize()
+    expiry = pd.to_datetime(df["expiry"].iloc[0])
+    days_to_expiry = (expiry - today).days
+    
+    # Ensure at least 5 days for a nice cone shape, max 30
+    horizon = max(min(days_to_expiry, 30), 5)
+    
+    days_range = np.arange(0, horizon + 1)
+    
+    # Formula: move = spot * iv * sqrt(days/252)
+    moves_1sd = spot * iv * np.sqrt(days_range / 252.0)
+    
+    data = {
+        "day": days_range,
+        "spot": [spot] * len(days_range),
+        "sd1_up": spot + moves_1sd,
+        "sd1_down": spot - moves_1sd,
+        "sd2_up": spot + 2 * moves_1sd,
+        "sd2_down": spot - 2 * moves_1sd
+    }
+    
+    return pd.DataFrame(data)
+
+
 # ---------------------------------------------------------------------------
 # Quant Power (Blended Vanna & GEX)
 # ---------------------------------------------------------------------------

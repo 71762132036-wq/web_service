@@ -921,3 +921,59 @@ def build_cumulative_charm_chart(df: pd.DataFrame, index_name: str = "Index", mo
     fig.update_layout(**layout)
 
     return fig.to_json()
+
+
+def build_iv_cone_chart(df_cone: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Build the IV Cone chart showing expected price ranges.
+    """
+    fig = go.Figure()
+
+    # 2SD Range (Shaded)
+    fig.add_trace(go.Scatter(
+        x=df_cone["day"].tolist() + df_cone["day"].tolist()[::-1],
+        y=df_cone["sd2_up"].tolist() + df_cone["sd2_down"].tolist()[::-1],
+        fill='toself',
+        fillcolor='rgba(244, 63, 94, 0.1)', # Rose tint for wider range
+        line=dict(color='rgba(244, 63, 94, 0.2)', width=1),
+        name="2SD Expected Range (95%)",
+        hoverinfo='skip'
+    ))
+
+    # 1SD Range (Shaded)
+    fig.add_trace(go.Scatter(
+        x=df_cone["day"].tolist() + df_cone["day"].tolist()[::-1],
+        y=df_cone["sd1_up"].tolist() + df_cone["sd1_down"].tolist()[::-1],
+        fill='toself',
+        fillcolor='rgba(99, 102, 241, 0.15)', # Indigo tint for core range
+        line=dict(color='rgba(99, 102, 241, 0.3)', width=1),
+        name="1SD Expected Range (68%)",
+        hoverinfo='skip'
+    ))
+
+    # Spot Baseline
+    fig.add_trace(go.Scatter(
+        x=df_cone["day"].tolist(),
+        y=df_cone["spot"].tolist(),
+        line=dict(color=C_SPOT, width=2, dash='dash'),
+        name=f"Current Spot: {df_cone['spot'].iloc[0]:.0f}"
+    ))
+
+    # Boundary Lines
+    fig.add_trace(go.Scatter(
+        x=df_cone["day"].tolist(), y=df_cone["sd1_up"].tolist(),
+        line=dict(color=C_POS, width=1.5), name="1SD Upper", showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=df_cone["day"].tolist(), y=df_cone["sd1_down"].tolist(),
+        line=dict(color=C_POS, width=1.5), name="1SD Lower", showlegend=False
+    ))
+
+    layout = _base_layout(f"{index_name} — IV Cone (Expected Price Ranges)")
+    layout["xaxis"]["title"] = "Days from Today"
+    layout["yaxis"]["title"] = "Price Level"
+    layout["hovermode"] = "x unified"
+    
+    fig.update_layout(**layout)
+
+    return fig.to_json()

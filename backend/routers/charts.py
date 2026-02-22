@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 import store
 from core.config import INDICES
-from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure
+from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure, calculate_iv_cone
 from services.chart_service import (
     build_dealer_regime_map,
     build_gamma_chart,
@@ -24,11 +24,12 @@ from services.chart_service import (
     build_cumulative_vanna_chart,
     build_charm_chart,
     build_cumulative_charm_chart,
+    build_iv_cone_chart,
 )
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "rr_bf", "quant_power"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power"}
 
 
 @router.get("/charts/{index}/{chart_type}")
@@ -73,6 +74,9 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             json_str = build_dealer_regime_map(df, index)
         elif chart_type == "iv_smile":
             json_str = build_iv_smile(df)
+        elif chart_type == "iv_cone":
+            df_cone  = calculate_iv_cone(df)
+            json_str = build_iv_cone_chart(df_cone, index)
         elif chart_type == "rr_bf":
             vs       = calculate_vol_surface(df)
             json_str = build_rr_bf(vs)
