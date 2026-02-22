@@ -32,7 +32,6 @@ const App = (() => {
     const PAGES = {
         'dashboard': DashboardPage,
         'data-management': DataManagementPage,
-        'data-info': DataInfoPage,
     };
 
     let _currentPage = 'dashboard';
@@ -52,7 +51,6 @@ const App = (() => {
         const titles = {
             'dashboard': `📊 ${State.getIndex()} — Gamma Exposure Analysis`,
             'data-management': '⚙️ Data Management',
-            'data-info': '📋 Data Info',
         };
         document.getElementById('topbar-title').textContent = titles[page] || '';
 

@@ -54,10 +54,6 @@ const DashboardPage = (() => {
     ).join('');
   }
 
-  function buildPowerZones(zones) {
-    if (!zones || !zones.length) return '<span class="text-muted">—</span>';
-    return zones.map(z => `<span class="zone-badge">⚡ ${z.toLocaleString()}</span>`).join('');
-  }
 
   function buildVolSurface(vs) {
     if (!vs) return '<div class="alert alert-warning">⚠️ Vol surface not available</div>';
@@ -89,38 +85,6 @@ const DashboardPage = (() => {
       </div>`;
   }
 
-  function buildDataTable(tableData) {
-    if (!tableData || !tableData.rows || !tableData.rows.length) {
-      return '<div class="alert alert-info">ℹ️ No data available</div>';
-    }
-
-    const headers = tableData.columns.map(c =>
-      `<th>${c}</th>`).join('');
-
-    const rows = tableData.rows.map(row => {
-      const cells = tableData.columns.map(col => {
-        const val = row[col];
-        let display = val == null ? '—' : (typeof val === 'number' ? val.toLocaleString(undefined, { maximumFractionDigits: 4 }) : val);
-        let cls = '';
-        if (col === 'Total_GEX') {
-          cls = val > 0 ? 'positive' : 'negative';
-        }
-        return `<td class="${cls}">${display}</td>`;
-      }).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('');
-
-    return `
-      <div class="flex-between mb-16">
-        <span class="text-muted text-sm">Showing top rows of ${tableData.total} total strikes</span>
-      </div>
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead><tr>${headers}</tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-  }
 
   // ── Render ─────────────────────────────────────────────
 
@@ -137,10 +101,9 @@ const DashboardPage = (() => {
     container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading dashboard…</div>`;
 
     try {
-      const [metrics, volData, tableData] = await Promise.all([
+      const [metrics, volData] = await Promise.all([
         API.getMetrics(index),
         API.getVolSurface(index),
-        API.getDataTable(index, 40),
       ]);
 
       const vs = volData?.vol_surface;
@@ -161,30 +124,6 @@ const DashboardPage = (() => {
           ${buildMetricCard('Dealer Regime', regime, '', `regime ${regimeClass}`)}
         </div>
 
-        <!-- Gamma Cage -->
-        <div class="section-header">
-          <h2>🔒 Gamma Cage Analysis</h2><div class="section-line"></div>
-        </div>
-        <div class="card" style="margin-bottom:22px;">
-          <div class="cage-grid">
-            <div class="cage-stat">
-              <div class="cage-stat-label">Cage Range</div>
-              <div class="cage-stat-value range">${metrics.cage.low.toLocaleString()} – ${metrics.cage.high.toLocaleString()}</div>
-            </div>
-            <div class="cage-stat">
-              <div class="cage-stat-label">Cage Strikes</div>
-              <div class="cage-stat-value">${metrics.cage.size}</div>
-            </div>
-            <div class="cage-stat">
-              <div class="cage-stat-label">Vacuum Strikes</div>
-              <div class="cage-stat-value text-warn">${metrics.vacuum_size}</div>
-            </div>
-          </div>
-          <div style="margin-top:16px;">
-            <div class="cage-stat-label" style="margin-bottom:8px;">💥 Power Zones (High Control)</div>
-            <div class="power-zones">${buildPowerZones(metrics.power_zones)}</div>
-          </div>
-        </div>
 
         <!-- Chart Tabs -->
         <div class="section-header">
@@ -203,13 +142,6 @@ const DashboardPage = (() => {
           <div id="vol-surface-content">${buildVolSurface(vs)}</div>
         </div>
 
-        <!-- Data Table -->
-        <div class="section-header">
-          <h2>📋 Data Table</h2><div class="section-line"></div>
-        </div>
-        <div class="card">
-          <div id="data-table-content">${buildDataTable(tableData)}</div>
-        </div>
       `;
 
       _wireTabNav(index);
