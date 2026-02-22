@@ -1,6 +1,6 @@
 /**
- * app.js — Main application: router, index selector, topbar updates, toasts.
- * Initializes the app and wires all navigation.
+ * app.js — Main application: unified router, topbar controls, and state synchronization.
+ * Transitioned to a single-page macOS sleek architecture.
  */
 
 // ── Toast utility ─────────────────────────────────────────
@@ -9,7 +9,6 @@ const Toast = (() => {
     const container = document.getElementById('toast-container');
 
     function show(message, type = 'info', duration = 4000) {
-        const icons = { info: '', success: '', error: '', warning: '' };
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `<span>${message}</span>`;
@@ -29,122 +28,169 @@ const Toast = (() => {
 
 const App = (() => {
 
-    const PAGES = {
-        'dashboard': DashboardPage,
-        'data-management': DataManagementPage,
-    };
+    let _isFetching = false;
 
-    let _currentPage = 'dashboard';
+    // ── Render ───────────────────────────────────────────
 
-    // ── Navigate ─────────────────────────────────────────
-
-    function navigate(page) {
-        if (!PAGES[page]) return;
-        _currentPage = page;
-
-        // Update nav items
-        document.querySelectorAll('.nav-item').forEach(el => {
-            el.classList.toggle('active', el.dataset.page === page);
-        });
-
-        // Update topbar title
-        const titles = {
-            'dashboard': `${State.getIndex()} — Gamma Exposure Analysis`,
-            'data-management': 'Data Management',
-        };
-        document.getElementById('topbar-title').textContent = titles[page] || '';
-
-        // Render page
+    function renderDashboard() {
         const content = document.getElementById('page-content');
-        PAGES[page].render(content);
+        DashboardPage.render(content);
     }
 
-    // ── Topbar ────────────────────────────────────────────
+    // ── Topbar Synchronization ───────────────────────────
 
-    function updateTopbar() {
+    async function updateTopbar() {
         const st = State.get();
         const curData = State.getIndexData();
+        const index = st.selectedIndex;
 
+        // 1. Update status dot
+        const dot = document.getElementById('fetch-status-dot');
+        if (dot) {
+            dot.classList.toggle('online', curData.hasData);
+        }
+
+        // 2. Update status text
         const statusChip = document.getElementById('data-status-chip');
-        const expiryChip = document.getElementById('expiry-chip');
-
         if (statusChip) {
-            statusChip.textContent = curData.hasData
-                ? `${st.selectedIndex} loaded`
-                : 'No data loaded';
-        }
-        if (expiryChip) {
-            expiryChip.textContent = curData.expiry ? `Expiry: ${curData.expiry}` : 'No Expiry';
+            statusChip.textContent = curData.hasData ? "Connected" : "No Data";
+            statusChip.style.color = curData.hasData ? "var(--accent-green)" : "var(--text-muted)";
         }
 
-        // Also update the topbar title for dashboard
-        if (_currentPage === 'dashboard') {
-            const el = document.getElementById('topbar-title');
-            if (el) el.textContent = `${st.selectedIndex} — Gamma Exposure Analysis`;
+        // 3. Sync dropdowns (Expiry and File)
+        await _refreshFileControls(index);
+    }
+
+    async function _refreshFileControls(index) {
+        const expirySel = document.getElementById('select-expiry');
+        const fileSel = document.getElementById('select-file');
+        if (!expirySel || !fileSel) return;
+
+        try {
+            const data = await API.getFiles(index);
+            const filesDict = data.files || {};
+            const expiries = Object.keys(filesDict).sort().reverse();
+
+            const idxData = State.getIndexData(index);
+            const selExpiry = idxData.selectedExpiry || (expiries.length ? expiries[0] : '');
+
+            // Populate Expiry
+            expirySel.innerHTML = expiries.length
+                ? expiries.map(e => `<option value="${e}" ${e === selExpiry ? 'selected' : ''}>${e}</option>`).join('')
+                : '<option value="">No Data</option>';
+
+            // Populate Files for selected expiry
+            const files = filesDict[selExpiry] || [];
+            const selFile = idxData.selectedFile || (files.length ? files[0] : '');
+
+            fileSel.innerHTML = files.length
+                ? files.map(f => `<option value="${f}" ${f === selFile ? 'selected' : ''}>${f}</option>`).join('')
+                : '<option value="">—</option>';
+
+        } catch (e) {
+            console.error("Failed to refresh file controls", e);
         }
     }
 
-    // ── Index selector ────────────────────────────────────
+    // ── Wire Controls ────────────────────────────────────
 
-    function _wireIndexSelector() {
-        const sel = document.getElementById('index-select');
-        if (!sel) return;
+    function _wireControls() {
+        const indexSel = document.getElementById('index-select');
+        const expirySel = document.getElementById('select-expiry');
+        const fileSel = document.getElementById('select-file');
+        const fetchBtn = document.getElementById('btn-fetch-all');
 
-        sel.addEventListener('change', () => {
-            const newIndex = sel.value;
-            if (newIndex === State.getIndex()) return;
-
+        // 1. Index Change
+        indexSel?.addEventListener('change', async () => {
+            const newIndex = indexSel.value;
             State.set({ selectedIndex: newIndex });
+            await updateTopbar();
+            renderDashboard();
+        });
 
-            updateTopbar();
-            navigate(_currentPage); // Re-render current page for new index
-            Toast.show(`Switched to ${newIndex}`, 'info', 2500);
+        // 2. Expiry Change
+        expirySel?.addEventListener('change', async () => {
+            const expiry = expirySel.value;
+            const index = State.getIndex();
+            State.setIndexData(index, { selectedExpiry: expiry });
+
+            // Re-fetch files for this expiry to update the file dropdown
+            await _refreshFileControls(index);
+
+            // Trigger load if a file is now available/selected
+            const newFile = fileSel.value;
+            if (newFile) _triggerLoad(index, expiry, newFile);
+        });
+
+        // 3. File Change
+        fileSel?.addEventListener('change', () => {
+            const file = fileSel.value;
+            const expiry = expirySel.value;
+            const index = State.getIndex();
+            State.setIndexData(index, { selectedFile: file });
+            _triggerLoad(index, expiry, file);
+        });
+
+        // 4. Fetch Button
+        fetchBtn?.addEventListener('click', async () => {
+            if (_isFetching) return;
+            _isFetching = true;
+            fetchBtn.innerHTML = '<div class="spinner"></div> Fetching…';
+
+            try {
+                const data = await API.fetchLiveData(null);
+                Toast.show("Live data synchronized for all indices", "success");
+                await updateTopbar();
+                renderDashboard();
+            } catch (e) {
+                Toast.show(`Fetch failed: ${e.message}`, "error");
+            } finally {
+                _isFetching = false;
+                fetchBtn.innerHTML = '<div class="status-dot-small" id="fetch-status-dot"></div> Fetch Live';
+                // Re-sync dot state after innerHTML reset
+                const curData = State.getIndexData();
+                document.getElementById('fetch-status-dot')?.classList.toggle('online', curData.hasData);
+            }
         });
     }
 
-    // ── Sidebar nav ───────────────────────────────────────
-
-    function _wireNavItems() {
-        document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-            item.addEventListener('click', () => navigate(item.dataset.page));
-        });
+    async function _triggerLoad(index, expiry, filename) {
+        if (!expiry || !filename) return;
+        try {
+            const data = await API.loadFile(index, expiry, filename);
+            State.setIndexData(index, {
+                hasData: true,
+                loadedFile: data.filepath,
+                expiry: data.expiry
+            });
+            Toast.show(`Loaded ${index} ${filename}`, "success", 2000);
+            renderDashboard();
+        } catch (e) {
+            Toast.show(`Load failed: ${e.message}`, "error");
+        }
     }
 
     // ── Init ──────────────────────────────────────────────
 
     async function init() {
-        // Check API health
         try {
-            await API.health();
-            document.getElementById('sidebar-status').textContent = 'API Connected';
-        } catch (_) {
-            document.getElementById('sidebar-status').textContent = 'API Offline';
-            Toast.show('Cannot reach backend. Is the server running?', 'error', 8000);
-        }
-
-        _wireIndexSelector();
-        _wireNavItems();
-
-        // Sync initial state from backend
-        try {
-            const data = await API.getStatus();
-            if (data && data.status) {
-                Object.entries(data.status).forEach(([idx, info]) => {
+            const status = await API.getStatus();
+            if (status && status.status) {
+                Object.entries(status.status).forEach(([idx, info]) => {
                     State.setIndexData(idx, {
                         hasData: info.hasData,
                         loadedFile: info.filepath
                     });
                 });
             }
-        } catch (e) { console.error("Initial sync failed", e); }
+        } catch (e) { console.error("Bootstrap sync failed", e); }
 
-        navigate('dashboard');
-        updateTopbar();
+        _wireControls();
+        await updateTopbar();
+        renderDashboard();
     }
 
-    return { init, navigate, updateTopbar };
+    return { init, updateTopbar };
 })();
 
-
-// ── Bootstrap ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => App.init());

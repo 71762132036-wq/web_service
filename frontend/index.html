@@ -14,58 +14,43 @@
 
 <body>
 
-    <div id="app">
-
-        <!-- ── Sidebar ─────────────────────────────────────────── -->
-        <aside id="sidebar">
-            <div class="sidebar-logo">
-                <div class="logo-icon">GE</div>
-                <h1>Gamma Exposure</h1>
-                <p>Option Chain Analytics</p>
-            </div>
-
-            <div class="sidebar-section" style="margin-top:16px;">
-                <label for="index-select">Active Index</label>
-                <select id="index-select" class="styled-select">
-                    <option value="Nifty">Nifty</option>
-                    <option value="BankNifty">BankNifty</option>
-                    <option value="Sensex">Sensex</option>
-                </select>
-            </div>
-
-            <nav class="nav-section">
-                <label>Navigation</label>
-                <div class="nav-item active" data-page="dashboard" id="nav-dashboard">
-                    Dashboard
-                </div>
-                <div class="nav-item" data-page="data-management" id="nav-data-management">
-                    Data Management
-                </div>
-            </nav>
-
-            <div class="sidebar-footer">
-                <div class="status-badge">
-                    <div class="status-dot"></div>
-                    <span id="sidebar-status">API Connected</span>
-                </div>
-            </div>
-        </aside>
+    <div id="app" class="macos-layout">
 
         <!-- ── Main ───────────────────────────────────────────── -->
         <div id="main">
 
-            <!-- Top Bar -->
+            <!-- macOS Style Sleek Top Bar -->
             <header id="topbar">
-                <div class="topbar-title" id="topbar-title">Nifty — Gamma Exposure Analysis</div>
-                <div class="topbar-meta">
-                    <span class="chip" id="data-status-chip">No data loaded</span>
-                    <span class="chip" id="expiry-chip">—</span>
+                <div class="topbar-left">
+                    <div class="logo-minimal">GE</div>
+                    <button class="btn-macos-fetch" id="btn-fetch-all">
+                        <div class="status-dot-small" id="fetch-status-dot"></div>
+                        Fetch Live
+                    </button>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="unified-controls">
+                        <select id="index-select" class="macos-select">
+                            <option value="Nifty">Nifty</option>
+                            <option value="BankNifty">BankNifty</option>
+                            <option value="Sensex">Sensex</option>
+                        </select>
+                        <div class="control-divider"></div>
+                        <select id="select-expiry" class="macos-select">
+                            <option value="">Select Expiry</option>
+                        </select>
+                        <div class="control-divider"></div>
+                        <select id="select-file" class="macos-select">
+                            <option value="">Select Date</option>
+                        </select>
+                    </div>
                 </div>
             </header>
 
             <!-- Page Content -->
             <div id="page-content">
-                <!-- Pages injected by JS router -->
+                <!-- Dashboard injected here -->
             </div>
 
         </div><!-- /#main -->
@@ -75,7 +60,7 @@
     <!-- Toast container -->
     <div id="toast-container"></div>
 
-    <!-- JS Modules (load order matters) -->
+    <!-- JS Modules -->
     <script src="/js/api.js?v=2"></script>
     <script src="/js/state.js?v=2"></script>
     <script src="/js/charts.js?v=2"></script>
