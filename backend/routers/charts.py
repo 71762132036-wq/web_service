@@ -25,11 +25,12 @@ from services.chart_service import (
     build_charm_chart,
     build_cumulative_charm_chart,
     build_iv_cone_chart,
+    build_standard_oi_chart,
 )
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist"}
 
 
 @router.get("/charts/{index}/{chart_type}")
@@ -77,6 +78,8 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
         elif chart_type == "iv_cone":
             df_cone  = calculate_iv_cone(df)
             json_str = build_iv_cone_chart(df_cone, index)
+        elif chart_type == "oi_dist":
+            json_str = build_standard_oi_chart(df, index)
         elif chart_type == "rr_bf":
             vs       = calculate_vol_surface(df)
             json_str = build_rr_bf(vs)

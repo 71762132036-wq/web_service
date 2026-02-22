@@ -36,6 +36,11 @@ const DashboardPage = (() => {
         { key: 'iv_cone', label: 'IV Cone', id: 'chart-iv-cone' },
       ]
     },
+    OI: {
+      'Options Interest': [
+        { key: 'oi_dist', label: 'OI Strike Map', id: 'chart-oi-main' },
+      ]
+    },
     'Others': {
       'Quant': [
         { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },

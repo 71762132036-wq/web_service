@@ -2,7 +2,11 @@
 FastAPI entry point — mounts all routers, CORS, and serves the frontend.
 """
 
+import sys
 from pathlib import Path
+
+# Ensure the 'backend' directory is in the path for internal imports
+sys.path.append(str(Path(__file__).parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

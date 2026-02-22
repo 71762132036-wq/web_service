@@ -972,8 +972,50 @@ def build_iv_cone_chart(df_cone: pd.DataFrame, index_name: str = "Index") -> str
     layout = _base_layout(f"{index_name} — IV Cone (Expected Price Ranges)")
     layout["xaxis"]["title"] = "Days from Today"
     layout["yaxis"]["title"] = "Price Level"
-    layout["hovermode"] = "x unified"
-    
     fig.update_layout(**layout)
 
+    return fig.to_json()
+
+
+# ---------------------------------------------------------------------------
+# 9 — OI Analysis
+# ---------------------------------------------------------------------------
+
+def build_standard_oi_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Standard High-Fidelity OI Strike Map.
+    Red: Calls, Green: Puts. Both positive upward bars.
+    """
+    spot = df["Spot"].iloc[0]
+    atm  = get_atm_strike(df)
+    
+    fig = go.Figure()
+
+    # Red for Calls (#F43F5E)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Call_OI"].tolist(),
+        marker_color="#F43F5E", name="Call OI (Resistance)", opacity=0.9,
+    ))
+
+    # Green for Puts (#10B981)
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Put_OI"].tolist(),
+        marker_color="#10B981", name="Put OI (Support)", opacity=0.9,
+    ))
+
+    # Spot & ATM
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(f"{index_name} — Standard OI Strike Map")
+    layout["yaxis"]["title"] = "OI Contracts"
+    layout["barmode"] = "group"
+    layout["bargap"] = 0.35
+    layout["bargroupgap"] = 0.05
+    fig.update_layout(**layout)
     return fig.to_json()
