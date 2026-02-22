@@ -51,3 +51,9 @@ DEFAULT_INDEX = "Nifty"
 GAMMA_CAGE_WIDTH = 4        # number of strikes around ATM
 FILTER_STRIKES_RADIUS = 20 # ±N strikes around closest strike
 CUTOFF_HOUR = 17            # 5 PM — roll to next expiry after this hour
+
+import os
+from pathlib import Path
+# Base data directory (sibling of web_app)
+_base = Path(__file__).resolve().parent.parent.parent.parent
+DATA_DIR = str(_base / "streamlit_app" / "data")

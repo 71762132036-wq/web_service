@@ -398,6 +398,45 @@ body {
   box-shadow: 0 0 10px var(--accent-green);
 }
 
+.btn-macos-compare {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: var(--tr);
+}
+
+.btn-macos-compare:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+}
+
+.btn-macos-compare.active {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.btn-macos-compare.active .status-dot-small {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+  animation: pulse-compare 2s infinite;
+}
+
+@keyframes pulse-compare {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .topbar-center {
   display: flex;
   justify-content: center;

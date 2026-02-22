@@ -72,6 +72,10 @@ const API = {
   getChart: (index, chartType, mode = 'net') =>
     apiFetch(`/api/charts/${index}/${chartType}?mode=${mode}`),
 
+  /** GET /api/charts/compare/{index}/{chart_type}?expiry=...&file1=...&file2=... */
+  getCompareChart: (index, chartType, expiry, file1, file2) =>
+    apiFetch(`/api/charts/compare/${index}/${chartType}?expiry=${expiry}&file1=${file1}&file2=${file2}`),
+
   // ── Export ──────────────────────────────────────────────
 
   /** GET /api/export/{index} — triggers browser download */

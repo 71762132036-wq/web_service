@@ -59,6 +59,12 @@ const App = (() => {
 
         // 3. Sync dropdowns (Expiry and File)
         await _refreshFileControls(index);
+
+        // 4. Handle Compare button visibility for second file
+        const fileSel2 = document.getElementById('select-file-2');
+        if (fileSel2) {
+            fileSel2.style.display = st.compareMode ? 'block' : 'none';
+        }
     }
 
     async function _refreshFileControls(index) {
@@ -82,10 +88,27 @@ const App = (() => {
             // Populate Files for selected expiry
             const files = filesDict[selExpiry] || [];
             const selFile = idxData.selectedFile || (files.length ? files[0] : '');
+            const selFile2 = idxData.selectedFile2 || (files.length > 1 ? files[1] : (files.length ? files[0] : ''));
 
-            fileSel.innerHTML = files.length
-                ? files.map(f => `<option value="${f}" ${f === selFile ? 'selected' : ''}>${f}</option>`).join('')
+            const fileOptions = files.length
+                ? files.map(f => `<option value="${f}">${f}</option>`).join('')
                 : '<option value="">—</option>';
+
+            fileSel.innerHTML = fileOptions;
+            fileSel.value = selFile;
+
+            const fileSel2 = document.getElementById('select-file-2');
+            if (fileSel2) {
+                fileSel2.innerHTML = '<option value="">Compare With...</option>' + fileOptions;
+                fileSel2.value = selFile2;
+            }
+
+            // Important: update state so renderDashboard has the correct values
+            State.setIndexData(index, {
+                selectedExpiry: selExpiry,
+                selectedFile: selFile,
+                selectedFile2: selFile2
+            });
 
         } catch (e) {
             console.error("Failed to refresh file controls", e);
@@ -131,6 +154,15 @@ const App = (() => {
             _triggerLoad(index, expiry, file);
         });
 
+        // 6. File 2 Change
+        const fileSel2 = document.getElementById('select-file-2');
+        fileSel2?.addEventListener('change', () => {
+            const file = fileSel2.value;
+            const index = State.getIndex();
+            State.setIndexData(index, { selectedFile2: file });
+            renderDashboard();
+        });
+
         // 4. Fetch Button
         fetchBtn?.addEventListener('click', async () => {
             if (_isFetching) return;
@@ -151,6 +183,23 @@ const App = (() => {
                 const curData = State.getIndexData();
                 document.getElementById('fetch-status-dot')?.classList.toggle('online', curData.hasData);
             }
+        });
+
+        // 5. Compare Button
+        const compareBtn = document.getElementById('btn-toggle-compare');
+        compareBtn?.addEventListener('click', async () => {
+            const st = State.get();
+            const nextMode = !st.compareMode;
+            State.set({ compareMode: nextMode });
+
+            // Visual state update
+            compareBtn.classList.toggle('active', nextMode);
+
+            // Sync topbar (shows/hides file2)
+            await updateTopbar();
+
+            // Re-render dashboard
+            renderDashboard();
         });
     }
 

@@ -1164,3 +1164,53 @@ def build_premium_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
     return fig.to_json()
+
+def build_compare_oi_change_chart(df1: pd.DataFrame, df2: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Compare OI Change between two snapshots.
+    Delta = df2['OI'] - df1['OI']
+    """
+    # Merge on Strike to ensure alignment
+    merged = pd.merge(df1[['Strike', 'call_oi', 'put_oi']], 
+                     df2[['Strike', 'call_oi', 'put_oi', 'Spot']], 
+                     on='Strike', how='outer', suffixes=('_1', '_2')).fillna(0)
+    
+    merged = merged.sort_values("Strike")
+    
+    merged['call_oi_delta'] = merged['call_oi_2'] - merged['call_oi_1']
+    merged['put_oi_delta'] = merged['put_oi_2'] - merged['put_oi_1']
+    
+    spot = merged["Spot"].iloc[-1] # Use latest spot
+    atm  = get_atm_strike(merged)
+    
+    fig = go.Figure()
+
+    # Call Delta (Red)
+    fig.add_trace(go.Bar(
+        x=merged["Strike"].tolist(), y=merged["call_oi_delta"].tolist(),
+        marker_color="#F43F5E", name="Call OI Delta", opacity=0.9,
+    ))
+
+    # Put Delta (Green)
+    fig.add_trace(go.Bar(
+        x=merged["Strike"].tolist(), y=merged["put_oi_delta"].tolist(),
+        marker_color="#10B981", name="Put OI Delta", opacity=0.9,
+    ))
+
+    # Spot & ATM
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
+    ]:
+        if x > 0:
+            fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                          annotation_text=label, annotation_font_color=color,
+                          annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(f"{index_name} — Comparative OI Shift")
+    layout["yaxis"]["title"] = "OI Delta (Contracts)"
+    layout["barmode"] = "group"
+    layout["bargap"] = 0.35
+    layout["bargroupgap"] = 0.05
+    fig.update_layout(**layout)
+    return fig.to_json()

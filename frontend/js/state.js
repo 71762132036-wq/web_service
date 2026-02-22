@@ -9,12 +9,13 @@ const State = (() => {
         selectedCategory: 'Gamma',
         selectedSubChart: null, // Track sub-chart within category
         gammaChartMode: 'net', // 'net' or 'raw'
+        compareMode: false,
         indices: ['Nifty', 'BankNifty', 'Sensex'],
         // Store data status per index: { indexName: { hasData, loadedFile, expiry, selectedExpiry, selectedFile } }
         indexData: {
-            'Nifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '' },
-            'BankNifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '' },
-            'Sensex': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '' },
+            'Nifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '', selectedFile2: '' },
+            'BankNifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '', selectedFile2: '' },
+            'Sensex': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedFile: '', selectedFile2: '' },
         }
     };
 

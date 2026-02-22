@@ -73,5 +73,18 @@ const Charts = (() => {
         }
     }
 
-    return { render, showLoading, fetchAndRender };
+    async function fetchAndRenderCompare(index, chartType, expiry, file1, file2, containerId) {
+        showLoading(containerId);
+        try {
+            const data = await API.getCompareChart(index, chartType, expiry, file1, file2);
+            render(containerId, data.figure);
+        } catch (err) {
+            const el = document.getElementById(containerId);
+            if (el) el.innerHTML = `<div class="chart-placeholder">
+        <span>${err.message}</span>
+      </div>`;
+        }
+    }
+
+    return { render, showLoading, fetchAndRender, fetchAndRenderCompare };
 })();

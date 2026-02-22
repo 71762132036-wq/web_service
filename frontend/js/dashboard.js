@@ -58,6 +58,18 @@ const DashboardPage = (() => {
     }
   };
 
+  const COMPARE_STRUCTURE = {
+    OI: {
+      'Compare OI': [
+        { key: 'compare_oi_change', label: 'Compare OI Change', id: 'chart-compare-oi-chg' },
+      ],
+    }
+  };
+
+  function getStructure() {
+    return State.get().compareMode ? COMPARE_STRUCTURE : ANALYSIS_STRUCTURE;
+  }
+
   // ── Templates ─────────────────────────────────────────
 
   function buildEmptyState() {
@@ -80,7 +92,8 @@ const DashboardPage = (() => {
 
   function buildBucketNav() {
     const st = State.get();
-    return Object.keys(ANALYSIS_STRUCTURE).map(bucket => `
+    const structure = getStructure();
+    return Object.keys(structure).map(bucket => `
       <button class="bucket-btn ${st.selectedBucket === bucket ? 'active' : ''}" 
               data-bucket="${bucket}">${bucket}</button>
     `).join('');
@@ -88,7 +101,8 @@ const DashboardPage = (() => {
 
   function buildCategoryNav() {
     const st = State.get();
-    const categories = ANALYSIS_STRUCTURE[st.selectedBucket] || {};
+    const structure = getStructure();
+    const categories = structure[st.selectedBucket] || {};
 
     return Object.keys(categories).map(cat => `
       <button class="category-btn ${st.selectedCategory === cat ? 'active' : ''}" 
@@ -98,7 +112,8 @@ const DashboardPage = (() => {
 
   function buildSubChartNav() {
     const st = State.get();
-    const charts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+    const structure = getStructure();
+    const charts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
     if (charts.length <= 1) return '';
 
     const activeId = st.selectedSubChart || charts[0].id;
@@ -117,7 +132,8 @@ const DashboardPage = (() => {
 
   function buildChartPanel() {
     const st = State.get();
-    const charts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+    const structure = getStructure();
+    const charts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
 
     if (charts.length === 0) {
       return '<div class="alert alert-info" style="margin-top:20px;">This section is coming soon.</div>';
@@ -233,15 +249,32 @@ const DashboardPage = (() => {
       _wireAnalysisNav(container);
 
       // Load ONLY the active sub-chart
-      const activeCharts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+      const structure = getStructure();
+      const activeCharts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
       if (activeCharts.length > 0) {
         const activeId = st.selectedSubChart || activeCharts[0].id;
         const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
 
         _loadedCharts.clear();
-        const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
-        const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
-        Charts.fetchAndRender(index, chart.key, chart.id, mode);
+
+        if (st.compareMode) {
+          const idxData = State.getIndexData(index);
+          const file1 = idxData.selectedFile;
+          const file2 = idxData.selectedFile2;
+          const expiry = idxData.selectedExpiry;
+
+          if (file1 && file2) {
+            Charts.fetchAndRenderCompare(index, chart.key, expiry, file1, file2, chart.id);
+          } else {
+            const el = document.getElementById(chart.id);
+            if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files to compare</span></div>';
+          }
+        } else {
+          const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
+          const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
+          Charts.fetchAndRender(index, chart.key, chart.id, mode);
+        }
+
         _loadedCharts.add(chart.id);
       }
 
@@ -262,8 +295,9 @@ const DashboardPage = (() => {
       const bucketBtn = e.target.closest('.bucket-btn');
       if (bucketBtn) {
         const bucket = bucketBtn.dataset.bucket;
-        const firstCat = Object.keys(ANALYSIS_STRUCTURE[bucket])[0];
-        const firstSub = ANALYSIS_STRUCTURE[bucket][firstCat][0]?.id || null;
+        const structure = getStructure();
+        const firstCat = Object.keys(structure[bucket])[0];
+        const firstSub = structure[bucket][firstCat][0]?.id || null;
         State.set({ selectedBucket: bucket, selectedCategory: firstCat, selectedSubChart: firstSub });
         render(container);
         return;
@@ -273,7 +307,8 @@ const DashboardPage = (() => {
       const catBtn = e.target.closest('.category-btn');
       if (catBtn) {
         const cat = catBtn.dataset.category;
-        const firstSub = ANALYSIS_STRUCTURE[State.get().selectedBucket][cat][0]?.id || null;
+        const structure = getStructure();
+        const firstSub = structure[State.get().selectedBucket][cat][0]?.id || null;
         State.set({ selectedCategory: cat, selectedSubChart: firstSub });
         render(container);
         return;
