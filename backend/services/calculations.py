@@ -28,6 +28,22 @@ def calculate_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
     return df
 
 
+def calculate_delta_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
+    """
+    Standard Delta Exposure calculation.
+    DEX = delta * OI * lot_size * spot
+    """
+    df = df.copy()
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+    multiplier = lot_size * spot
+    
+    df["Call_DEX"] = -df["call_delta"] * df["Call_OI"] * multiplier
+    df["Put_DEX"] = -df["put_delta"] * df["Put_OI"] * multiplier
+    df["Total_DEX"] = df["Call_DEX"] + df["Put_DEX"]
+    df["Abs_DEX"] = df["Total_DEX"].abs()
+    return df
+
+
 # ---------------------------------------------------------------------------
 # Key level helpers
 # ---------------------------------------------------------------------------

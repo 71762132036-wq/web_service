@@ -10,10 +10,12 @@ from fastapi import APIRouter, HTTPException
 
 import store
 from core.config import INDICES
-from services.calculations import calculate_vol_surface
+from services.calculations import calculate_vol_surface, calculate_delta_exposure
 from services.chart_service import (
     build_dealer_regime_map,
     build_gamma_chart,
+    build_delta_chart,
+    build_cumulative_delta_chart,
     build_cumulative_gamma_chart,
     build_iv_smile,
     build_rr_bf,
@@ -22,7 +24,7 @@ from services.chart_service import (
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "cum_gex", "regime", "iv_smile", "rr_bf", "quant_power"}
+CHART_TYPES = {"gex", "dex", "cum_gex", "cum_dex", "regime", "iv_smile", "rr_bf", "quant_power"}
 
 
 @router.get("/charts/{index}/{chart_type}")
@@ -43,8 +45,14 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
     try:
         if chart_type == "gex":
             json_str = build_gamma_chart(df, index, mode=mode)
+        elif chart_type == "dex":
+            df_dex   = calculate_delta_exposure(df)
+            json_str = build_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "cum_gex":
             json_str = build_cumulative_gamma_chart(df, index, mode=mode)
+        elif chart_type == "cum_dex":
+            df_dex   = calculate_delta_exposure(df)
+            json_str = build_cumulative_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "regime":
             json_str = build_dealer_regime_map(df, index)
         elif chart_type == "iv_smile":

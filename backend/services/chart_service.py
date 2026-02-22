@@ -160,6 +160,164 @@ def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "
     return fig.to_json()
 
 
+def build_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    """
+    Carbon copy of Gamma Exposure chart, but for Delta.
+    """
+    spot      = df["Spot"].iloc[0]
+    flip      = calculate_flip_point(df)
+    bw        = _bar_width(df)
+    top_zones = df.nlargest(3, "Abs_DEX")
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    if mode == "net":
+        # Dealer Delta bars
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["Total_DEX"].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name="+Dealer Delta", opacity=0.9,
+        ), secondary_y=False)
+
+        # -Dealer Delta bars
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["Total_DEX"].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name="-Dealer Delta", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Dealer Delta Exposure"
+        y_title = "Dealer DEX"
+    else:
+        # Raw Mode: Dealer Call Up / Dealer Put Down
+        call_vals = df["Call_DEX"].abs().tolist()
+        put_vals  = (-df["Put_DEX"].abs()).tolist()
+
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=call_vals,
+            width=bw * 0.9, marker_color=C_POS, name="Dealer Call Delta ↑", opacity=0.9,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=put_vals,
+            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put Delta ↓", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Dealer Call vs Put Delta"
+        y_title = "Dealer DEX"
+
+    # Heat & Annotations
+    fig.add_trace(go.Scatter(
+        x=df["Strike"].tolist(), y=df["Abs_DEX"].tolist(),
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Absolute Dealer Delta Heat", mode="lines",
+    ), secondary_y=True)
+
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    for _, row in top_zones.iterrows():
+        fig.add_vrect(
+            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
+            fillcolor=C_ZONE, layer="below", line_width=0,
+        )
+
+    layout = _base_layout(chart_title)
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
+    layout["barmode"] = "overlay"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Dealer Delta")
+    layout["yaxis"]["title"] = "Net Dealer Delta"
+    fig.update_layout(**layout)
+
+    return fig.to_json()
+
+
+def build_cumulative_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    """
+    A 'carbon copy' of the Delta Exposure chart, but replaces the 
+    Absolute Heat overlay with a Cumulative DEX line.
+    """
+    spot = df["Spot"].iloc[0]
+    flip = calculate_flip_point(df)
+    bw   = _bar_width(df)
+    
+    # Pre-sort for cumulative calc
+    df_sorted = df.sort_values("Strike").copy()
+    df_sorted["Cum_DEX"] = df_sorted["Total_DEX"].cumsum()
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    if mode == "net":
+        # Dealer Delta Bars
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_DEX"].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name="+Dealer Delta", opacity=0.9,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_DEX"].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name="-Dealer Delta", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Cumulative Dealer Delta Profile"
+    else:
+        # Dealer Delta Bars (Raw)
+        call_vals = df_sorted["Call_DEX"].abs().tolist()
+        put_vals  = (-df_sorted["Put_DEX"].abs()).tolist()
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=call_vals,
+            width=bw * 0.9, marker_color=C_POS, name="Dealer Call Delta ↑", opacity=0.9,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=put_vals,
+            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put Delta ↓", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Raw Dealer Cum-Delta View"
+
+    # Cumulative Delta Line
+    fig.add_trace(go.Scatter(
+        x=df_sorted["Strike"].tolist(), 
+        y=df_sorted["Cum_DEX"].tolist(),
+        fill="tozeroy",
+        fillcolor="rgba(99, 102, 241, 0.1)",
+        line=dict(color=C_POS, width=3),
+        name="Cumulative Dealer Delta",
+        mode="lines",
+    ), secondary_y=True)
+    
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(chart_title)
+    
+    strikes = df_sorted["Strike"].unique().tolist()
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
+    layout["barmode"] = "overlay"
+    layout["yaxis"]["title"] = "Strike-wise Dealer Delta"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative Dealer Delta", overlaying="y", side="right")
+    
+    fig.update_layout(**layout)
+
+    return fig.to_json()
+
+
 # ---------------------------------------------------------------------------
 # 2 — Dealer Regime Map
 # ---------------------------------------------------------------------------
