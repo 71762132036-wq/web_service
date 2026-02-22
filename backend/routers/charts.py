@@ -31,11 +31,14 @@ from services.chart_service import (
     build_oi_change_chart,
     build_premium_flow_chart,
     build_compare_oi_change_chart,
+    build_flow_intensity_chart,
+    build_strike_pressure_chart,
 )
+from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -88,6 +91,51 @@ def get_compare_chart(index: str, chart_type: str, expiry: str, file1: str, file
         raise HTTPException(status_code=500, detail=f"Comparison error: {exc}")
 
 
+@router.get("/charts/direction/{index}/{chart_type}")
+def get_direction_chart(index: str, chart_type: str, expiry: str, file1: str, file2: str):
+    """Directional flow analysis based on two snapshots."""
+    from pathlib import Path
+    
+    if index not in INDICES:
+        raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
+        
+    data_path = Path(DATA_DIR).resolve()
+    
+    # Path resolution (same logic as compare)
+    path_1 = data_path / index / expiry / file1
+    path_2 = data_path / index / expiry / file2
+    if not path_1.exists() and index == "Nifty": path_1 = data_path / expiry / file1
+    if not path_2.exists() and index == "Nifty": path_2 = data_path / expiry / file2
+    
+    if not path_1.exists() or not path_2.exists():
+        raise HTTPException(status_code=404, detail="Data files not found for direction analysis")
+        
+    df1, _ = load_data_file(str(path_1))
+    df2, _ = load_data_file(str(path_2))
+    
+    try:
+        flow_data = classify_option_flow(df2, df1, index) # df_now=df2 (later), df_prev=df1 (earlier)
+        
+        if chart_type == "flow_intensity":
+            json_str = build_flow_intensity_chart(flow_data, index)
+        elif chart_type == "strike_pressure":
+            json_str = build_strike_pressure_chart(flow_data['merged'], index)
+        else:
+            raise HTTPException(status_code=400, detail="Unknown direction chart type")
+            
+        return {
+            "index": index, 
+            "chart_type": chart_type, 
+            "figure": json_str,
+            "summary": {
+                "calls": {"pressure": flow_data['calls']['pressure'], "label": flow_data['calls']['label']},
+                "puts": {"pressure": flow_data['puts']['pressure'], "label": flow_data['puts']['label']}
+            }
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Direction analysis error: {exc}")
+
+
 @router.get("/charts/{index}/{chart_type}")
 def get_chart(index: str, chart_type: str, mode: str = "net"):
     """Return Plotly JSON string for the requested chart."""
@@ -105,26 +153,30 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
 
     try:
         if chart_type == "gex":
-            json_str = build_gamma_chart(df, index, mode=mode)
+            from services.calculations import calculate_gex
+            df_gex = calculate_gex(df, lot_size=INDICES[index].get("lot_size", 75))
+            json_str = build_gamma_chart(df_gex, index, mode=mode)
         elif chart_type == "dex":
-            df_dex   = calculate_delta_exposure(df)
+            df_dex   = calculate_delta_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "cum_gex":
-            json_str = build_cumulative_gamma_chart(df, index, mode=mode)
+            from services.calculations import calculate_gex
+            df_gex = calculate_gex(df, lot_size=INDICES[index].get("lot_size", 75))
+            json_str = build_cumulative_gamma_chart(df_gex, index, mode=mode)
         elif chart_type == "cum_dex":
-            df_dex   = calculate_delta_exposure(df)
+            df_dex   = calculate_delta_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_cumulative_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "vex":
-            df_vex   = calculate_vanna_exposure(df)
+            df_vex   = calculate_vanna_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_vanna_chart(df_vex, index, mode=mode)
         elif chart_type == "cum_vex":
-            df_vex   = calculate_vanna_exposure(df)
+            df_vex   = calculate_vanna_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_cumulative_vanna_chart(df_vex, index, mode=mode)
         elif chart_type == "cex":
-            df_cex   = calculate_charm_exposure(df)
+            df_cex   = calculate_charm_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_charm_chart(df_cex, index, mode=mode)
         elif chart_type == "cum_cex":
-            df_cex   = calculate_charm_exposure(df)
+            df_cex   = calculate_charm_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
             json_str = build_cumulative_charm_chart(df_cex, index, mode=mode)
         elif chart_type == "regime":
             json_str = build_dealer_regime_map(df, index)

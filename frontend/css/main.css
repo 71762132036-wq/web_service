@@ -432,9 +432,20 @@ body {
 }
 
 @keyframes pulse-compare {
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.2); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .topbar-center {
@@ -755,6 +766,27 @@ body {
 
 .metric-card.short-gamma .metric-value {
   color: var(--accent-red);
+}
+
+/* Direction Flow Status */
+.metric-card.flow-status.bullish .metric-label {
+  color: var(--accent-green);
+  opacity: 1;
+}
+
+.metric-card.flow-status.bullish .metric-value {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.metric-card.flow-status.bearish .metric-label {
+  color: var(--accent-red);
+  opacity: 1;
+}
+
+.metric-card.flow-status.bearish .metric-value {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
 }
 
 /* ── Section headers ─────────────────────────────────────── */

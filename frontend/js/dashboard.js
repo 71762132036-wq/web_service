@@ -5,6 +5,7 @@
 const DashboardPage = (() => {
 
   const _loadedCharts = new Set();
+  let _lastFlowSummary = null;
 
   const ANALYSIS_STRUCTURE = {
     'Exposure': {
@@ -63,11 +64,31 @@ const DashboardPage = (() => {
       'Compare OI': [
         { key: 'compare_oi_change', label: 'Compare OI Change', id: 'chart-compare-oi-chg' },
       ],
+    },
+    'Direction': {
+      'Flow Intensity': [
+        { key: 'flow_intensity', label: 'Activity Map', id: 'chart-flow-intensity' },
+      ],
+      'Net Pressure': [
+        { key: 'strike_pressure', label: 'Strike Pressure', id: 'chart-strike-pressure' },
+      ]
     }
   };
 
   function getStructure() {
-    return State.get().compareMode ? COMPARE_STRUCTURE : ANALYSIS_STRUCTURE;
+    const st = State.get();
+    const structure = st.compareMode ? COMPARE_STRUCTURE : ANALYSIS_STRUCTURE;
+
+    // Safety: if currently selected bucket is not in current structure, fallback
+    if (!structure[st.selectedBucket]) {
+      const fallback = Object.keys(structure)[0];
+      State.set({
+        selectedBucket: fallback,
+        selectedCategory: Object.keys(structure[fallback])[0]
+      });
+    }
+
+    return structure;
   }
 
   // ── Templates ─────────────────────────────────────────
@@ -229,10 +250,17 @@ const DashboardPage = (() => {
           <!-- Secondary Metrics Row -->
           <div class="metrics-section">
             <div class="metrics-grid">
-              ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-              ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-              ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
-              ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+              ${st.selectedBucket === 'Direction' && _lastFlowSummary ? `
+                ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
+                ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
+                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+              ` : `
+                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+                ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
+                ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+              `}
             </div>
           </div>
 
@@ -257,11 +285,23 @@ const DashboardPage = (() => {
 
         _loadedCharts.clear();
 
-        if (st.compareMode) {
+        if (st.selectedBucket === 'Direction') {
           const idxData = State.getIndexData(index);
-          const file1 = idxData.selectedFile;
-          const file2 = idxData.selectedFile2;
-          const expiry = idxData.selectedExpiry;
+          const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
+
+          if (file1 && file2) {
+            const res = await Charts.fetchAndRenderDirection(index, chart.key, expiry, file1, file2, chart.id);
+            if (res && res.summary) {
+              _lastFlowSummary = res.summary;
+              _renderMetricsOnly(container, metrics, regimeClass);
+            }
+          } else {
+            const el = document.getElementById(chart.id);
+            if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files in Compare mode</span></div>';
+          }
+        } else if (st.compareMode) {
+          const idxData = State.getIndexData(index);
+          const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
 
           if (file1 && file2) {
             Charts.fetchAndRenderCompare(index, chart.key, expiry, file1, file2, chart.id);
@@ -274,7 +314,6 @@ const DashboardPage = (() => {
           const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
           Charts.fetchAndRender(index, chart.key, chart.id, mode);
         }
-
         _loadedCharts.add(chart.id);
       }
 
@@ -329,6 +368,25 @@ const DashboardPage = (() => {
         render(container);
       }
     });
+  }
+
+  function _renderMetricsOnly(container, metrics, regimeClass) {
+    const grid = container.querySelector('.metrics-grid');
+    if (!grid) return;
+    const st = State.get();
+    grid.innerHTML = `
+      ${st.selectedBucket === 'Direction' && _lastFlowSummary ? `
+        ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
+        ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
+        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+      ` : `
+        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+        ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
+        ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+      `}
+    `;
   }
 
   return { render };

@@ -76,6 +76,10 @@ const API = {
   getCompareChart: (index, chartType, expiry, file1, file2) =>
     apiFetch(`/api/charts/compare/${index}/${chartType}?expiry=${expiry}&file1=${file1}&file2=${file2}`),
 
+  /** GET /api/charts/direction/{index}/{chart_type}?expiry=...&file1=...&file2=... */
+  getDirectionChart: (index, chartType, expiry, file1, file2) =>
+    apiFetch(`/api/charts/direction/${index}/${chartType}?expiry=${expiry}&file1=${file1}&file2=${file2}`),
+
   // ── Export ──────────────────────────────────────────────
 
   /** GET /api/export/{index} — triggers browser download */

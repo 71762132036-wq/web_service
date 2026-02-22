@@ -1214,3 +1214,87 @@ def build_compare_oi_change_chart(df1: pd.DataFrame, df2: pd.DataFrame, index_na
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
     return fig.to_json()
+
+def build_flow_intensity_chart(flow_data: dict, index_name: str = "Index") -> str:
+    """
+    Visualizes flow intensity (Bought to Open, Sold to Open, etc.)
+    for Calls and Puts side-by-side.
+    """
+    cats = ['bought_to_open', 'short_covered', 'sold_to_open', 'bought_to_close']
+    labels = ['Buy Open', 'Cover Short', 'Sell Open', 'Sell Close']
+    
+    fig = go.Figure()
+    
+    # Calls
+    call_vals = [flow_data['calls'].get(c, 0) for c in cats]
+    fig.add_trace(go.Bar(
+        name='Calls',
+        x=labels,
+        y=call_vals,
+        marker_color="#F43F5E",
+        opacity=0.85
+    ))
+    
+    # Puts
+    put_vals = [flow_data['puts'].get(c, 0) for c in cats]
+    fig.add_trace(go.Bar(
+        name='Puts',
+        x=labels,
+        y=put_vals,
+        marker_color="#10B981",
+        opacity=0.85
+    ))
+    
+    layout = _base_layout(f"{index_name} — Flow Activity Intensity")
+    layout["yaxis"]["title"] = "Dollar Value Flow"
+    layout["barmode"] = "group"
+    layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    fig.update_layout(**layout)
+    return fig.to_json()
+
+def build_strike_pressure_chart(merged_detail: list, index_name: str = "Index") -> str:
+    """
+    Strike-wise Net Pressure Score.
+    Score = (Buy Flow - Sell Flow) / Total per strike.
+    """
+    df = pd.DataFrame(merged_detail)
+    if df.empty: return "{}"
+    
+    # Calculate net pressure per strike
+    # Simplified: (long_delta / total_delta) per strike
+    def get_strike_pressure(g):
+        buying = g[g['flow_class'].isin(['bought_to_open', 'short_covered'])]['dollar_flow'].sum()
+        selling = g[g['flow_class'].isin(['sold_to_open', 'bought_to_close'])]['dollar_flow'].sum()
+        total = buying + selling
+        return (buying - selling) / total if total > 0 else 0
+
+    strikes = sorted(df['strike'].unique())
+    call_pressure = []
+    put_pressure = []
+    
+    for s in strikes:
+        s_df = df[df['strike'] == s]
+        call_pressure.append(get_strike_pressure(s_df[s_df['option_type'] == 'call']))
+        put_pressure.append(get_strike_pressure(s_df[s_df['option_type'] == 'put']))
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=strikes, y=call_pressure, name="Call Pressure",
+        line=dict(color="#F43F5E", width=2, shape='spline'),
+        mode='lines+markers', marker=dict(size=4)
+    ))
+    fig.add_trace(go.Scatter(
+        x=strikes, y=put_pressure, name="Put Pressure",
+        line=dict(color="#10B981", width=2, shape='spline'),
+        mode='lines+markers', marker=dict(size=4)
+    ))
+    
+    # Add zero line
+    fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.2)")
+
+    layout = _base_layout(f"{index_name} — Strike-wise Net Pressure")
+    layout["yaxis"]["title"] = "Pressure (-1 to +1)"
+    layout["yaxis"]["range"] = [-1.1, 1.1]
+    layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    fig.update_layout(**layout)
+    return fig.to_json()

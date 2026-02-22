@@ -86,5 +86,20 @@ const Charts = (() => {
         }
     }
 
-    return { render, showLoading, fetchAndRender, fetchAndRenderCompare };
+    async function fetchAndRenderDirection(index, chartType, expiry, file1, file2, containerId) {
+        showLoading(containerId);
+        try {
+            const data = await API.getDirectionChart(index, chartType, expiry, file1, file2);
+            render(containerId, data.figure);
+            return data; // Return full data for summary info (pressure labels)
+        } catch (err) {
+            const el = document.getElementById(containerId);
+            if (el) el.innerHTML = `<div class="chart-placeholder">
+        <span>${err.message}</span>
+      </div>`;
+            return null;
+        }
+    }
+
+    return { render, showLoading, fetchAndRender, fetchAndRenderCompare, fetchAndRenderDirection };
 })();
