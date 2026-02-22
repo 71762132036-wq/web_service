@@ -65,6 +65,7 @@ const Charts = (() => {
         try {
             const data = await API.getChart(index, chartType, mode);
             render(containerId, data.figure);
+            return data;
         } catch (err) {
             const el = document.getElementById(containerId);
             if (el) el.innerHTML = `<div class="chart-placeholder">

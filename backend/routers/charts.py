@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 import store
 from core.config import INDICES, DATA_DIR
 from services.upstox_service import load_data_file
-from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure, calculate_iv_cone
+from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure, calculate_iv_cone, calculate_vtl
 from services.chart_service import (
     build_dealer_regime_map,
     build_gamma_chart,
@@ -33,12 +33,13 @@ from services.chart_service import (
     build_compare_oi_change_chart,
     build_flow_intensity_chart,
     build_strike_pressure_chart,
+    build_vtl_chart,
 )
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -194,8 +195,20 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
         elif chart_type == "premium_flow":
             json_str = build_premium_flow_chart(df, index)
         elif chart_type == "rr_bf":
-            vs       = calculate_vol_surface(df)
-            json_str = build_rr_bf(vs)
+            json_str = build_rr_bf(df, index)
+        elif chart_type == "vtl":
+            vtl_res  = calculate_vtl(df, df["Spot"].iloc[0])
+            json_str = build_vtl_chart(vtl_res, df["Spot"].iloc[0], index)
+            return {
+                "index": index,
+                "chart_type": chart_type,
+                "figure": json_str,
+                "summary": {
+                    "vtl": vtl_res['vtl'],
+                    "distance_pct": vtl_res['distance_pct'],
+                    "direction": vtl_res['direction']
+                }
+            }
         elif chart_type == "quant_power":
             json_str = build_quant_power_chart(df, index)
 

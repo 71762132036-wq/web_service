@@ -3,9 +3,9 @@ Calculation service — GEX metrics, flip point, gamma cage, vol surface.
 Ported from streamlit_app/modules/calculations.py
 """
 
-import itertools
-
+import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 
 # ---------------------------------------------------------------------------
@@ -423,3 +423,96 @@ def calculate_premium_flow(df: pd.DataFrame) -> pd.DataFrame:
     )
     
     return df
+
+def calculate_vtl(df: pd.DataFrame, spot: float, r: float = 0.05) -> dict:
+    """
+    Finds the price level where BOTH Dealer GEX AND Vanna flows
+    reverse simultaneously — the true volatility ignition point.
+    """
+    from scipy.stats import norm
+    import numpy as np
+
+    # 1. Normalize data
+    # Filter rows with valid IV and OI
+    df = df.dropna(subset=['call_iv', 'put_iv', 'Call_OI', 'Put_OI'])
+    
+    # We need a stable time-to-maturity (T). 
+    # If using historical data, 'expiry' - 'today' might be negative.
+    # We use at least 1 day (1/365) to avoid NaNs in Greeks.
+    today = pd.Timestamp("today").normalize()
+    
+    calls = pd.DataFrame({
+        'strike': df['Strike'],
+        'T': (pd.to_datetime(df['expiry']) - today).dt.days.clip(lower=1) / 365.0,
+        'sigma': df['call_iv'] / 100.0,
+        'oi': df['Call_OI'],
+        'sign': 1
+    })
+    puts = pd.DataFrame({
+        'strike': df['Strike'],
+        'T': (pd.to_datetime(df['expiry']) - today).dt.days.clip(lower=1) / 365.0,
+        'sigma': df['put_iv'] / 100.0,
+        'oi': df['Put_OI'],
+        'sign': -1
+    })
+    long_df = pd.concat([calls, puts], ignore_index=True)
+    long_df = long_df[long_df['sigma'] > 0] # Filter out zero vol
+    
+    # 2. Simulate price range around spot (+/- 5%)
+    # Use 50 points instead of fixed 5 rupee steps for better chart resolution
+    test_prices = np.linspace(spot * 0.95, spot * 1.05, 50)
+    results = []
+    
+    for test_spot in test_prices:
+        total_gex = 0.0
+        total_vex = 0.0
+        
+        for _, row in long_df.iterrows():
+            T     = row['T']
+            sigma = row['sigma']
+            K     = row['strike']
+            oi    = row['oi']
+            sign  = row['sign']
+            
+            # Black-Scholes Greeks
+            d1 = (np.log(test_spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
+            d2 = d1 - sigma * np.sqrt(T)
+            
+            gamma = norm.pdf(d1) / (test_spot * sigma * np.sqrt(T))
+            vanna = -norm.pdf(d1) * d2 / sigma
+            
+            # Scaled exposure logic provided by user
+            # multiplier = 100 * test_spot^2 * 0.01 = test_spot^2
+            total_gex += gamma * oi * test_spot**2 * sign
+            total_vex += vanna * oi * test_spot * sign
+        
+        results.append({
+            'price'    : float(test_spot),
+            'net_gex'  : float(total_gex),
+            'net_vex'  : float(total_vex),
+            'combined' : float(total_gex + total_vex)
+        })
+    
+    results_df = pd.DataFrame(results)
+    
+    # 3. Find VTL (Combined zero crossing)
+    sign_change = np.where(np.diff(np.sign(results_df['combined'])))[0]
+    
+    if len(sign_change) > 0:
+        idx = sign_change[0]
+        r0, r1 = results_df.iloc[idx], results_df.iloc[idx+1]
+        vtl = r0['price'] + (r1['price'] - r0['price']) * (
+            -r0['combined'] / (r1['combined'] - r0['combined'])
+        )
+    else:
+        # Fallback to closest to zero
+        vtl = float(results_df.loc[results_df['combined'].abs().idxmin(), 'price'])
+    
+    distance_pct = (spot - vtl) / spot * 100
+    
+    return {
+        'vtl'          : round(float(vtl), 2),
+        'distance_pct' : round(float(distance_pct), 3),
+        'direction'    : 'above' if spot > vtl else 'below',
+        'sim_data'     : results
+    }

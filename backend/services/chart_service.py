@@ -1298,3 +1298,52 @@ def build_strike_pressure_chart(merged_detail: list, index_name: str = "Index") 
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     fig.update_layout(**layout)
     return fig.to_json()
+
+def build_vtl_chart(vtl_data: dict, spot: float, index_name: str = "Index") -> str:
+    """
+    Visualizes the Volatility Trigger simulation:
+    Net GEX, Net Vanna, and Combined curves.
+    """
+    df = pd.DataFrame(vtl_data['sim_data'])
+    vtl_price = vtl_data['vtl']
+    
+    fig = go.Figure()
+    
+    # Net GEX
+    fig.add_trace(go.Scatter(
+        x=df['price'], y=df['net_gex'], name="Dealer GEX",
+        line=dict(color="#6366F1", width=1.5, dash='dot'),
+        mode='lines'
+    ))
+    
+    # Net Vanna
+    fig.add_trace(go.Scatter(
+        x=df['price'], y=df['net_vex'], name="Dealer Vanna",
+        line=dict(color="#F43F5E", width=1.5, dash='dot'),
+        mode='lines'
+    ))
+    
+    # Combined (The Trigger)
+    fig.add_trace(go.Scatter(
+        x=df['price'], y=df['combined'], name="Combined (Ignition)",
+        line=dict(color="#F59E0B", width=3),
+        mode='lines',
+        fill='tozeroy', fillcolor='rgba(245, 158, 11, 0.05)'
+    ))
+    
+    # VTL vertical line
+    fig.add_vline(x=vtl_price, line_color="#F1F5F9", line_dash="dash", line_width=2,
+                  annotation_text=f"VTL: {vtl_price:,.0f}", annotation_position="top left")
+    
+    # Current Spot line
+    fig.add_vline(x=spot, line_color="#F59E0B", line_width=1,
+                  annotation_text=f"SPOT: {spot:,.0f}", annotation_position="bottom right")
+
+    layout = _base_layout(f"{index_name} — Volatility Trigger Level (VTL)")
+    layout["yaxis"]["title"] = "Exposure Value"
+    layout["xaxis"]["title"] = "Underlying Price"
+    # Ensure X-axis covers the full simulation range even if traces are tiny
+    layout["xaxis"]["range"] = [df['price'].min(), df['price'].max()]
+    layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    fig.update_layout(**layout)
+    return fig.to_json()

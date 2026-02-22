@@ -35,6 +35,9 @@ const DashboardPage = (() => {
       ],
       'Expected Range': [
         { key: 'iv_cone', label: 'IV Cone', id: 'chart-iv-cone' },
+      ],
+      'Vol Trigger': [
+        { key: 'vtl', label: 'Volatility Trigger', id: 'chart-vtl' },
       ]
     },
     OI: {
@@ -250,7 +253,12 @@ const DashboardPage = (() => {
           <!-- Secondary Metrics Row -->
           <div class="metrics-section">
             <div class="metrics-grid">
-              ${st.selectedBucket === 'Direction' && _lastFlowSummary ? `
+              ${_lastFlowSummary?.vtl ? `
+                ${buildMetricCard('VTL Level', _lastFlowSummary.vtl.toLocaleString(), `Price: ${_lastFlowSummary.vtl.toLocaleString()}`, 'flow-status')}
+                ${buildMetricCard('VTL Distance', `${Math.abs(_lastFlowSummary.distance_pct).toFixed(2)}%`, `Spot is ${_lastFlowSummary.direction} VTL`, `flow-status ${_lastFlowSummary.distance_pct > 0 ? 'bullish' : 'bearish'}`)}
+                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+              ` : (st.selectedBucket === 'Direction' && _lastFlowSummary ? `
                 ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
                 ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
                 ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
@@ -260,7 +268,7 @@ const DashboardPage = (() => {
                 ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
                 ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
                 ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
-              `}
+              `)}
             </div>
           </div>
 
@@ -293,8 +301,10 @@ const DashboardPage = (() => {
             const res = await Charts.fetchAndRenderDirection(index, chart.key, expiry, file1, file2, chart.id);
             if (res && res.summary) {
               _lastFlowSummary = res.summary;
-              _renderMetricsOnly(container, metrics, regimeClass);
+            } else {
+              _lastFlowSummary = null;
             }
+            _renderMetricsOnly(container, metrics, regimeClass);
           } else {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files in Compare mode</span></div>';
@@ -312,7 +322,13 @@ const DashboardPage = (() => {
         } else {
           const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
           const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
-          Charts.fetchAndRender(index, chart.key, chart.id, mode);
+          const res = await Charts.fetchAndRender(index, chart.key, chart.id, mode);
+          if (res && res.summary) {
+            _lastFlowSummary = res.summary;
+          } else {
+            _lastFlowSummary = null;
+          }
+          _renderMetricsOnly(container, metrics, regimeClass);
         }
         _loadedCharts.add(chart.id);
       }
@@ -375,7 +391,12 @@ const DashboardPage = (() => {
     if (!grid) return;
     const st = State.get();
     grid.innerHTML = `
-      ${st.selectedBucket === 'Direction' && _lastFlowSummary ? `
+      ${_lastFlowSummary?.vtl ? `
+        ${buildMetricCard('VTL Level', _lastFlowSummary.vtl.toLocaleString(), `Price: ${_lastFlowSummary.vtl.toLocaleString()}`, 'flow-status')}
+        ${buildMetricCard('VTL Distance', `${Math.abs(_lastFlowSummary.distance_pct).toFixed(2)}%`, `Spot is ${_lastFlowSummary.direction} VTL`, `flow-status ${_lastFlowSummary.distance_pct > 0 ? 'bullish' : 'bearish'}`)}
+        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+      ` : (st.selectedBucket === 'Direction' && _lastFlowSummary ? `
         ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
         ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
         ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
@@ -385,7 +406,7 @@ const DashboardPage = (() => {
         ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
         ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
         ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
-      `}
+      `)}
     `;
   }
 
