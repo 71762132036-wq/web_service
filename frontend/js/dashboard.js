@@ -58,30 +58,10 @@ const DashboardPage = (() => {
     const st = State.get();
     const categories = ANALYSIS_STRUCTURE[st.selectedBucket] || {};
 
-    let html = `
-      <div class="category-selectors-row">
-        <div class="category-pills">
-          ${Object.keys(categories).map(cat => `
-            <button class="category-btn ${st.selectedCategory === cat ? 'active' : ''}" 
-                    data-category="${cat}">${cat}</button>
-          `).join('')}
-        </div>
-    `;
-
-    // Add extra controls for specific categories
-    if (st.selectedCategory === 'Gamma') {
-      html += `
-        <div class="category-tools">
-          <div class="segmented-control mode-toggle">
-            <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net</button>
-            <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Raw</button>
-          </div>
-        </div>
-      `;
-    }
-
-    html += `</div>`;
-    return html;
+    return Object.keys(categories).map(cat => `
+      <button class="category-btn ${st.selectedCategory === cat ? 'active' : ''}" 
+              data-category="${cat}">${cat}</button>
+    `).join('');
   }
 
   function buildChartTabs() {
@@ -151,29 +131,44 @@ const DashboardPage = (() => {
       container.innerHTML = `
         <div class="dashboard-wrapper">
           
-          <!-- Analysis Selector (Buckets & Categories) -->
-          <div class="analysis-nav-container">
-            <div class="bucket-selector">${buildBucketNav()}</div>
-            <div class="category-selector">${buildCategoryNav()}</div>
+          <!-- Unified Analysis Header (Nav + Mode) -->
+          <div class="analysis-nav-section">
+            <div class="analysis-nav-container">
+              <div class="bucket-selector">${buildBucketNav()}</div>
+              <div class="category-pills">${buildCategoryNav()}</div>
+            </div>
+            ${st.selectedCategory === 'Gamma' ? `
+              <div class="gamma-mode-selector">
+                <span class="selector-label">View Mode</span>
+                <div class="segmented-control mode-toggle">
+                  <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net Exposure</button>
+                  <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Call vs Put</button>
+                </div>
+              </div>
+            ` : ''}
           </div>
 
-          <!-- Key Metrics -->
-          <div class="metrics-grid">
-            ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-            ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-            ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
-            ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
-          </div>
-
-          <!-- Active Charts -->
+          <!-- Main Analysis Canvas -->
           <div class="analysis-content">
             ${buildChartTabs()}
           </div>
 
-          <!-- Vol Surface (Only if in Volatility category or always?) User didn't specify, keeping as a footer for now -->
+          <!-- Secondary Metrics Row -->
+          <div class="metrics-section">
+            <div class="metrics-grid">
+              ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+              ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+              ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
+              ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+            </div>
+          </div>
+
+          <!-- Contextual Surface Details -->
           ${st.selectedCategory === 'Volatility' ? `
-            <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
-            <div class="card">${buildVolSurface(vs)}</div>
+            <div class="section-overlay">
+              <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
+              <div class="card glass-card">${buildVolSurface(vs)}</div>
+            </div>
           ` : ''}
 
         </div>
@@ -202,24 +197,28 @@ const DashboardPage = (() => {
   }
 
   function _wireAnalysisNav(container) {
-    container.querySelector('.bucket-selector').addEventListener('click', e => {
-      const btn = e.target.closest('.bucket-btn');
-      if (!btn) return;
-      const bucket = btn.dataset.bucket;
-      const firstCat = Object.keys(ANALYSIS_STRUCTURE[bucket])[0];
-      State.set({ selectedBucket: bucket, selectedCategory: firstCat });
-      render(container);
-    });
+    const navSection = container.querySelector('.analysis-nav-section');
 
-    const catSelector = container.querySelector('.category-selector');
-    catSelector.addEventListener('click', e => {
-      const btn = e.target.closest('.category-btn');
-      if (btn) {
-        State.set({ selectedCategory: btn.dataset.category });
+    navSection.addEventListener('click', e => {
+      // Bucket clicks
+      const bucketBtn = e.target.closest('.bucket-btn');
+      if (bucketBtn) {
+        const bucket = bucketBtn.dataset.bucket;
+        const firstCat = Object.keys(ANALYSIS_STRUCTURE[bucket])[0];
+        State.set({ selectedBucket: bucket, selectedCategory: firstCat });
         render(container);
         return;
       }
 
+      // Category clicks
+      const catBtn = e.target.closest('.category-btn');
+      if (catBtn) {
+        State.set({ selectedCategory: catBtn.dataset.category });
+        render(container);
+        return;
+      }
+
+      // Mode switch clicks
       const modeBtn = e.target.closest('.segment-btn');
       if (modeBtn) {
         State.set({ gammaChartMode: modeBtn.dataset.mode });

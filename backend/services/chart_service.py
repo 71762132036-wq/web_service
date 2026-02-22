@@ -16,36 +16,53 @@ from services.calculations import (
 )
 
 # ---------------------------------------------------------------------------
-# Colour palette (dark theme)
+# Colour palette (Premium Terminal Theme)
 # ---------------------------------------------------------------------------
-C_POS    = "#00C8FF"   # positive gamma (cyan)
-C_NEG    = "#FF4B4B"   # negative gamma (red)
-C_ABS    = "rgba(147, 51, 234, 0.30)"   # absolute gamma fill
-C_SPOT   = "#FF9900"   # spot price line
-C_ATM    = "#9CA3AF"   # ATM line
-C_FLIP   = "#F9FAFB"   # flip point line
-C_CAGE   = "rgba(59, 130, 246, 0.08)"   # gamma cage fill
-C_ZONE   = "rgba(250, 204, 21, 0.15)"   # power zone highlight
-PAPER_BG = "#0F172A"
-PLOT_BG  = "#1E293B"
-FONT_CLR = "#E2E8F0"
-GRID_CLR = "rgba(255,255,255,0.06)"
+C_POS    = "#6366F1"   # Indigo (Stabilizing / Call)
+C_NEG    = "#F43F5E"   # Rose (Fuel / Put)
+C_ABS    = "rgba(239, 222, 11, 0.3)"   # Absolute Gamma Fill (Pale Yellow)
+C_SPOT   = "#F59E0B"   # Spot (Amber)
+C_ATM    = "#94A3B8"   # ATM (Slate)
+C_FLIP   = "#F1F5F9"   # Flip (Cloud)
+C_CAGE   = "rgba(99, 102, 241, 0.05)"
+C_ZONE   = "rgba(245, 158, 11, 0.12)"
+PAPER_BG = "rgba(15, 23, 42, 0)"  # Fully transparent back, handle in CSS
+PLOT_BG  = "rgba(30, 41, 59, 0.2)"
+FONT_CLR = "#CBD5E1"
+GRID_CLR = "rgba(255,255,255,0.04)"
 
 
 def _base_layout(title: str) -> dict:
     return dict(
-        title=dict(text=title, font=dict(size=14, color=FONT_CLR), x=0.01),
+        title=dict(
+            text=title.upper(), 
+            font=dict(size=12, color="#94A3B8", weight=700), 
+            x=0.01,
+            y=0.98
+        ),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        font=dict(color=FONT_CLR, family="Inter, sans-serif"),
+        font=dict(color=FONT_CLR, family="'Inter', sans-serif", size=11),
         legend=dict(
             bgcolor="rgba(0,0,0,0)", borderwidth=0,
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+            font=dict(size=10)
         ),
-        margin=dict(l=60, r=60, t=65, b=50),
-        xaxis=dict(gridcolor=GRID_CLR, zeroline=False),
-        yaxis=dict(gridcolor=GRID_CLR, zeroline=False),
-        height=500,
+        margin=dict(l=50, r=50, t=100, b=60), # More air around title
+        xaxis=dict(
+            gridcolor=GRID_CLR, 
+            zeroline=False, 
+            showline=True, 
+            linecolor="rgba(255,255,255,0.1)",
+            tickfont=dict(size=10)
+        ),
+        yaxis=dict(
+            gridcolor=GRID_CLR, 
+            zeroline=True, 
+            zerolinecolor="rgba(255,255,255,0.1)",
+            tickfont=dict(size=10)
+        ),
+        height=650, # Taller charts per user request
         autosize=True
     )
 
@@ -109,16 +126,17 @@ def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "
     fig.add_trace(go.Scatter(
         x=df["Strike"].tolist(), y=df["Abs_GEX"].tolist(),
         fill="tozeroy", fillcolor=C_ABS,
-        line=dict(color="rgba(147,51,234,0.6)", width=1.5),
-        name="ABS GEX", mode="lines",
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Absolute Heat", mode="lines",
     ), secondary_y=True)
 
     for x, label, color, dash in [
-        (spot, f"Spot: {spot:.0f}", C_SPOT, "dash"),
-        (flip, f"Flip: {flip:.0f}", C_FLIP, "dot"),
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
     ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=2,
-                      annotation_text=label, annotation_font_color=color)
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
 
     for _, row in top_zones.iterrows():
         fig.add_vrect(
@@ -127,6 +145,13 @@ def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "
         )
 
     layout = _base_layout(chart_title)
+    # Granular Strike X-Axis
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
     layout["barmode"] = "overlay"
     layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Gamma")
     layout["yaxis"]["title"] = y_title
@@ -189,6 +214,13 @@ def build_dealer_regime_map(df: pd.DataFrame, index_name: str = "Index") -> str:
                       fillcolor=C_ZONE, layer="below", line_width=0)
 
     layout = _base_layout(f"{index_name} — Dealer Regime Map")
+    # Granular Strike X-Axis
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
     layout["barmode"] = "overlay"
     layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Gamma")
     layout["yaxis"]["title"] = "Net Gamma Exposure"
@@ -320,6 +352,12 @@ def build_quant_power_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     )
     
     layout = _base_layout(f"{index_name} — Quant Power Profile (GEX + Vanna)")
+    # Granular Strike X-Axis
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
     layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, zerolinecolor="rgba(255,255,255,0.2)", title="Cumulative Dealer Delta")
     layout["yaxis"]["title"] = "Blended GEX+Vex Exposure"
     fig.update_layout(**layout)

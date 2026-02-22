@@ -280,6 +280,72 @@ body {
   z-index: 1000;
 }
 
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.btn-icon-only {
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.header-action {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.header-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.header-action .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4B5563;
+  /* Default offline grey */
+  transition: all 0.3s ease;
+}
+
+.status-live .status-dot {
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
 .topbar-left {
   display: flex;
   align-items: center;
@@ -347,23 +413,23 @@ body {
 }
 
 .macos-select {
-  background: rgba(255, 255, 255, 0.05);
-  /* Explicit light background for the trigger */
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   appearance: none;
-  border-radius: 8px;
-  transition: var(--tr);
+  border-radius: 6px;
+  transition: all 0.2s ease;
   outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .macos-select:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .macos-select option {
@@ -401,44 +467,69 @@ body {
 }
 
 /* ── Analysis Navigation (Buckets & Categories) ──────────── */
+.analysis-nav-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  /* Tighter proximity to chart */
+  padding: 0 4px;
+}
+
 .analysis-nav-container {
-  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .bucket-selector {
   display: flex;
   background: rgba(255, 255, 255, 0.03);
-  padding: 4px;
-  border-radius: 10px;
+  padding: 3px;
+  border-radius: 8px;
+  /* Slightly tighter radius */
   width: fit-content;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .bucket-btn {
-  padding: 6px 20px;
+  padding: 5px 16px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  border-radius: 7px;
+  border-radius: 6px;
   transition: var(--tr);
 }
 
 .bucket-btn:hover {
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .bucket-btn.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.gamma-mode-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.selector-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
 }
 
 .category-selector {
@@ -455,7 +546,7 @@ body {
 
 .category-pills {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -472,22 +563,23 @@ body {
 /* ── Segmented Control (Toggle) ─────────────────────────── */
 .segmented-control {
   display: flex;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   padding: 3px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .segment-btn {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 6px;
-  transition: var(--tr);
+  border-radius: 7px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .segment-btn:hover {
@@ -495,26 +587,28 @@ body {
 }
 
 .segment-btn.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: #334155;
+  /* Solid dark grey for active segment */
   color: var(--text-primary);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .category-btn {
   padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  border-radius: 20px;
+  border-radius: 100px;
   cursor: pointer;
   transition: var(--tr);
   white-space: nowrap;
 }
 
 .category-btn:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
 }
 
@@ -522,7 +616,7 @@ body {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
-  box-shadow: 0 4px 12px var(--primary-glow);
+  box-shadow: 0 4px 15px var(--primary-glow);
 }
 
 /* ── Cards ───────────────────────────────────────────────── */
@@ -673,9 +767,11 @@ body {
 }
 
 .tab-btn {
-  padding: 16px 24px;
-  font-size: 13px;
+  padding: 14px 28px;
+  font-size: 11px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   white-space: nowrap;
   color: var(--text-secondary);
   cursor: pointer;
@@ -701,6 +797,7 @@ body {
 .tab-panel {
   display: none;
   padding: 0;
+  min-height: 650px;
 }
 
 .tab-panel.active {
