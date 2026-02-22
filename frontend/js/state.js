@@ -5,6 +5,9 @@
 const State = (() => {
     let _state = {
         selectedIndex: 'Nifty',
+        selectedBucket: 'Exposure',
+        selectedCategory: 'Gamma',
+        gammaChartMode: 'net', // 'net' or 'raw'
         indices: ['Nifty', 'BankNifty', 'Sensex'],
         // Store data status per index: { indexName: { hasData, loadedFile, expiry, selectedExpiry, selectedFile } }
         indexData: {

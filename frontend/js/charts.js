@@ -60,10 +60,10 @@ const Charts = (() => {
      * @param {string} chartType  - gex | regime | call_put | iv_smile | rr_bf
      * @param {string} containerId
      */
-    async function fetchAndRender(index, chartType, containerId) {
+    async function fetchAndRender(index, chartType, containerId, mode = 'net') {
         showLoading(containerId);
         try {
-            const data = await API.getChart(index, chartType);
+            const data = await API.getChart(index, chartType, mode);
             render(containerId, data.figure);
         } catch (err) {
             const el = document.getElementById(containerId);

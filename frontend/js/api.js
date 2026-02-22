@@ -68,9 +68,9 @@ const API = {
 
   // ── Charts ──────────────────────────────────────────────
 
-  /** GET /api/charts/{index}/{chart_type} → { figure: "plotly-json-string" } */
-  getChart: (index, chartType) =>
-    apiFetch(`/api/charts/${index}/${chartType}`),
+  /** GET /api/charts/{index}/{chart_type}?mode=net|raw → { figure: "plotly-json-string" } */
+  getChart: (index, chartType, mode = 'net') =>
+    apiFetch(`/api/charts/${index}/${chartType}?mode=${mode}`),
 
   // ── Export ──────────────────────────────────────────────
 

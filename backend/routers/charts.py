@@ -12,9 +12,8 @@ import store
 from core.config import INDICES
 from services.calculations import calculate_vol_surface
 from services.chart_service import (
-    build_call_put_gex,
     build_dealer_regime_map,
-    build_gex_chart,
+    build_gamma_chart,
     build_iv_smile,
     build_rr_bf,
     build_quant_power_chart,
@@ -22,11 +21,11 @@ from services.chart_service import (
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "regime", "call_put", "iv_smile", "rr_bf", "quant_power"}
+CHART_TYPES = {"gex", "regime", "iv_smile", "rr_bf", "quant_power"}
 
 
 @router.get("/charts/{index}/{chart_type}")
-def get_chart(index: str, chart_type: str):
+def get_chart(index: str, chart_type: str, mode: str = "net"):
     """Return Plotly JSON string for the requested chart."""
     if index not in INDICES:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
@@ -42,11 +41,9 @@ def get_chart(index: str, chart_type: str):
 
     try:
         if chart_type == "gex":
-            json_str = build_gex_chart(df, index)
+            json_str = build_gamma_chart(df, index, mode=mode)
         elif chart_type == "regime":
             json_str = build_dealer_regime_map(df, index)
-        elif chart_type == "call_put":
-            json_str = build_call_put_gex(df, index)
         elif chart_type == "iv_smile":
             json_str = build_iv_smile(df)
         elif chart_type == "rr_bf":

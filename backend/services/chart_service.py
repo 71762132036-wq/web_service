@@ -58,30 +58,54 @@ def _bar_width(df: pd.DataFrame) -> float:
 
 
 # ---------------------------------------------------------------------------
-# 1 — GEX Chart
+# 1 — Unified Gamma Exposure Chart
 # ---------------------------------------------------------------------------
 
-def build_gex_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
-    spot       = df["Spot"].iloc[0]
-    flip       = calculate_flip_point(df)
-    bw         = _bar_width(df)
-    top_zones  = df.nlargest(3, "Abs_GEX")
+def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    """
+    Unifies Net GEX and Call/Put GEX into one powerful engine.
+    mode='net':  Shows Net Bar (Call - Put)
+    mode='raw':  Shows Call (Up) and Put (Down) separately
+    """
+    spot      = df["Spot"].iloc[0]
+    flip      = calculate_flip_point(df)
+    bw        = _bar_width(df)
+    top_zones = df.nlargest(3, "Abs_GEX")
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # +Gamma bars
-    fig.add_trace(go.Bar(
-        x=df["Strike"].tolist(), y=df["Total_GEX"].clip(lower=0).tolist(),
-        width=bw, marker_color=C_POS, name="+Gamma", opacity=0.9,
-    ), secondary_y=False)
+    if mode == "net":
+        # +Gamma bars
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["Total_GEX"].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name="+Gamma", opacity=0.9,
+        ), secondary_y=False)
 
-    # -Gamma bars
-    fig.add_trace(go.Bar(
-        x=df["Strike"].tolist(), y=df["Total_GEX"].clip(upper=0).tolist(),
-        width=bw, marker_color=C_NEG, name="-Gamma", opacity=0.9,
-    ), secondary_y=False)
+        # -Gamma bars
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["Total_GEX"].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name="-Gamma", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Net Gamma Exposure"
+        y_title = "Net GEX"
+    else:
+        # Raw Mode: Call Up / Put Down
+        call_vals = df["Call_GEX"].abs().tolist()
+        put_vals  = (-df["Put_GEX"].abs()).tolist()
 
-    # ABS Gamma area
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=call_vals,
+            width=bw * 0.9, marker_color=C_POS, name="Call GEX ↑", opacity=0.9,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=put_vals,
+            width=bw * 0.9, marker_color=C_NEG, name="Put GEX ↓", opacity=0.9,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Call vs Put Exposure"
+        y_title = "Raw GEX"
+
+    # Common Overlays (ABS Heat, Spot, Flip, Zones)
     fig.add_trace(go.Scatter(
         x=df["Strike"].tolist(), y=df["Abs_GEX"].tolist(),
         fill="tozeroy", fillcolor=C_ABS,
@@ -89,7 +113,6 @@ def build_gex_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
         name="ABS GEX", mode="lines",
     ), secondary_y=True)
 
-    # Spot & flip lines
     for x, label, color, dash in [
         (spot, f"Spot: {spot:.0f}", C_SPOT, "dash"),
         (flip, f"Flip: {flip:.0f}", C_FLIP, "dot"),
@@ -97,17 +120,16 @@ def build_gex_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
         fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=2,
                       annotation_text=label, annotation_font_color=color)
 
-    # Power zone highlights
     for _, row in top_zones.iterrows():
         fig.add_vrect(
             x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
             fillcolor=C_ZONE, layer="below", line_width=0,
         )
 
-    layout = _base_layout(f"{index_name} — Gamma Exposure (GEX) Chart")
+    layout = _base_layout(chart_title)
     layout["barmode"] = "overlay"
     layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Gamma")
-    layout["yaxis"]["title"] = "Net Gamma Exposure"
+    layout["yaxis"]["title"] = y_title
     fig.update_layout(**layout)
 
     return fig.to_json()
@@ -175,57 +197,6 @@ def build_dealer_regime_map(df: pd.DataFrame, index_name: str = "Index") -> str:
     return fig.to_json()
 
 
-# ---------------------------------------------------------------------------
-# 3 — Call / Put GEX
-# ---------------------------------------------------------------------------
-
-def build_call_put_gex(df: pd.DataFrame, index_name: str = "Index") -> str:
-    spot = df["Spot"].iloc[0]
-    atm  = get_atm_strike(df)
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df) * 0.875
-
-    call_plot = df["Call_GEX"].abs().tolist()
-    put_plot  = (-df["Put_GEX"].abs()).tolist()
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    fig.add_trace(go.Bar(
-        x=df["Strike"].tolist(), y=call_plot,
-        width=bw, marker_color=C_POS, name="Call GEX ↑", opacity=0.9,
-    ), secondary_y=False)
-
-    fig.add_trace(go.Bar(
-        x=df["Strike"].tolist(), y=put_plot,
-        width=bw, marker_color=C_NEG, name="Put GEX ↓", opacity=0.9,
-    ), secondary_y=False)
-
-    fig.add_trace(go.Scatter(
-        x=df["Strike"].tolist(), y=df["Abs_GEX"].tolist(),
-        fill="tozeroy", fillcolor=C_ABS,
-        line=dict(color="rgba(147,51,234,0.6)", width=1.5),
-        name="ABS Gamma Heat", mode="lines",
-    ), secondary_y=True)
-
-    for x, label, color, dash in [
-        (spot, f"Spot: {spot:.0f}", C_SPOT, "dash"),
-        (atm,  f"ATM: {atm:.0f}",  C_ATM,  "dot"),
-        (flip, f"Flip: {flip:.0f}", C_FLIP, "dashdot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=2,
-                      annotation_text=label, annotation_font_color=color)
-
-    for _, r in df.nlargest(3, "Abs_GEX").iterrows():
-        fig.add_vrect(x0=r["Strike"] - bw/2, x1=r["Strike"] + bw/2,
-                      fillcolor=C_ZONE, layer="below", line_width=0)
-
-    layout = _base_layout(f"{index_name} — Call Above / Put Below")
-    layout["barmode"] = "overlay"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Gamma")
-    layout["yaxis"]["title"] = "Gamma Exposure"
-    fig.update_layout(**layout)
-
-    return fig.to_json()
 
 
 # ---------------------------------------------------------------------------

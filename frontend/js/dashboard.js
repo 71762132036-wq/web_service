@@ -1,21 +1,30 @@
 /**
- * dashboard.js — Dashboard page: metrics, gamma cage, chart tabs, vol surface, data table.
- * Mirrors the streamlit show_dashboard() function.
+ * dashboard.js — Dashboard page: metrics, hierarchical analysis (Exposure/Others), vol surface.
  */
 
 const DashboardPage = (() => {
 
-  // Track which chart tabs have been loaded already (lazy load)
   const _loadedCharts = new Set();
 
-  const CHART_TABS = [
-    { key: 'gex', label: 'GEX Chart', id: 'chart-gex' },
-    { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
-    { key: 'call_put', label: 'Call / Put GEX', id: 'chart-call-put' },
-    { key: 'iv_smile', label: 'IV Smile', id: 'chart-iv-smile' },
-    { key: 'rr_bf', label: 'RR & BF', id: 'chart-rr-bf' },
-    { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
-  ];
+  const ANALYSIS_STRUCTURE = {
+    'Exposure': {
+      'Gamma': [
+        { key: 'gex', label: 'Gamma Exposure', id: 'chart-gex' },
+      ],
+      'Delta': [], // Future
+      'Vanna': [], // Future
+    },
+    'Others': {
+      'Volatility': [
+        { key: 'iv_smile', label: 'IV Smile', id: 'chart-iv-smile' },
+        { key: 'rr_bf', label: 'RR & BF', id: 'chart-rr-bf' },
+      ],
+      'Quant': [
+        { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
+        { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
+      ]
+    }
+  };
 
   // ── Templates ─────────────────────────────────────────
 
@@ -24,7 +33,7 @@ const DashboardPage = (() => {
       <div class="empty-state">
         <div class="empty-icon">...</div>
         <h3>No Data Loaded</h3>
-        <p>Go to <strong>Data Management</strong> to fetch live data or load a saved file.</p>
+        <p>Use the <strong>Fetch Live</strong> button or select a file in the top bar to load data.</p>
       </div>`;
   }
 
@@ -37,50 +46,85 @@ const DashboardPage = (() => {
       </div>`;
   }
 
-  function buildTabHeaders() {
-    return CHART_TABS.map((t, i) =>
-      `<button class="tab-btn ${i === 0 ? 'active' : ''}"
-               data-tab="${t.id}">${t.label}</button>`
-    ).join('');
+  function buildBucketNav() {
+    const st = State.get();
+    return Object.keys(ANALYSIS_STRUCTURE).map(bucket => `
+      <button class="bucket-btn ${st.selectedBucket === bucket ? 'active' : ''}" 
+              data-bucket="${bucket}">${bucket}</button>
+    `).join('');
   }
 
-  function buildTabPanels() {
-    return CHART_TABS.map((t, i) => `
-      <div class="tab-panel ${i === 0 ? 'active' : ''}" id="panel-${t.id}">
-        <div class="chart-container" id="${t.id}">
+  function buildCategoryNav() {
+    const st = State.get();
+    const categories = ANALYSIS_STRUCTURE[st.selectedBucket] || {};
+
+    let html = `
+      <div class="category-selectors-row">
+        <div class="category-pills">
+          ${Object.keys(categories).map(cat => `
+            <button class="category-btn ${st.selectedCategory === cat ? 'active' : ''}" 
+                    data-category="${cat}">${cat}</button>
+          `).join('')}
+        </div>
+    `;
+
+    // Add extra controls for specific categories
+    if (st.selectedCategory === 'Gamma') {
+      html += `
+        <div class="category-tools">
+          <div class="segmented-control mode-toggle">
+            <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net</button>
+            <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Raw</button>
+          </div>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  function buildChartTabs() {
+    const st = State.get();
+    const charts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+
+    if (charts.length === 0) {
+      return '<div class="alert alert-info" style="margin-top:20px;">This section is coming soon.</div>';
+    }
+
+    const headers = charts.map((c, i) => `
+      <button class="tab-btn ${i === 0 ? 'active' : ''}" data-tab="${c.id}">${c.label}</button>
+    `).join('');
+
+    const panels = charts.map((c, i) => `
+      <div class="tab-panel ${i === 0 ? 'active' : ''}" id="panel-${c.id}">
+        <div class="chart-container" id="${c.id}">
           <div class="chart-placeholder"><div class="spin"></div><span>Loading…</span></div>
         </div>
-      </div>`
-    ).join('');
-  }
+      </div>
+    `).join('');
 
+    return `
+      <div class="tabs" id="chart-tabs">
+        <div class="tab-header">${headers}</div>
+        ${panels}
+      </div>
+    `;
+  }
 
   function buildVolSurface(vs) {
     if (!vs) return '<div class="alert alert-warning">Vol surface not available</div>';
-
-    const rr25Class = vs.RR25 >= 0 ? '' : 'negative';
-    const bf10Class = vs.BF10 >= 0 ? '' : 'negative';
-
     return `
       <div class="vol-grid">
         <div class="vol-card">
           <div class="vol-card-title">25-Delta Risk Reversal (RR25)</div>
-          <div class="vol-value ${rr25Class}">${vs.RR25.toFixed(3)}%</div>
+          <div class="vol-value">${vs.RR25.toFixed(3)}%</div>
           <div class="vol-sentiment">${vs.RR_Sentiment}</div>
-          <div class="vol-detail">
-            <span>25Δ Call IV: <b>${vs.IV_call25.toFixed(2)}%</b> @ ${vs.Call25_Strike.toLocaleString()}</span>
-            <span>25Δ Put IV:  <b>${vs.IV_put25.toFixed(2)}%</b>  @ ${vs.Put25_Strike.toLocaleString()}</span>
-          </div>
         </div>
         <div class="vol-card">
           <div class="vol-card-title">10-Delta Butterfly (BF10)</div>
-          <div class="vol-value ${bf10Class}">${vs.BF10.toFixed(3)}%</div>
+          <div class="vol-value">${vs.BF10.toFixed(3)}%</div>
           <div class="vol-sentiment">${vs.BF_Sentiment}</div>
-          <div class="vol-detail">
-            <span>ATM IV (50Δ): <b>${vs.ATM_IV.toFixed(2)}%</b>  @ ${vs.ATM_Strike.toLocaleString()}</span>
-            <span>10Δ Call IV:  <b>${vs.IV_call10.toFixed(2)}%</b> @ ${vs.Call10_Strike.toLocaleString()}</span>
-            <span>10Δ Put IV:   <b>${vs.IV_put10.toFixed(2)}%</b>  @ ${vs.Put10_Strike.toLocaleString()}</span>
-          </div>
         </div>
       </div>`;
   }
@@ -89,10 +133,11 @@ const DashboardPage = (() => {
   // ── Render ─────────────────────────────────────────────
 
   async function render(container) {
-    const index = State.getIndex();
+    const st = State.get();
+    const index = st.selectedIndex;
 
-    // Show skeleton
-    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading dashboard…</div>`;
+    // Loading overlay
+    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
 
     try {
       const [metrics, volData] = await Promise.all([
@@ -101,59 +146,87 @@ const DashboardPage = (() => {
       ]);
 
       const vs = volData?.vol_surface;
-      const regime = metrics.regime || '';
-      const regimeClass = regime.includes('LONG') ? 'long-gamma' : 'short-gamma';
+      const regimeClass = metrics.regime?.includes('LONG') ? 'long-gamma' : 'short-gamma';
 
       container.innerHTML = `
+        <div class="dashboard-wrapper">
+          
+          <!-- Analysis Selector (Buckets & Categories) -->
+          <div class="analysis-nav-container">
+            <div class="bucket-selector">${buildBucketNav()}</div>
+            <div class="category-selector">${buildCategoryNav()}</div>
+          </div>
 
-        <!-- Key Metrics -->
-        <div class="section-header">
-          <h2>Key Metrics</h2><div class="section-line"></div>
-        </div>
-        <div class="metrics-grid">
-          ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-          ${buildMetricCard('ATM Strike', metrics.atm.toLocaleString())}
-          ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-          ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
-          ${buildMetricCard('Dealer Regime', regime, '', `regime ${regimeClass}`)}
-        </div>
+          <!-- Key Metrics -->
+          <div class="metrics-grid">
+            ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+            ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+            ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
+            ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+          </div>
 
+          <!-- Active Charts -->
+          <div class="analysis-content">
+            ${buildChartTabs()}
+          </div>
 
-        <!-- Chart Tabs -->
-        <div class="section-header">
-          <h2>Visualizations</h2><div class="section-line"></div>
-        </div>
-        <div class="tabs" id="chart-tabs">
-          <div class="tab-header">${buildTabHeaders()}</div>
-          ${buildTabPanels()}
-        </div>
+          <!-- Vol Surface (Only if in Volatility category or always?) User didn't specify, keeping as a footer for now -->
+          ${st.selectedCategory === 'Volatility' ? `
+            <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
+            <div class="card">${buildVolSurface(vs)}</div>
+          ` : ''}
 
-        <!-- Vol Surface -->
-        <div class="section-header" style="margin-top:28px;">
-          <h2>Volatility Surface Details</h2><div class="section-line"></div>
         </div>
-        <div class="card" style="margin-bottom:22px;">
-          <div id="vol-surface-content">${buildVolSurface(vs)}</div>
-        </div>
-
       `;
 
+      _wireAnalysisNav(container);
       _wireTabNav(index);
-      // Load first chart immediately
-      Charts.fetchAndRender(index, 'gex', 'chart-gex');
-      _loadedCharts.clear();
-      _loadedCharts.add('chart-gex');
+
+      // Load initial chart of the category
+      const activeCharts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+      if (activeCharts.length > 0) {
+        const first = activeCharts[0];
+        const mode = (first.key === 'gex') ? st.gammaChartMode : 'net';
+        Charts.fetchAndRender(index, first.key, first.id, mode);
+        _loadedCharts.clear();
+        _loadedCharts.add(first.id);
+      }
 
     } catch (err) {
       if (err.message.includes('No data loaded')) {
         container.innerHTML = buildEmptyState();
       } else {
-        container.innerHTML = `<div class="alert alert-error">Error loading dashboard: ${err.message}</div>`;
+        container.innerHTML = `<div class="alert alert-error">Dashboard error: ${err.message}</div>`;
       }
     }
   }
 
-  // ── Tab navigation + lazy chart loading ───────────────
+  function _wireAnalysisNav(container) {
+    container.querySelector('.bucket-selector').addEventListener('click', e => {
+      const btn = e.target.closest('.bucket-btn');
+      if (!btn) return;
+      const bucket = btn.dataset.bucket;
+      const firstCat = Object.keys(ANALYSIS_STRUCTURE[bucket])[0];
+      State.set({ selectedBucket: bucket, selectedCategory: firstCat });
+      render(container);
+    });
+
+    const catSelector = container.querySelector('.category-selector');
+    catSelector.addEventListener('click', e => {
+      const btn = e.target.closest('.category-btn');
+      if (btn) {
+        State.set({ selectedCategory: btn.dataset.category });
+        render(container);
+        return;
+      }
+
+      const modeBtn = e.target.closest('.segment-btn');
+      if (modeBtn) {
+        State.set({ gammaChartMode: modeBtn.dataset.mode });
+        render(container);
+      }
+    });
+  }
 
   function _wireTabNav(index) {
     const tabsEl = document.getElementById('chart-tabs');
@@ -162,23 +235,21 @@ const DashboardPage = (() => {
     tabsEl.addEventListener('click', e => {
       const btn = e.target.closest('.tab-btn');
       if (!btn) return;
-
       const targetId = btn.dataset.tab;
 
-      // Toggle active on buttons
       tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
-      // Toggle active on panels
       tabsEl.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      const panel = document.getElementById(`panel-${targetId}`);
-      if (panel) panel.classList.add('active');
+      document.getElementById(`panel-${targetId}`).classList.add('active');
 
-      // Lazy-load chart if not already loaded
       if (!_loadedCharts.has(targetId)) {
-        const chartType = CHART_TABS.find(t => t.id === targetId)?.key;
-        if (chartType) {
-          Charts.fetchAndRender(index, chartType, targetId);
+        // Find chart key across active bucket/category
+        const st = State.get();
+        const charts = ANALYSIS_STRUCTURE[st.selectedBucket][st.selectedCategory];
+        const chart = charts.find(c => c.id === targetId);
+        if (chart) {
+          const mode = (chart.key === 'gex') ? State.get().gammaChartMode : 'net';
+          Charts.fetchAndRender(index, chart.key, targetId, mode);
           _loadedCharts.add(targetId);
         }
       }
