@@ -1,0 +1,62 @@
+"""
+Charts router — returns Plotly JSON for interactive charts.
+Route: GET /api/charts/{index}/{chart_type}
+
+chart_type options:
+  gex | regime | call_put | iv_smile | rr_bf
+"""
+
+from fastapi import APIRouter, HTTPException
+
+import store
+from core.config import INDICES
+from services.calculations import calculate_vol_surface
+from services.chart_service import (
+    build_call_put_gex,
+    build_dealer_regime_map,
+    build_gex_chart,
+    build_iv_smile,
+    build_rr_bf,
+    build_quant_power_chart,
+)
+
+router = APIRouter(prefix="/api", tags=["charts"])
+
+CHART_TYPES = {"gex", "regime", "call_put", "iv_smile", "rr_bf", "quant_power"}
+
+
+@router.get("/charts/{index}/{chart_type}")
+def get_chart(index: str, chart_type: str):
+    """Return Plotly JSON string for the requested chart."""
+    if index not in INDICES:
+        raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
+    if chart_type not in CHART_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown chart type. Valid: {', '.join(sorted(CHART_TYPES))}",
+        )
+    if not store.has_data(index):
+        raise HTTPException(status_code=404, detail="No data loaded for this index")
+
+    df = store.get_data(index)
+
+    try:
+        if chart_type == "gex":
+            json_str = build_gex_chart(df, index)
+        elif chart_type == "regime":
+            json_str = build_dealer_regime_map(df, index)
+        elif chart_type == "call_put":
+            json_str = build_call_put_gex(df, index)
+        elif chart_type == "iv_smile":
+            json_str = build_iv_smile(df)
+        elif chart_type == "rr_bf":
+            vs       = calculate_vol_surface(df)
+            json_str = build_rr_bf(vs)
+        elif chart_type == "quant_power":
+            json_str = build_quant_power_chart(df, index)
+
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Chart error: {exc}") from exc
+
+    # Return as a plain string; the frontend will JSON.parse() it
+    return {"index": index, "chart_type": chart_type, "figure": json_str}

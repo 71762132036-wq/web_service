@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gamma Exposure Analysis</title>
+    <meta name="description"
+        content="Index Gamma Exposure Analysis — Nifty, BankNifty, Sensex option chain analytics dashboard" />
+    <link rel="stylesheet" href="/css/main.css" />
+    <!-- Plotly CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" defer></script>
+</head>
+
+<body>
+
+    <div id="app">
+
+        <!-- ── Sidebar ─────────────────────────────────────────── -->
+        <aside id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">📊</div>
+                <h1>Gamma Exposure</h1>
+                <p>Option Chain Analytics</p>
+            </div>
+
+            <div class="sidebar-section" style="margin-top:16px;">
+                <label for="index-select">Active Index</label>
+                <select id="index-select" class="styled-select">
+                    <option value="Nifty">Nifty</option>
+                    <option value="BankNifty">BankNifty</option>
+                    <option value="Sensex">Sensex</option>
+                </select>
+            </div>
+
+            <nav class="nav-section">
+                <label>Navigation</label>
+                <div class="nav-item active" data-page="dashboard" id="nav-dashboard">
+                    <span class="nav-icon">📈</span> Dashboard
+                </div>
+                <div class="nav-item" data-page="data-management" id="nav-data-management">
+                    <span class="nav-icon">⚙️</span> Data Management
+                </div>
+                <div class="nav-item" data-page="data-info" id="nav-data-info">
+                    <span class="nav-icon">📋</span> Data Info
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    <span id="sidebar-status">API Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Main ───────────────────────────────────────────── -->
+        <div id="main">
+
+            <!-- Top Bar -->
+            <header id="topbar">
+                <div class="topbar-title" id="topbar-title">📊 Nifty — Gamma Exposure Analysis</div>
+                <div class="topbar-meta">
+                    <span class="chip" id="data-status-chip">⚡ No data loaded</span>
+                    <span class="chip" id="expiry-chip">📅 —</span>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div id="page-content">
+                <!-- Pages injected by JS router -->
+            </div>
+
+        </div><!-- /#main -->
+
+    </div><!-- /#app -->
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <!-- JS Modules (load order matters) -->
+    <script src="/js/api.js?v=2"></script>
+    <script src="/js/state.js?v=2"></script>
+    <script src="/js/charts.js?v=2"></script>
+    <script src="/js/dashboard.js?v=2"></script>
+    <script src="/js/data-management.js?v=2"></script>
+    <script src="/js/data-info.js?v=2"></script>
+    <script src="/js/app.js?v=2"></script>
+
+</body>
+
+</html>
