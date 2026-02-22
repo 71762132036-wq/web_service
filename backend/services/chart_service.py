@@ -252,12 +252,12 @@ def build_cumulative_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mo
         # Net GEX Bars (Carbon copy)
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Gamma", opacity=0.4,
+            width=bw, marker_color=C_POS, name="+Gamma", opacity=0.9,
         ), secondary_y=False)
 
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Gamma", opacity=0.4,
+            width=bw, marker_color=C_NEG, name="-Gamma", opacity=0.9,
         ), secondary_y=False)
         chart_title = f"{index_name} — Cumulative Gamma Profile"
     else:
@@ -267,12 +267,12 @@ def build_cumulative_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mo
 
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Call GEX ↑", opacity=0.4,
+            width=bw * 0.9, marker_color=C_POS, name="Call GEX ↑", opacity=0.9,
         ), secondary_y=False)
 
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Put GEX ↓", opacity=0.4,
+            width=bw * 0.9, marker_color=C_NEG, name="Put GEX ↓", opacity=0.9,
         ), secondary_y=False)
         chart_title = f"{index_name} — Raw Cum-Gamma View"
 
@@ -304,6 +304,7 @@ def build_cumulative_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mo
         layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
         layout["xaxis"]["tickangle"] = -45
 
+    layout["barmode"] = "overlay"
     layout["yaxis"]["title"] = "Strike-wise GEX"
     layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative GEX", overlaying="y", side="right")
     

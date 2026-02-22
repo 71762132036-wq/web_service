@@ -65,7 +65,26 @@ const DashboardPage = (() => {
     `).join('');
   }
 
-  function buildChartTabs() {
+  function buildSubChartNav() {
+    const st = State.get();
+    const charts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
+    if (charts.length <= 1) return '';
+
+    const activeId = st.selectedSubChart || charts[0].id;
+
+    return `
+      <div class="sub-chart-nav">
+        ${charts.map(c => `
+          <button class="sub-tab-btn ${c.id === activeId ? 'active' : ''}" 
+                  data-subchart="${c.id}">
+            ${c.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function buildChartPanel() {
     const st = State.get();
     const charts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
 
@@ -73,24 +92,10 @@ const DashboardPage = (() => {
       return '<div class="alert alert-info" style="margin-top:20px;">This section is coming soon.</div>';
     }
 
-    // Ensure we have a selected sub-chart for this category
-    const activeSubChartId = st.selectedSubChart || charts[0].id;
-    const activeChart = charts.find(c => c.id === activeSubChartId) || charts[0];
-
-    // Sub-navigation (only show if > 1 chart)
-    const subNav = charts.length > 1 ? `
-      <div class="sub-chart-nav">
-        ${charts.map(c => `
-          <button class="sub-tab-btn ${c.id === activeChart.id ? 'active' : ''}" 
-                  data-subchart="${c.id}">
-            ${c.label}
-          </button>
-        `).join('')}
-      </div>
-    ` : '';
+    const activeId = st.selectedSubChart || charts[0].id;
+    const activeChart = charts.find(c => c.id === activeId) || charts[0];
 
     return `
-      ${subNav}
       <div class="active-chart-panel">
         <div class="card chart-card">
           <div id="${activeChart.id}" class="chart-container">
@@ -138,26 +143,40 @@ const DashboardPage = (() => {
       container.innerHTML = `
         <div class="dashboard-wrapper">
           
-          <!-- Unified Analysis Header (Nav + Mode) -->
+          <!-- Consolidated Analysis Header -->
           <div class="analysis-nav-section">
-            <div class="analysis-nav-container">
-              <div class="bucket-selector">${buildBucketNav()}</div>
-              <div class="category-pills">${buildCategoryNav()}</div>
-            </div>
-            ${st.selectedCategory === 'Gamma' ? `
-              <div class="gamma-mode-selector">
-                <span class="selector-label">View Mode</span>
-                <div class="segmented-control mode-toggle">
-                  <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net Exposure</button>
-                  <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Call vs Put</button>
-                </div>
+            <div class="nav-row top-row">
+              <div class="nav-group">
+                <span class="nav-label">NAV</span>
+                <div class="bucket-selector">${buildBucketNav()}</div>
               </div>
-            ` : ''}
+              
+              ${st.selectedCategory === 'Gamma' ? `
+                <div class="nav-group context-group">
+                  <span class="nav-label">CONTEXT</span>
+                  <div class="segmented-control mode-toggle">
+                    <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net Exposure</button>
+                    <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Call vs Put</button>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="nav-row bottom-row">
+              <div class="nav-group">
+                <span class="nav-label">CAT</span>
+                <div class="category-pills">${buildCategoryNav()}</div>
+              </div>
+              <div class="nav-group">
+                <span class="nav-label">SUB</span>
+                <div class="sub-nav-container">${buildSubChartNav()}</div>
+              </div>
+            </div>
           </div>
 
           <!-- Main Analysis Canvas -->
           <div class="analysis-content">
-            ${buildChartTabs()}
+            ${buildChartPanel()}
           </div>
 
           <!-- Secondary Metrics Row -->
@@ -205,10 +224,9 @@ const DashboardPage = (() => {
 
   function _wireAnalysisNav(container) {
     const navSection = container.querySelector('.analysis-nav-section');
-    const contentArea = container.querySelector('.analysis-content');
 
-    // Main Category / Bucket Nav
     navSection.addEventListener('click', e => {
+      // 1. Bucket clicks
       const bucketBtn = e.target.closest('.bucket-btn');
       if (bucketBtn) {
         const bucket = bucketBtn.dataset.bucket;
@@ -219,6 +237,7 @@ const DashboardPage = (() => {
         return;
       }
 
+      // 2. Category clicks
       const catBtn = e.target.closest('.category-btn');
       if (catBtn) {
         const cat = catBtn.dataset.category;
@@ -228,18 +247,18 @@ const DashboardPage = (() => {
         return;
       }
 
-      const modeBtn = e.target.closest('.segment-btn');
-      if (modeBtn) {
-        State.set({ gammaChartMode: modeBtn.dataset.mode });
-        render(container);
-      }
-    });
-
-    // Sub-Chart Toggle Nav
-    contentArea.addEventListener('click', e => {
+      // 3. Sub-chart clicks
       const subBtn = e.target.closest('.sub-tab-btn');
       if (subBtn) {
         State.set({ selectedSubChart: subBtn.dataset.subchart });
+        render(container);
+        return;
+      }
+
+      // 4. View mode clicks
+      const modeBtn = e.target.closest('.segment-btn');
+      if (modeBtn) {
+        State.set({ gammaChartMode: modeBtn.dataset.mode });
         render(container);
       }
     });
