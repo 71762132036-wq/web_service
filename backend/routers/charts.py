@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 import store
 from core.config import INDICES
-from services.calculations import calculate_vol_surface, calculate_delta_exposure
+from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure
 from services.chart_service import (
     build_dealer_regime_map,
     build_gamma_chart,
@@ -20,11 +20,15 @@ from services.chart_service import (
     build_iv_smile,
     build_rr_bf,
     build_quant_power_chart,
+    build_vanna_chart,
+    build_cumulative_vanna_chart,
+    build_charm_chart,
+    build_cumulative_charm_chart,
 )
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "cum_gex", "cum_dex", "regime", "iv_smile", "rr_bf", "quant_power"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "rr_bf", "quant_power"}
 
 
 @router.get("/charts/{index}/{chart_type}")
@@ -53,6 +57,18 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
         elif chart_type == "cum_dex":
             df_dex   = calculate_delta_exposure(df)
             json_str = build_cumulative_delta_chart(df_dex, index, mode=mode)
+        elif chart_type == "vex":
+            df_vex   = calculate_vanna_exposure(df)
+            json_str = build_vanna_chart(df_vex, index, mode=mode)
+        elif chart_type == "cum_vex":
+            df_vex   = calculate_vanna_exposure(df)
+            json_str = build_cumulative_vanna_chart(df_vex, index, mode=mode)
+        elif chart_type == "cex":
+            df_cex   = calculate_charm_exposure(df)
+            json_str = build_charm_chart(df_cex, index, mode=mode)
+        elif chart_type == "cum_cex":
+            df_cex   = calculate_charm_exposure(df)
+            json_str = build_cumulative_charm_chart(df_cex, index, mode=mode)
         elif chart_type == "regime":
             json_str = build_dealer_regime_map(df, index)
         elif chart_type == "iv_smile":

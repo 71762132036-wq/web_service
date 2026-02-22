@@ -16,7 +16,14 @@ const DashboardPage = (() => {
         { key: 'dex', label: 'Delta Exposure', id: 'chart-dex' },
         { key: 'cum_dex', label: 'Cumulative Delta', id: 'chart-cum-dex' },
       ],
-      'Vanna': [], // Future
+      'Vanna': [
+        { key: 'vex', label: 'Vanna Exposure', id: 'chart-vex' },
+        { key: 'cum_vex', label: 'Cumulative Vanna', id: 'chart-cum-vex' },
+      ],
+      'Charm': [
+        { key: 'cex', label: 'Charm Exposure', id: 'chart-cex' },
+        { key: 'cum_cex', label: 'Cumulative Charm', id: 'chart-cum-cex' },
+      ],
     },
     'Others': {
       'Volatility': [
@@ -154,7 +161,7 @@ const DashboardPage = (() => {
                 <div class="bucket-selector">${buildBucketNav()}</div>
               </div>
               
-              ${['Gamma', 'Delta'].includes(st.selectedCategory) ? `
+              ${['Gamma', 'Delta', 'Vanna', 'Charm'].includes(st.selectedCategory) ? `
                 <div class="nav-group context-group">
                   <span class="nav-label">CONTEXT</span>
                   <div class="segmented-control mode-toggle">
@@ -211,7 +218,8 @@ const DashboardPage = (() => {
         const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
 
         _loadedCharts.clear();
-        const mode = (chart.key === 'gex' || chart.key === 'cum_gex' || chart.key === 'dex' || chart.key === 'cum_dex') ? st.gammaChartMode : 'net';
+        const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
+        const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
         Charts.fetchAndRender(index, chart.key, chart.id, mode);
         _loadedCharts.add(chart.id);
       }

@@ -21,10 +21,102 @@ def calculate_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
     spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
     multiplier = lot_size * (spot ** 2) * 0.01
     
-    df["Call_GEX"] = df["call_gamma"] * df["Call_OI"] * multiplier
-    df["Put_GEX"] = -df["put_gamma"] * df["Put_OI"] * multiplier
+    df["Call_GEX"] = -df["call_gamma"] * df["Call_OI"] * multiplier
+    df["Put_GEX"] = df["put_gamma"] * df["Put_OI"] * multiplier
     df["Total_GEX"] = df["Call_GEX"] + df["Put_GEX"]
     df["Abs_GEX"] = df["Total_GEX"].abs()
+    return df
+
+
+def calculate_vanna_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
+    """
+    Dealer Vanna Exposure (VEX) calculation.
+    VEX = - (Vanna * OI * lot_size * spot * 0.01)
+    """
+    from scipy.stats import norm
+    import numpy as np
+
+    df = df.copy()
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+    
+    # We need to calculate Vanna per strike for both calls and puts if not present.
+    # Reusing the BS logic. 
+    r = 0.05
+    today = pd.Timestamp("today").normalize()
+
+    def get_vanna(K, sigma, option_type, expiry_str):
+        try:
+            T = (pd.to_datetime(expiry_str, format="%Y-%m-%d") - today).days / 365.0
+            if T <= 0 or sigma <= 0 or pd.isna(sigma): return 0.0
+            sigma = sigma / 100.0
+            d1 = (np.log(spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
+            d2 = d1 - sigma*np.sqrt(T)
+            vanna = -norm.pdf(d1) * d2 / sigma
+            return vanna
+        except: return 0.0
+
+    # Calculate Vanna for Calls and Puts
+    df["call_vanna"] = df.apply(lambda row: get_vanna(row["Strike"], row["call_iv"], "call", row["expiry"]), axis=1)
+    df["put_vanna"] = df.apply(lambda row: get_vanna(row["Strike"], row["put_iv"], "put", row["expiry"]), axis=1)
+
+    multiplier = lot_size * spot * 0.01
+    
+    # Dealer perspective: Short Call is -Vanna * Sign(Call), but Vanna of call is usually pos
+    # So Dealer Call VEX is negative if Vanna is positive.
+    df["Call_VEX"] = -df["call_vanna"] * df["Call_OI"] * multiplier
+    df["Put_VEX"] = -df["put_vanna"] * df["Put_OI"] * multiplier
+    
+    df["Total_VEX"] = df["Call_VEX"] + df["Put_VEX"]
+    df["Abs_VEX"] = df["Total_VEX"].abs()
+    return df
+
+
+def calculate_charm_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
+    """
+    Dealer Charm Exposure (CEX) calculation.
+    Adapted from user-provided logic.
+    Dealer_CEX = - (Charm * OI * lot_size * spot * sign)
+    """
+    from scipy.stats import norm
+    import numpy as np
+
+    df = df.copy()
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+    r = 0.05
+    today = pd.Timestamp("today").normalize()
+
+    def bs_charm(K, sigma, expiry_str):
+        try:
+            # T calculation per user: max(days/365, 1/365)
+            T_days = (pd.to_datetime(expiry_str, format="%Y-%m-%d") - today).days
+            T = max(T_days / 365.0, 1.0 / 365.0)
+            
+            if sigma <= 0 or pd.isna(sigma): return 0.0
+            sigma = sigma / 100.0
+            
+            d1 = (np.log(spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
+            d2 = d1 - sigma*np.sqrt(T)
+            pdf_d1 = norm.pdf(d1)
+            
+            # User formula: charm = -pdf_d1 * ((r/(sigma*sqrt(T))) - (d2/(2*T)))
+            charm = -pdf_d1 * ( (r / (sigma * np.sqrt(T))) - (d2 / (2.0 * T)) )
+            return charm
+        except: return 0.0
+
+    # Calculate individual charm
+    df["call_charm"] = df.apply(lambda row: bs_charm(row["Strike"], row["call_iv"], row["expiry"]), axis=1)
+    df["put_charm"] = df.apply(lambda row: bs_charm(row["Strike"], row["put_iv"], row["expiry"]), axis=1)
+
+    # Scaling logic per user (multiplied by -1 for Dealer Perspective)
+    # df['cex'] = charm * OI * lot_size * spot * (1 if call else -1)
+    # Dealer flip -> Dealer_CEX = - (cex)
+    multiplier = lot_size * spot
+    
+    df["Call_CEX"] = -(df["call_charm"] * df["Call_OI"] * multiplier * 1.0)
+    df["Put_CEX"] = -(df["put_charm"] * df["Put_OI"] * multiplier * -1.0)
+    
+    df["Total_CEX"] = df["Call_CEX"] + df["Put_CEX"]
+    df["Abs_CEX"] = df["Total_CEX"].abs()
     return df
 
 
@@ -221,9 +313,11 @@ def calculate_quant_power(
     # Dealers are SHORT options → opposite sign to buyer's delta
     chain_df['dealer_delta'] = -chain_df['delta'] * chain_df['open_interest'] * contract_size
 
-    # ── Blended exposure = weighted combo of GEX + Vanna exposure ─────
-    gex   = chain_df['gamma'] * chain_df['open_interest'] * contract_size * spot**2 * 0.01 * sign
-    vex   = chain_df['vanna'] * chain_df['open_interest'] * contract_size * spot    * 0.01 * sign
+    # ── Dealer exposure = weighted combo of Dealer GEX + Dealer Vanna exposure ─────
+    # Standard GEX/VEX are from buyer perspective (Call +, Put -)
+    # Dealer perspective = flip signs
+    gex = -(chain_df['gamma'] * chain_df['open_interest'] * contract_size * spot**2 * 0.01 * sign)
+    vex = -(chain_df['vanna'] * chain_df['open_interest'] * contract_size * spot    * 0.01 * sign)
     chain_df['blended'] = (1 - vanna_weight) * gex + vanna_weight * vex
 
     # ── Aggregate by strike ───────────────────────────────────────────
