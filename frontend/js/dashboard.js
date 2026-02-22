@@ -10,6 +10,7 @@ const DashboardPage = (() => {
     'Exposure': {
       'Gamma': [
         { key: 'gex', label: 'Gamma Exposure', id: 'chart-gex' },
+        { key: 'cum_gex', label: 'Cumulative GEX', id: 'chart-cum-gex' },
       ],
       'Delta': [], // Future
       'Vanna': [], // Future
@@ -72,24 +73,31 @@ const DashboardPage = (() => {
       return '<div class="alert alert-info" style="margin-top:20px;">This section is coming soon.</div>';
     }
 
-    const headers = charts.map((c, i) => `
-      <button class="tab-btn ${i === 0 ? 'active' : ''}" data-tab="${c.id}">${c.label}</button>
-    `).join('');
+    // Ensure we have a selected sub-chart for this category
+    const activeSubChartId = st.selectedSubChart || charts[0].id;
+    const activeChart = charts.find(c => c.id === activeSubChartId) || charts[0];
 
-    const panels = charts.map((c, i) => `
-      <div class="tab-panel ${i === 0 ? 'active' : ''}" id="panel-${c.id}">
-        <div class="chart-container" id="${c.id}">
-          <div class="chart-placeholder"><div class="spin"></div><span>Loading…</span></div>
-        </div>
+    // Sub-navigation (only show if > 1 chart)
+    const subNav = charts.length > 1 ? `
+      <div class="sub-chart-nav">
+        ${charts.map(c => `
+          <button class="sub-tab-btn ${c.id === activeChart.id ? 'active' : ''}" 
+                  data-subchart="${c.id}">
+            ${c.label}
+          </button>
+        `).join('')}
       </div>
-    `).join('');
+    ` : '';
 
     return `
-      <div class="tabs" id="chart-tabs">
-        <div class="tab-header">${headers}</div>
-        ${panels}
-      </div>
-    `;
+      ${subNav}
+      <div class="active-chart-panel">
+        <div class="card chart-card">
+          <div id="${activeChart.id}" class="chart-container">
+            <div class="chart-placeholder"><div class="spin"></div><span>Loading ${activeChart.label}…</span></div>
+          </div>
+        </div>
+      </div>`;
   }
 
   function buildVolSurface(vs) {
@@ -108,7 +116,6 @@ const DashboardPage = (() => {
         </div>
       </div>`;
   }
-
 
   // ── Render ─────────────────────────────────────────────
 
@@ -171,20 +178,20 @@ const DashboardPage = (() => {
             </div>
           ` : ''}
 
-        </div>
-      `;
+        </div>`;
 
       _wireAnalysisNav(container);
-      _wireTabNav(index);
 
-      // Load initial chart of the category
+      // Load ONLY the active sub-chart
       const activeCharts = ANALYSIS_STRUCTURE[st.selectedBucket]?.[st.selectedCategory] || [];
       if (activeCharts.length > 0) {
-        const first = activeCharts[0];
-        const mode = (first.key === 'gex') ? st.gammaChartMode : 'net';
-        Charts.fetchAndRender(index, first.key, first.id, mode);
+        const activeId = st.selectedSubChart || activeCharts[0].id;
+        const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
+
         _loadedCharts.clear();
-        _loadedCharts.add(first.id);
+        const mode = (chart.key === 'gex' || chart.key === 'cum_gex') ? st.gammaChartMode : 'net';
+        Charts.fetchAndRender(index, chart.key, chart.id, mode);
+        _loadedCharts.add(chart.id);
       }
 
     } catch (err) {
@@ -198,59 +205,42 @@ const DashboardPage = (() => {
 
   function _wireAnalysisNav(container) {
     const navSection = container.querySelector('.analysis-nav-section');
+    const contentArea = container.querySelector('.analysis-content');
 
+    // Main Category / Bucket Nav
     navSection.addEventListener('click', e => {
-      // Bucket clicks
       const bucketBtn = e.target.closest('.bucket-btn');
       if (bucketBtn) {
         const bucket = bucketBtn.dataset.bucket;
         const firstCat = Object.keys(ANALYSIS_STRUCTURE[bucket])[0];
-        State.set({ selectedBucket: bucket, selectedCategory: firstCat });
+        const firstSub = ANALYSIS_STRUCTURE[bucket][firstCat][0]?.id || null;
+        State.set({ selectedBucket: bucket, selectedCategory: firstCat, selectedSubChart: firstSub });
         render(container);
         return;
       }
 
-      // Category clicks
       const catBtn = e.target.closest('.category-btn');
       if (catBtn) {
-        State.set({ selectedCategory: catBtn.dataset.category });
+        const cat = catBtn.dataset.category;
+        const firstSub = ANALYSIS_STRUCTURE[State.get().selectedBucket][cat][0]?.id || null;
+        State.set({ selectedCategory: cat, selectedSubChart: firstSub });
         render(container);
         return;
       }
 
-      // Mode switch clicks
       const modeBtn = e.target.closest('.segment-btn');
       if (modeBtn) {
         State.set({ gammaChartMode: modeBtn.dataset.mode });
         render(container);
       }
     });
-  }
 
-  function _wireTabNav(index) {
-    const tabsEl = document.getElementById('chart-tabs');
-    if (!tabsEl) return;
-
-    tabsEl.addEventListener('click', e => {
-      const btn = e.target.closest('.tab-btn');
-      if (!btn) return;
-      const targetId = btn.dataset.tab;
-
-      tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      tabsEl.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      document.getElementById(`panel-${targetId}`).classList.add('active');
-
-      if (!_loadedCharts.has(targetId)) {
-        // Find chart key across active bucket/category
-        const st = State.get();
-        const charts = ANALYSIS_STRUCTURE[st.selectedBucket][st.selectedCategory];
-        const chart = charts.find(c => c.id === targetId);
-        if (chart) {
-          const mode = (chart.key === 'gex') ? State.get().gammaChartMode : 'net';
-          Charts.fetchAndRender(index, chart.key, targetId, mode);
-          _loadedCharts.add(targetId);
-        }
+    // Sub-Chart Toggle Nav
+    contentArea.addEventListener('click', e => {
+      const subBtn = e.target.closest('.sub-tab-btn');
+      if (subBtn) {
+        State.set({ selectedSubChart: subBtn.dataset.subchart });
+        render(container);
       }
     });
   }

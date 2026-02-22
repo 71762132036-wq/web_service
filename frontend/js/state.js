@@ -7,6 +7,7 @@ const State = (() => {
         selectedIndex: 'Nifty',
         selectedBucket: 'Exposure',
         selectedCategory: 'Gamma',
+        selectedSubChart: null, // Track sub-chart within category
         gammaChartMode: 'net', // 'net' or 'raw'
         indices: ['Nifty', 'BankNifty', 'Sensex'],
         // Store data status per index: { indexName: { hasData, loadedFile, expiry, selectedExpiry, selectedFile } }

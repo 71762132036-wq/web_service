@@ -13,9 +13,14 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 def calculate_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
-    """Add Call_GEX, Put_GEX, Total_GEX, Abs_GEX columns to the DataFrame."""
+    """
+    Standard GEX calculation ($ per 1% move).
+    Multiplier = lot_size * spot^2 * 0.01
+    """
     df = df.copy()
-    multiplier = lot_size * 1000
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+    multiplier = lot_size * (spot ** 2) * 0.01
+    
     df["Call_GEX"] = df["call_gamma"] * df["Call_OI"] * multiplier
     df["Put_GEX"] = -df["put_gamma"] * df["Put_OI"] * multiplier
     df["Total_GEX"] = df["Call_GEX"] + df["Put_GEX"]
@@ -28,14 +33,19 @@ def calculate_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def calculate_flip_point(df: pd.DataFrame) -> float:
-    """Find the strike price where cumulative GEX crosses zero (flip point)."""
-    def _zero_gex(pairs):
-        def _add(a, b):
-            return (b[0], a[1] + b[1])
-        cumsum = list(itertools.accumulate(pairs, _add))
-        return min(cumsum, key=lambda x: abs(x[1]))[0]
-
-    return _zero_gex(list(zip(df["Strike"], df["Total_GEX"])))
+    """
+    Find the strike price where cumulative GEX crosses zero (flip point).
+    Matches Step 2 & 3: Group by strike -> Cumsum -> Find Zero Crossing.
+    """
+    # Group by Strike (sums Call/Put GEX) and Sort
+    by_strike = df.groupby("Strike")["Total_GEX"].sum().sort_index()
+    
+    # Cumulative sum
+    cum_gex = by_strike.cumsum()
+    
+    # The flip point is the strike where cumulative GEX is closest to 0
+    flip_strike = cum_gex.abs().idxmin()
+    return float(flip_strike)
 
 
 def get_atm_strike(df: pd.DataFrame) -> float:

@@ -229,6 +229,87 @@ def build_dealer_regime_map(df: pd.DataFrame, index_name: str = "Index") -> str:
     return fig.to_json()
 
 
+# ---------------------------------------------------------------------------
+# 3 — Cumulative Gamma GEX
+# ---------------------------------------------------------------------------
+
+def build_cumulative_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    """
+    A 'carbon copy' of the Gamma Exposure chart, but replaces the 
+    Absolute Heat overlay with a Cumulative GEX line.
+    """
+    spot = df["Spot"].iloc[0]
+    flip = calculate_flip_point(df)
+    bw   = _bar_width(df)
+    
+    # Pre-sort for cumulative calc
+    df_sorted = df.sort_values("Strike").copy()
+    df_sorted["Cum_GEX"] = df_sorted["Total_GEX"].cumsum()
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    if mode == "net":
+        # Net GEX Bars (Carbon copy)
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name="+Gamma", opacity=0.4,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name="-Gamma", opacity=0.4,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Cumulative Gamma Profile"
+    else:
+        # Raw GEX Bars (Carbon copy)
+        call_vals = df_sorted["Call_GEX"].abs().tolist()
+        put_vals  = (-df_sorted["Put_GEX"].abs()).tolist()
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=call_vals,
+            width=bw * 0.9, marker_color=C_POS, name="Call GEX ↑", opacity=0.4,
+        ), secondary_y=False)
+
+        fig.add_trace(go.Bar(
+            x=df_sorted["Strike"].tolist(), y=put_vals,
+            width=bw * 0.9, marker_color=C_NEG, name="Put GEX ↓", opacity=0.4,
+        ), secondary_y=False)
+        chart_title = f"{index_name} — Raw Cum-Gamma View"
+
+    # REPLACE Absolute Heat with Cumulative Gamma Line
+    fig.add_trace(go.Scatter(
+        x=df_sorted["Strike"].tolist(), 
+        y=df_sorted["Cum_GEX"].tolist(),
+        fill="tozeroy",
+        fillcolor="rgba(99, 102, 241, 0.1)",
+        line=dict(color=C_POS, width=3),
+        name="Cumulative GEX",
+        mode="lines",
+    ), secondary_y=True)
+    
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    layout = _base_layout(chart_title)
+    
+    # Granular Strike X-Axis
+    strikes = df_sorted["Strike"].unique().tolist()
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+
+    layout["yaxis"]["title"] = "Strike-wise GEX"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative GEX", overlaying="y", side="right")
+    
+    fig.update_layout(**layout)
+
+    return fig.to_json()
 
 
 # ---------------------------------------------------------------------------
