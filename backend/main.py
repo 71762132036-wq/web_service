@@ -19,6 +19,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
+@app.on_event("startup")
+def startup_event():
+    import store
+    store.initialize_from_disk()
+
 # ---------------------------------------------------------------------------
 # CORS — allow browser requests from any origin (dev convenience)
 # ---------------------------------------------------------------------------

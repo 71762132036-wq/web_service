@@ -12,7 +12,7 @@ async function apiFetch(path, options = {}) {
   });
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
-    try { detail = (await res.json()).detail || detail; } catch (_) {}
+    try { detail = (await res.json()).detail || detail; } catch (_) { }
     throw new Error(detail);
   }
   return res.json();
@@ -27,8 +27,10 @@ const API = {
   /** GET /api/indices */
   getIndices: () => apiFetch('/api/indices'),
 
+  /** GET /api/indices/status → { status: { [index]: { hasData, filepath } } } */
+  getStatus: () => apiFetch('/api/indices/status'),
+
   /** GET /api/next-expiry/{index} */
-  getNextExpiry: (index) => apiFetch(`/api/next-expiry/${index}`),
 
   // ── Data Management ─────────────────────────────────────
 

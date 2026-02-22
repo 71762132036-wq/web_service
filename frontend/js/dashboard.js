@@ -9,12 +9,12 @@ const DashboardPage = (() => {
   const _loadedCharts = new Set();
 
   const CHART_TABS = [
-    { key: 'gex', label: '📊 GEX Chart', id: 'chart-gex' },
-    { key: 'regime', label: '🗺️ Dealer Regime', id: 'chart-regime' },
-    { key: 'call_put', label: '📉 Call / Put GEX', id: 'chart-call-put' },
-    { key: 'iv_smile', label: '📈 IV Smile', id: 'chart-iv-smile' },
-    { key: 'rr_bf', label: '🔬 RR & BF', id: 'chart-rr-bf' },
-    { key: 'quant_power', label: '⚡ Quant Power', id: 'chart-quant-power' },
+    { key: 'gex', label: 'GEX Chart', id: 'chart-gex' },
+    { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
+    { key: 'call_put', label: 'Call / Put GEX', id: 'chart-call-put' },
+    { key: 'iv_smile', label: 'IV Smile', id: 'chart-iv-smile' },
+    { key: 'rr_bf', label: 'RR & BF', id: 'chart-rr-bf' },
+    { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
   ];
 
   // ── Templates ─────────────────────────────────────────
@@ -22,7 +22,7 @@ const DashboardPage = (() => {
   function buildEmptyState() {
     return `
       <div class="empty-state">
-        <div class="empty-icon">📭</div>
+        <div class="empty-icon">...</div>
         <h3>No Data Loaded</h3>
         <p>Go to <strong>Data Management</strong> to fetch live data or load a saved file.</p>
       </div>`;
@@ -56,7 +56,7 @@ const DashboardPage = (() => {
 
 
   function buildVolSurface(vs) {
-    if (!vs) return '<div class="alert alert-warning">⚠️ Vol surface not available</div>';
+    if (!vs) return '<div class="alert alert-warning">Vol surface not available</div>';
 
     const rr25Class = vs.RR25 >= 0 ? '' : 'negative';
     const bf10Class = vs.BF10 >= 0 ? '' : 'negative';
@@ -91,12 +91,6 @@ const DashboardPage = (() => {
   async function render(container) {
     const index = State.getIndex();
 
-    // Check if data is loaded
-    if (!State.get().hasData) {
-      container.innerHTML = buildEmptyState();
-      return;
-    }
-
     // Show skeleton
     container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading dashboard…</div>`;
 
@@ -114,7 +108,7 @@ const DashboardPage = (() => {
 
         <!-- Key Metrics -->
         <div class="section-header">
-          <h2>📌 Key Metrics</h2><div class="section-line"></div>
+          <h2>Key Metrics</h2><div class="section-line"></div>
         </div>
         <div class="metrics-grid">
           ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
@@ -127,7 +121,7 @@ const DashboardPage = (() => {
 
         <!-- Chart Tabs -->
         <div class="section-header">
-          <h2>📊 Visualizations</h2><div class="section-line"></div>
+          <h2>Visualizations</h2><div class="section-line"></div>
         </div>
         <div class="tabs" id="chart-tabs">
           <div class="tab-header">${buildTabHeaders()}</div>
@@ -136,7 +130,7 @@ const DashboardPage = (() => {
 
         <!-- Vol Surface -->
         <div class="section-header" style="margin-top:28px;">
-          <h2>📈 Volatility Surface Details</h2><div class="section-line"></div>
+          <h2>Volatility Surface Details</h2><div class="section-line"></div>
         </div>
         <div class="card" style="margin-bottom:22px;">
           <div id="vol-surface-content">${buildVolSurface(vs)}</div>
@@ -151,7 +145,11 @@ const DashboardPage = (() => {
       _loadedCharts.add('chart-gex');
 
     } catch (err) {
-      container.innerHTML = `<div class="alert alert-error">❌ Error loading dashboard: ${err.message}</div>`;
+      if (err.message.includes('No data loaded')) {
+        container.innerHTML = buildEmptyState();
+      } else {
+        container.innerHTML = `<div class="alert alert-error">Error loading dashboard: ${err.message}</div>`;
+      }
     }
   }
 

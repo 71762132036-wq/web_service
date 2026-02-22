@@ -21,3 +21,17 @@ def list_indices():
             for name, cfg in INDICES.items()
         },
     }
+
+@router.get("/indices/status")
+def indices_status():
+    """Return the current load status and metadata for all indices."""
+    import store
+    return {
+        "status": {
+            name: {
+                "hasData": store.has_data(name),
+                "filepath": store.get_filepath(name),
+            }
+            for name in INDICES
+        }
+    }

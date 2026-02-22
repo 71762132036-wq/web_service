@@ -9,10 +9,10 @@ const Toast = (() => {
     const container = document.getElementById('toast-container');
 
     function show(message, type = 'info', duration = 4000) {
-        const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+        const icons = { info: '', success: '', error: '', warning: '' };
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.innerHTML = `<span>${icons[type] || '💬'}</span><span>${message}</span>`;
+        toast.innerHTML = `<span>${message}</span>`;
         container.appendChild(toast);
 
         setTimeout(() => {
@@ -49,8 +49,8 @@ const App = (() => {
 
         // Update topbar title
         const titles = {
-            'dashboard': `📊 ${State.getIndex()} — Gamma Exposure Analysis`,
-            'data-management': '⚙️ Data Management',
+            'dashboard': `${State.getIndex()} — Gamma Exposure Analysis`,
+            'data-management': 'Data Management',
         };
         document.getElementById('topbar-title').textContent = titles[page] || '';
 
@@ -63,23 +63,24 @@ const App = (() => {
 
     function updateTopbar() {
         const st = State.get();
+        const curData = State.getIndexData();
 
         const statusChip = document.getElementById('data-status-chip');
         const expiryChip = document.getElementById('expiry-chip');
 
         if (statusChip) {
-            statusChip.textContent = st.hasData
-                ? `✅ ${st.selectedIndex} loaded`
-                : '⚡ No data loaded';
+            statusChip.textContent = curData.hasData
+                ? `${st.selectedIndex} loaded`
+                : 'No data loaded';
         }
         if (expiryChip) {
-            expiryChip.textContent = st.expiry ? `📅 ${st.expiry}` : '📅 —';
+            expiryChip.textContent = curData.expiry ? `Expiry: ${curData.expiry}` : 'No Expiry';
         }
 
         // Also update the topbar title for dashboard
         if (_currentPage === 'dashboard') {
             const el = document.getElementById('topbar-title');
-            if (el) el.textContent = `📊 ${st.selectedIndex} — Gamma Exposure Analysis`;
+            if (el) el.textContent = `${st.selectedIndex} — Gamma Exposure Analysis`;
         }
     }
 
@@ -93,13 +94,7 @@ const App = (() => {
             const newIndex = sel.value;
             if (newIndex === State.getIndex()) return;
 
-            // Clear data state when switching index
-            State.set({
-                selectedIndex: newIndex,
-                hasData: false,
-                loadedFile: '',
-                expiry: '',
-            });
+            State.set({ selectedIndex: newIndex });
 
             updateTopbar();
             navigate(_currentPage); // Re-render current page for new index
@@ -130,7 +125,19 @@ const App = (() => {
         _wireIndexSelector();
         _wireNavItems();
 
-        // Load initial index state
+        // Sync initial state from backend
+        try {
+            const data = await API.getStatus();
+            if (data && data.status) {
+                Object.entries(data.status).forEach(([idx, info]) => {
+                    State.setIndexData(idx, {
+                        hasData: info.hasData,
+                        loadedFile: info.filepath
+                    });
+                });
+            }
+        } catch (e) { console.error("Initial sync failed", e); }
+
         navigate('dashboard');
         updateTopbar();
     }

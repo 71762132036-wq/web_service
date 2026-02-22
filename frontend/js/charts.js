@@ -31,7 +31,7 @@ const Charts = (() => {
             Plotly.react(el, figure.data, figure.layout, RESPONSIVE_CONFIG);
         } catch (err) {
             el.innerHTML = `<div class="chart-placeholder">
-        <span>⚠️ Chart render error: ${err.message}</span>
+        <span>Chart render error: ${err.message}</span>
       </div>`;
         }
     }
@@ -68,7 +68,7 @@ const Charts = (() => {
         } catch (err) {
             const el = document.getElementById(containerId);
             if (el) el.innerHTML = `<div class="chart-placeholder">
-        <span>⚠️ ${err.message}</span>
+        <span>${err.message}</span>
       </div>`;
         }
     }
