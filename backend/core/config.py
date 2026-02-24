@@ -11,7 +11,7 @@ CLIENT_SECRET = "sbt1wg4ean"
 RURL = "https://127.0.0.1:8080/callback"
 CODE = "UCeTCO"
 ACCESS_TOKEN = (
-    "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0TUNIUVAiLCJqdGkiOiI2OTliMDVjYWU5NDI5NTAwMGE0MzJkZmEiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcxNzY3MjQyLCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzE3OTc2MDB9.lyA85iSewdiOG92MNASfQ1Cw7XGA7lr4k89rp3FGIWc"
+    "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0TUNIUVAiLCJqdGkiOiI2OTlkMjBiOWYxODdhOTZmZWIwNjRjMTUiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcxOTA1MjA5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzE5NzA0MDB9.V1wHXNEwQNgR-uKRxgIsBTvDVNMbHTGEFj8_t7ID1FU"
 )
 
 # ---------------------------------------------------------------------------
@@ -52,8 +52,13 @@ GAMMA_CAGE_WIDTH = 4        # number of strikes around ATM
 FILTER_STRIKES_RADIUS = 20 # ±N strikes around closest strike
 CUTOFF_HOUR = 17            # 5 PM — roll to next expiry after this hour
 
+# ---------------------------------------------------------------------------
+# Auto-Fetch Configuration
+# ---------------------------------------------------------------------------
+AUTO_FETCH          = True  # Toggle background fetching
+FETCH_INTERVAL_MINS = 30    # Interval in minutes
+
 import os
 from pathlib import Path
-# Base data directory (sibling of web_app)
-_base = Path(__file__).resolve().parent.parent.parent.parent
-DATA_DIR = str(_base / "streamlit_app" / "data")
+# Base data directory (inside backend)
+DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")

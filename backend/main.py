@@ -24,9 +24,14 @@ app = FastAPI(
 )
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     import store
     store.initialize_from_disk()
+    
+    # Start auto-fetcher
+    from services.fetcher_service import run_auto_fetcher
+    import asyncio
+    asyncio.create_task(run_auto_fetcher())
 
 # ---------------------------------------------------------------------------
 # CORS — allow browser requests from any origin (dev convenience)

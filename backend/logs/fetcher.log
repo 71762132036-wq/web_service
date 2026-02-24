@@ -1,0 +1,21 @@
+2026-02-24 13:34:00,006 - INFO - Auto-fetch cycle triggered at 2026-02-24 13:34:00
+2026-02-24 13:34:00,095 - INFO - Auto-fetching data for Nifty...
+2026-02-24 13:34:00,389 - INFO - Successfully saved Nifty data to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_133400.csv
+2026-02-24 13:34:00,389 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 13:34:00,766 - INFO - Successfully saved BankNifty data to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_133400.csv
+2026-02-24 13:34:00,766 - INFO - Auto-fetching data for Sensex...
+2026-02-24 13:34:01,140 - INFO - Successfully saved Sensex data to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_133401.csv
+2026-02-24 13:34:01,140 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 13:34:01,140 - INFO - Next auto-fetch in 1m 58s (aligned to 2m clock).
+2026-02-24 13:34:19,547 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:34:24,555 - INFO - Next auto-fetch in 25m 35s (aligned to 30m clock).
+2026-02-24 13:37:04,148 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:37:09,135 - INFO - Next auto-fetch in 22m 50s (aligned to 30m clock).
+2026-02-24 13:37:50,517 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:37:55,515 - INFO - Next auto-fetch in 22m 4s (aligned to 30m clock).
+2026-02-24 13:41:31,070 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:41:36,080 - INFO - Next auto-fetch in 18m 23s (aligned to 30m clock).
+2026-02-24 13:41:41,946 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:41:46,947 - INFO - Next auto-fetch in 18m 13s (aligned to 30m clock).
+2026-02-24 13:55:15,227 - INFO - Starting auto-fetcher. Interval: 30 minutes.
+2026-02-24 13:55:20,215 - INFO - Next auto-fetch in 4m 39s (aligned to 30m clock).

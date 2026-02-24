@@ -35,12 +35,9 @@ def has_data(index_name: str) -> bool:
 
 def initialize_from_disk() -> None:
     """Bootstrap the store by loading the latest file for each index from disk."""
-    from core.config import INDICES
+    from core.config import INDICES, DATA_DIR
     from services.upstox_service import get_available_files, load_data_file
     from services.calculations import calculate_gex
-    
-    # Base data directory (sibling of web_app)
-    DATA_DIR = str(Path(__file__).parent.parent.parent / "streamlit_app" / "data")
     
     print("[BOOTSTRAP] Initializing store from disk...")
     

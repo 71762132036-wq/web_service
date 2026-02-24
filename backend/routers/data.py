@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import store
-from core.config import FILTER_STRIKES_RADIUS, INDICES
+from core.config import FILTER_STRIKES_RADIUS, INDICES, DATA_DIR
 from services.calculations import calculate_gex
 from services.upstox_service import (
     fetch_option_chain_data,
@@ -28,12 +28,6 @@ from services.upstox_service import (
 )
 
 router = APIRouter(prefix="/api", tags=["data"])
-
-# Base data directory — resolves to the existing streamlit_app/data/ folder
-DATA_DIR = str(
-    Path(__file__).parent.parent.parent.parent
-    / "streamlit_app" / "data"
-)
 
 
 # ---------------------------------------------------------------------------
