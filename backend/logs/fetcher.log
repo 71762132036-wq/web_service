@@ -801,3 +801,14 @@
 2026-02-27 23:30:54,751 - INFO - Fetch cycle complete. Waiting for next aligned slot.
 2026-02-27 23:30:54,751 - INFO - Next auto-fetch in 14m 5s (aligned to 15m clock).
 2026-02-28 16:59:44,641 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 16:59:49,648 - INFO - Next auto-fetch in 0m 10s (aligned to 15m clock).
+2026-02-28 17:00:00,023 - INFO - Auto-fetch cycle triggered at 2026-02-28 17:00:00
+2026-02-28 17:00:00,137 - INFO - Auto-fetching data for Nifty...
+2026-02-28 17:00:00,379 - ERROR - Failed to fetch Nifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+50&expiry_date=2026-03-03
+2026-02-28 17:00:00,379 - INFO - Auto-fetching data for BankNifty...
+2026-02-28 17:00:00,569 - ERROR - Failed to fetch BankNifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+Bank&expiry_date=2026-03-31
+2026-02-28 17:00:00,569 - INFO - Auto-fetching data for Sensex...
+2026-02-28 17:00:00,801 - ERROR - Failed to fetch Sensex: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=BSE_INDEX%7CSENSEX&expiry_date=2026-03-05
+2026-02-28 17:00:00,801 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 17:00:00,804 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-28 17:05:07,742 - INFO - Starting auto-fetcher. Interval: 15 minutes.

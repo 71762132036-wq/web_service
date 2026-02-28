@@ -49,6 +49,18 @@ def is_internet_available(host="api.upstox.com", port=443, timeout=5):
     except socket.error:
         return False
 
+def is_market_hours() -> bool:
+    """
+    Returns True only during NSE trading hours: Mon–Fri, 09:30–15:30 IST.
+    """
+    now = datetime.now()
+    # 0=Monday … 4=Friday, 5=Saturday, 6=Sunday
+    if now.weekday() >= 5:
+        return False
+    market_open  = now.replace(hour=9,  minute=30, second=0, microsecond=0)
+    market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    return market_open <= now <= market_close
+
 async def run_auto_fetcher():
     """
     Background loop that fetches live data every N minutes.
@@ -79,7 +91,9 @@ async def run_auto_fetcher():
             now = datetime.now()
             logger.info(f"Auto-fetch cycle triggered at {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-            if not is_internet_available():
+            if not is_market_hours():
+                logger.info("Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.")
+            elif not is_internet_available():
                 logger.warning("Connection to api.upstox.com failed. Skipping this fetch cycle.")
             else:
                 for index_name in INDICES.keys():
