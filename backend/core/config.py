@@ -1,6 +1,9 @@
-"""Core configuration — indices, API credentials, and app-wide constants."""
+import os
+from pathlib import Path
 
-from __future__ import annotations
+# Base data directory (inside backend)
+DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")
+print(f"[BOOTSTRAP] DATA_DIR resolved to: {DATA_DIR}")
 
 
 # ---------------------------------------------------------------------------
@@ -11,7 +14,7 @@ CLIENT_SECRET = "sbt1wg4ean"
 RURL = "https://127.0.0.1:8080/callback"
 CODE = "UCeTCO"
 ACCESS_TOKEN = (
-    "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0TUNIUVAiLCJqdGkiOiI2OTlkMjBiOWYxODdhOTZmZWIwNjRjMTUiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcxOTA1MjA5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzE5NzA0MDB9.V1wHXNEwQNgR-uKRxgIsBTvDVNMbHTGEFj8_t7ID1FU"
+    "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0TUNIUVAiLCJqdGkiOiI2OWExMDc5N2NhNmZlZDJkM2M0N2JlZjMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzcyMTYwOTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NzIyMjk2MDB9.N7ldtaHPV3WcpEZY8lpLDJBx1ff5mb06KI3DiZ3FdI0"
 )
 
 # ---------------------------------------------------------------------------
@@ -50,15 +53,12 @@ DEFAULT_INDEX = "Nifty"
 # ---------------------------------------------------------------------------
 GAMMA_CAGE_WIDTH = 4        # number of strikes around ATM
 FILTER_STRIKES_RADIUS = 20 # ±N strikes around closest strike
-CUTOFF_HOUR = 17            # 5 PM — roll to next expiry after this hour
+CUTOFF_HOUR = 9             # 9 AM — roll to next expiry on expiry day at/after market open
 
 # ---------------------------------------------------------------------------
 # Auto-Fetch Configuration
 # ---------------------------------------------------------------------------
 AUTO_FETCH          = True  # Toggle background fetching
-FETCH_INTERVAL_MINS = 30    # Interval in minutes
+FETCH_INTERVAL_MINS = 15    # Interval in minutes
 
-import os
-from pathlib import Path
-# Base data directory (inside backend)
-DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")
+

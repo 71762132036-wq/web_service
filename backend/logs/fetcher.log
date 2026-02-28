@@ -19,3 +19,785 @@
 2026-02-24 13:41:46,947 - INFO - Next auto-fetch in 18m 13s (aligned to 30m clock).
 2026-02-24 13:55:15,227 - INFO - Starting auto-fetcher. Interval: 30 minutes.
 2026-02-24 13:55:20,215 - INFO - Next auto-fetch in 4m 39s (aligned to 30m clock).
+2026-02-24 14:00:00,011 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:00:00
+2026-02-24 14:00:00,069 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:00:00,512 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_140000.csv
+2026-02-24 14:00:00,533 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:00:00,533 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:00:01,171 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_140001.csv
+2026-02-24 14:00:01,171 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:00:01,171 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:00:01,459 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_140001.csv
+2026-02-24 14:00:01,460 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:00:01,460 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:00:01,460 - INFO - Next auto-fetch in 29m 58s (aligned to 30m clock).
+2026-02-24 14:00:27,521 - INFO - Starting auto-fetcher. Interval: 10 minutes.
+2026-02-24 14:00:32,516 - INFO - Next auto-fetch in 9m 27s (aligned to 10m clock).
+2026-02-24 14:09:59,999 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:09:59
+2026-02-24 14:10:00,271 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:10:00,781 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_141000.csv
+2026-02-24 14:10:00,785 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:10:00,785 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:10:01,099 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_141001.csv
+2026-02-24 14:10:01,111 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:10:01,111 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:10:01,432 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_141001.csv
+2026-02-24 14:10:01,438 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:10:01,438 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:10:01,438 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 14:20:00,008 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:20:00
+2026-02-24 14:20:00,124 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:20:02,005 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_142002.csv
+2026-02-24 14:20:02,005 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:20:02,005 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:20:02,305 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_142002.csv
+2026-02-24 14:20:02,311 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:20:02,311 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:20:02,931 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_142002.csv
+2026-02-24 14:20:02,939 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:20:02,939 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:20:02,939 - INFO - Next auto-fetch in 9m 57s (aligned to 10m clock).
+2026-02-24 14:30:00,008 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:30:00
+2026-02-24 14:30:00,311 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:30:00,674 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_143000.csv
+2026-02-24 14:30:00,674 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:30:00,674 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:30:01,035 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_143001.csv
+2026-02-24 14:30:01,035 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:30:01,035 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:30:01,558 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_143001.csv
+2026-02-24 14:30:01,561 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:30:01,561 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:30:01,561 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 14:38:30,845 - INFO - Starting auto-fetcher. Interval: 10 minutes.
+2026-02-24 14:38:35,845 - INFO - Next auto-fetch in 1m 24s (aligned to 10m clock).
+2026-02-24 14:39:59,979 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:39:59
+2026-02-24 14:40:00,150 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:40:00,525 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_144000.csv
+2026-02-24 14:40:00,525 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:40:00,525 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:40:00,954 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_144000.csv
+2026-02-24 14:40:00,954 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:40:00,954 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:40:01,310 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_144001.csv
+2026-02-24 14:40:01,310 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:40:01,310 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:40:01,316 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 14:49:59,983 - INFO - Auto-fetch cycle triggered at 2026-02-24 14:49:59
+2026-02-24 14:50:00,114 - INFO - Auto-fetching data for Nifty...
+2026-02-24 14:50:00,618 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_145000.csv
+2026-02-24 14:50:00,623 - INFO - Updated in-memory store for Nifty
+2026-02-24 14:50:00,623 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 14:50:00,922 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_145000.csv
+2026-02-24 14:50:00,923 - INFO - Updated in-memory store for BankNifty
+2026-02-24 14:50:00,923 - INFO - Auto-fetching data for Sensex...
+2026-02-24 14:50:01,212 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_145001.csv
+2026-02-24 14:50:01,212 - INFO - Updated in-memory store for Sensex
+2026-02-24 14:50:01,212 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 14:50:01,212 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 15:00:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-24 15:00:00
+2026-02-24 15:00:00,151 - INFO - Auto-fetching data for Nifty...
+2026-02-24 15:00:00,595 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_150000.csv
+2026-02-24 15:00:00,600 - INFO - Updated in-memory store for Nifty
+2026-02-24 15:00:00,603 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 15:00:01,028 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_150001.csv
+2026-02-24 15:00:01,031 - INFO - Updated in-memory store for BankNifty
+2026-02-24 15:00:01,031 - INFO - Auto-fetching data for Sensex...
+2026-02-24 15:00:01,250 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_150001.csv
+2026-02-24 15:00:01,250 - INFO - Updated in-memory store for Sensex
+2026-02-24 15:00:01,250 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 15:00:01,250 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 15:10:00,003 - INFO - Auto-fetch cycle triggered at 2026-02-24 15:10:00
+2026-02-24 15:10:00,190 - INFO - Auto-fetching data for Nifty...
+2026-02-24 15:10:00,422 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_151000.csv
+2026-02-24 15:10:00,422 - INFO - Updated in-memory store for Nifty
+2026-02-24 15:10:00,422 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 15:10:00,877 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_151000.csv
+2026-02-24 15:10:00,877 - INFO - Updated in-memory store for BankNifty
+2026-02-24 15:10:00,877 - INFO - Auto-fetching data for Sensex...
+2026-02-24 15:10:01,173 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_151001.csv
+2026-02-24 15:10:01,181 - INFO - Updated in-memory store for Sensex
+2026-02-24 15:10:01,181 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 15:10:01,183 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 15:20:00,009 - INFO - Auto-fetch cycle triggered at 2026-02-24 15:20:00
+2026-02-24 15:20:00,399 - INFO - Auto-fetching data for Nifty...
+2026-02-24 15:20:00,845 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_152000.csv
+2026-02-24 15:20:00,850 - INFO - Updated in-memory store for Nifty
+2026-02-24 15:20:00,850 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 15:20:01,154 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_152001.csv
+2026-02-24 15:20:01,154 - INFO - Updated in-memory store for BankNifty
+2026-02-24 15:20:01,154 - INFO - Auto-fetching data for Sensex...
+2026-02-24 15:20:01,445 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_152001.csv
+2026-02-24 15:20:01,451 - INFO - Updated in-memory store for Sensex
+2026-02-24 15:20:01,451 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 15:20:01,451 - INFO - Next auto-fetch in 9m 58s (aligned to 10m clock).
+2026-02-24 15:29:59,995 - INFO - Auto-fetch cycle triggered at 2026-02-24 15:29:59
+2026-02-24 15:30:00,069 - INFO - Auto-fetching data for Nifty...
+2026-02-24 15:30:00,389 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-02-24\24_153000.csv
+2026-02-24 15:30:00,389 - INFO - Updated in-memory store for Nifty
+2026-02-24 15:30:00,395 - INFO - Auto-fetching data for BankNifty...
+2026-02-24 15:30:00,689 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-02-24\24_153000.csv
+2026-02-24 15:30:00,690 - INFO - Updated in-memory store for BankNifty
+2026-02-24 15:30:00,690 - INFO - Auto-fetching data for Sensex...
+2026-02-24 15:30:00,995 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\24_153000.csv
+2026-02-24 15:30:00,995 - INFO - Updated in-memory store for Sensex
+2026-02-24 15:30:00,995 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-24 15:30:00,995 - INFO - Next auto-fetch in 9m 59s (aligned to 10m clock).
+2026-02-24 15:30:47,834 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:31:24,913 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:38:52,437 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:47:03,889 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:47:20,977 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:48:00,579 - INFO - Auto-fetch is disabled in config.
+2026-02-24 20:48:58,069 - INFO - Auto-fetch is disabled in config.
+2026-02-25 09:15:17,017 - INFO - Auto-fetch is disabled in config.
+2026-02-25 09:15:35,813 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:15:41,534 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:15:46,507 - INFO - Next auto-fetch in 14m 13s (aligned to 15m clock).
+2026-02-25 09:18:54,666 - INFO - Starting auto-fetcher. Interval: 2 minutes.
+2026-02-25 09:18:59,680 - INFO - Next auto-fetch in 1m 0s (aligned to 2m clock).
+2026-02-25 09:20:00,019 - INFO - Auto-fetch cycle triggered at 2026-02-25 09:20:00
+2026-02-25 09:20:05,041 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 09:20:05,041 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 09:20:05,041 - INFO - Next auto-fetch in 1m 54s (aligned to 2m clock).
+2026-02-25 09:20:18,300 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:20:23,305 - INFO - Next auto-fetch in 9m 36s (aligned to 15m clock).
+2026-02-25 09:20:44,812 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:20:49,813 - INFO - Next auto-fetch in 9m 10s (aligned to 15m clock).
+2026-02-25 09:26:12,422 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:26:17,429 - INFO - Next auto-fetch in 3m 42s (aligned to 15m clock).
+2026-02-25 09:30:00,001 - INFO - Auto-fetch cycle triggered at 2026-02-25 09:30:00
+2026-02-25 09:30:00,097 - INFO - Auto-fetching data for Nifty...
+2026-02-25 09:30:00,359 - ERROR - Failed to fetch Nifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+50&expiry_date=2026-03-03
+2026-02-25 09:30:00,359 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 09:30:00,640 - ERROR - Failed to fetch BankNifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+Bank&expiry_date=2026-03-31
+2026-02-25 09:30:00,640 - INFO - Auto-fetching data for Sensex...
+2026-02-25 09:30:00,901 - ERROR - Failed to fetch Sensex: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=BSE_INDEX%7CSENSEX&expiry_date=2026-02-26
+2026-02-25 09:30:00,917 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 09:30:00,918 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 09:30:59,101 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:31:04,108 - INFO - Next auto-fetch in 13m 55s (aligned to 15m clock).
+2026-02-25 09:31:22,721 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:31:27,713 - INFO - Next auto-fetch in 13m 32s (aligned to 15m clock).
+2026-02-25 09:34:43,603 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:34:48,606 - INFO - Next auto-fetch in 10m 11s (aligned to 15m clock).
+2026-02-25 09:35:54,359 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:35:59,361 - INFO - Next auto-fetch in 9m 0s (aligned to 15m clock).
+2026-02-25 09:37:38,026 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 09:37:43,039 - INFO - Next auto-fetch in 7m 16s (aligned to 15m clock).
+2026-02-25 09:45:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-25 09:45:00
+2026-02-25 09:45:01,205 - INFO - Auto-fetching data for Nifty...
+2026-02-25 09:45:03,663 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_094503.csv
+2026-02-25 09:45:03,669 - INFO - Updated in-memory store for Nifty
+2026-02-25 09:45:03,669 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 09:45:04,781 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_094504.csv
+2026-02-25 09:45:04,784 - INFO - Updated in-memory store for BankNifty
+2026-02-25 09:45:04,784 - INFO - Auto-fetching data for Sensex...
+2026-02-25 09:45:05,027 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_094505.csv
+2026-02-25 09:45:05,027 - INFO - Updated in-memory store for Sensex
+2026-02-25 09:45:05,027 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 09:45:05,027 - INFO - Next auto-fetch in 14m 54s (aligned to 15m clock).
+2026-02-25 10:00:00,012 - INFO - Auto-fetch cycle triggered at 2026-02-25 10:00:00
+2026-02-25 10:00:00,189 - INFO - Auto-fetching data for Nifty...
+2026-02-25 10:00:00,845 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_100000.csv
+2026-02-25 10:00:00,852 - INFO - Updated in-memory store for Nifty
+2026-02-25 10:00:00,852 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 10:00:01,151 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_100001.csv
+2026-02-25 10:00:01,151 - INFO - Updated in-memory store for BankNifty
+2026-02-25 10:00:01,151 - INFO - Auto-fetching data for Sensex...
+2026-02-25 10:00:01,498 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_100001.csv
+2026-02-25 10:00:01,501 - INFO - Updated in-memory store for Sensex
+2026-02-25 10:00:01,501 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 10:00:01,501 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 10:15:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-25 10:15:00
+2026-02-25 10:15:00,107 - INFO - Auto-fetching data for Nifty...
+2026-02-25 10:15:00,609 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_101500.csv
+2026-02-25 10:15:00,609 - INFO - Updated in-memory store for Nifty
+2026-02-25 10:15:00,609 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 10:15:00,842 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_101500.csv
+2026-02-25 10:15:00,848 - INFO - Updated in-memory store for BankNifty
+2026-02-25 10:15:00,848 - INFO - Auto-fetching data for Sensex...
+2026-02-25 10:15:01,121 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_101501.csv
+2026-02-25 10:15:01,121 - INFO - Updated in-memory store for Sensex
+2026-02-25 10:15:01,121 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 10:15:01,121 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 10:30:00,017 - INFO - Auto-fetch cycle triggered at 2026-02-25 10:30:00
+2026-02-25 10:30:00,018 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 10:30:00,018 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 10:30:00,019 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 10:33:52,528 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-25 10:33:57,515 - INFO - Next auto-fetch in 11m 2s (aligned to 15m clock).
+2026-02-25 10:45:00,011 - INFO - Auto-fetch cycle triggered at 2026-02-25 10:45:00
+2026-02-25 10:45:00,163 - INFO - Auto-fetching data for Nifty...
+2026-02-25 10:45:01,471 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_104501.csv
+2026-02-25 10:45:01,484 - INFO - Updated in-memory store for Nifty
+2026-02-25 10:45:01,484 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 10:45:01,721 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_104501.csv
+2026-02-25 10:45:01,725 - INFO - Updated in-memory store for BankNifty
+2026-02-25 10:45:01,727 - INFO - Auto-fetching data for Sensex...
+2026-02-25 10:45:02,088 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_104502.csv
+2026-02-25 10:45:02,092 - INFO - Updated in-memory store for Sensex
+2026-02-25 10:45:02,092 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 10:45:02,092 - INFO - Next auto-fetch in 14m 57s (aligned to 15m clock).
+2026-02-25 11:00:00,017 - INFO - Auto-fetch cycle triggered at 2026-02-25 11:00:00
+2026-02-25 11:00:00,023 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 11:00:00,023 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 11:00:00,023 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 11:15:00,022 - INFO - Auto-fetch cycle triggered at 2026-02-25 11:15:00
+2026-02-25 11:15:00,101 - INFO - Auto-fetching data for Nifty...
+2026-02-25 11:15:00,717 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_111500.csv
+2026-02-25 11:15:00,723 - INFO - Updated in-memory store for Nifty
+2026-02-25 11:15:00,723 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 11:15:01,000 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_111501.csv
+2026-02-25 11:15:01,000 - INFO - Updated in-memory store for BankNifty
+2026-02-25 11:15:01,000 - INFO - Auto-fetching data for Sensex...
+2026-02-25 11:15:01,321 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_111501.csv
+2026-02-25 11:15:01,322 - INFO - Updated in-memory store for Sensex
+2026-02-25 11:15:01,323 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 11:15:01,323 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 11:30:00,012 - INFO - Auto-fetch cycle triggered at 2026-02-25 11:30:00
+2026-02-25 11:30:00,088 - INFO - Auto-fetching data for Nifty...
+2026-02-25 11:30:01,151 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_113001.csv
+2026-02-25 11:30:01,151 - INFO - Updated in-memory store for Nifty
+2026-02-25 11:30:01,156 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 11:30:01,635 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_113001.csv
+2026-02-25 11:30:01,635 - INFO - Updated in-memory store for BankNifty
+2026-02-25 11:30:01,635 - INFO - Auto-fetching data for Sensex...
+2026-02-25 11:30:02,501 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_113002.csv
+2026-02-25 11:30:02,503 - INFO - Updated in-memory store for Sensex
+2026-02-25 11:30:02,503 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 11:30:02,503 - INFO - Next auto-fetch in 14m 57s (aligned to 15m clock).
+2026-02-25 11:45:00,005 - INFO - Auto-fetch cycle triggered at 2026-02-25 11:45:00
+2026-02-25 11:45:00,081 - INFO - Auto-fetching data for Nifty...
+2026-02-25 11:45:00,664 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_114500.csv
+2026-02-25 11:45:00,666 - INFO - Updated in-memory store for Nifty
+2026-02-25 11:45:00,666 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 11:45:00,925 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_114500.csv
+2026-02-25 11:45:00,925 - INFO - Updated in-memory store for BankNifty
+2026-02-25 11:45:00,925 - INFO - Auto-fetching data for Sensex...
+2026-02-25 11:45:01,329 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_114501.csv
+2026-02-25 11:45:01,330 - INFO - Updated in-memory store for Sensex
+2026-02-25 11:45:01,330 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 11:45:01,330 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 11:59:59,998 - INFO - Auto-fetch cycle triggered at 2026-02-25 11:59:59
+2026-02-25 12:00:00,129 - INFO - Auto-fetching data for Nifty...
+2026-02-25 12:00:00,686 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_120000.csv
+2026-02-25 12:00:00,687 - INFO - Updated in-memory store for Nifty
+2026-02-25 12:00:00,689 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 12:00:00,902 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_120000.csv
+2026-02-25 12:00:00,917 - INFO - Updated in-memory store for BankNifty
+2026-02-25 12:00:00,917 - INFO - Auto-fetching data for Sensex...
+2026-02-25 12:00:01,297 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_120001.csv
+2026-02-25 12:00:01,298 - INFO - Updated in-memory store for Sensex
+2026-02-25 12:00:01,298 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 12:00:01,298 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 12:15:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-25 12:15:00
+2026-02-25 12:15:00,124 - INFO - Auto-fetching data for Nifty...
+2026-02-25 12:15:00,729 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_121500.csv
+2026-02-25 12:15:00,729 - INFO - Updated in-memory store for Nifty
+2026-02-25 12:15:00,744 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 12:15:01,098 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_121501.csv
+2026-02-25 12:15:01,100 - INFO - Updated in-memory store for BankNifty
+2026-02-25 12:15:01,100 - INFO - Auto-fetching data for Sensex...
+2026-02-25 12:15:01,341 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_121501.csv
+2026-02-25 12:15:01,341 - INFO - Updated in-memory store for Sensex
+2026-02-25 12:15:01,341 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 12:15:01,341 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 12:30:00,021 - INFO - Auto-fetch cycle triggered at 2026-02-25 12:30:00
+2026-02-25 12:30:00,177 - INFO - Auto-fetching data for Nifty...
+2026-02-25 12:30:01,071 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_123001.csv
+2026-02-25 12:30:01,071 - INFO - Updated in-memory store for Nifty
+2026-02-25 12:30:01,071 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 12:30:01,363 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_123001.csv
+2026-02-25 12:30:01,363 - INFO - Updated in-memory store for BankNifty
+2026-02-25 12:30:01,363 - INFO - Auto-fetching data for Sensex...
+2026-02-25 12:30:01,851 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_123001.csv
+2026-02-25 12:30:01,854 - INFO - Updated in-memory store for Sensex
+2026-02-25 12:30:01,854 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 12:30:01,854 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 12:44:59,997 - INFO - Auto-fetch cycle triggered at 2026-02-25 12:44:59
+2026-02-25 12:45:00,273 - INFO - Auto-fetching data for Nifty...
+2026-02-25 12:45:02,457 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_124502.csv
+2026-02-25 12:45:02,458 - INFO - Updated in-memory store for Nifty
+2026-02-25 12:45:02,458 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 12:45:02,795 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_124502.csv
+2026-02-25 12:45:02,798 - INFO - Updated in-memory store for BankNifty
+2026-02-25 12:45:02,798 - INFO - Auto-fetching data for Sensex...
+2026-02-25 12:45:04,050 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_124504.csv
+2026-02-25 12:45:04,055 - INFO - Updated in-memory store for Sensex
+2026-02-25 12:45:04,055 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 12:45:04,055 - INFO - Next auto-fetch in 14m 55s (aligned to 15m clock).
+2026-02-25 13:00:00,021 - INFO - Auto-fetch cycle triggered at 2026-02-25 13:00:00
+2026-02-25 13:00:00,022 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 13:00:00,022 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 13:00:00,022 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 13:15:00,004 - INFO - Auto-fetch cycle triggered at 2026-02-25 13:15:00
+2026-02-25 13:15:00,007 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 13:15:00,010 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 13:15:00,010 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 13:30:00,020 - INFO - Auto-fetch cycle triggered at 2026-02-25 13:30:00
+2026-02-25 13:30:00,023 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 13:30:00,023 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 13:30:00,027 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 13:45:00,004 - INFO - Auto-fetch cycle triggered at 2026-02-25 13:45:00
+2026-02-25 13:45:00,007 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-25 13:45:00,008 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 13:45:00,008 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-25 13:59:59,996 - INFO - Auto-fetch cycle triggered at 2026-02-25 13:59:59
+2026-02-25 14:00:00,399 - INFO - Auto-fetching data for Nifty...
+2026-02-25 14:00:02,886 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_140002.csv
+2026-02-25 14:00:02,898 - INFO - Updated in-memory store for Nifty
+2026-02-25 14:00:02,898 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 14:00:03,705 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_140003.csv
+2026-02-25 14:00:03,715 - INFO - Updated in-memory store for BankNifty
+2026-02-25 14:00:03,715 - INFO - Auto-fetching data for Sensex...
+2026-02-25 14:00:04,940 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_140004.csv
+2026-02-25 14:00:04,940 - INFO - Updated in-memory store for Sensex
+2026-02-25 14:00:04,948 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 14:00:04,948 - INFO - Next auto-fetch in 14m 55s (aligned to 15m clock).
+2026-02-25 14:15:00,006 - INFO - Auto-fetch cycle triggered at 2026-02-25 14:15:00
+2026-02-25 14:15:00,117 - INFO - Auto-fetching data for Nifty...
+2026-02-25 14:15:00,823 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_141500.csv
+2026-02-25 14:15:00,827 - INFO - Updated in-memory store for Nifty
+2026-02-25 14:15:00,827 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 14:15:01,137 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_141501.csv
+2026-02-25 14:15:01,148 - INFO - Updated in-memory store for BankNifty
+2026-02-25 14:15:01,151 - INFO - Auto-fetching data for Sensex...
+2026-02-25 14:15:01,703 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_141501.csv
+2026-02-25 14:15:01,710 - INFO - Updated in-memory store for Sensex
+2026-02-25 14:15:01,710 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 14:15:01,710 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 14:30:00,013 - INFO - Auto-fetch cycle triggered at 2026-02-25 14:30:00
+2026-02-25 14:30:00,082 - INFO - Auto-fetching data for Nifty...
+2026-02-25 14:30:00,907 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_143000.csv
+2026-02-25 14:30:00,920 - INFO - Updated in-memory store for Nifty
+2026-02-25 14:30:00,920 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 14:30:01,187 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_143001.csv
+2026-02-25 14:30:01,198 - INFO - Updated in-memory store for BankNifty
+2026-02-25 14:30:01,201 - INFO - Auto-fetching data for Sensex...
+2026-02-25 14:30:01,551 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_143001.csv
+2026-02-25 14:30:01,561 - INFO - Updated in-memory store for Sensex
+2026-02-25 14:30:01,563 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 14:30:01,563 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 14:45:00,008 - INFO - Auto-fetch cycle triggered at 2026-02-25 14:45:00
+2026-02-25 14:45:00,127 - INFO - Auto-fetching data for Nifty...
+2026-02-25 14:45:00,635 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_144500.csv
+2026-02-25 14:45:00,644 - INFO - Updated in-memory store for Nifty
+2026-02-25 14:45:00,644 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 14:45:00,951 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_144500.csv
+2026-02-25 14:45:00,955 - INFO - Updated in-memory store for BankNifty
+2026-02-25 14:45:00,961 - INFO - Auto-fetching data for Sensex...
+2026-02-25 14:45:01,298 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_144501.csv
+2026-02-25 14:45:01,309 - INFO - Updated in-memory store for Sensex
+2026-02-25 14:45:01,309 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 14:45:01,309 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 15:00:00,014 - INFO - Auto-fetch cycle triggered at 2026-02-25 15:00:00
+2026-02-25 15:00:00,125 - INFO - Auto-fetching data for Nifty...
+2026-02-25 15:00:00,771 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_150000.csv
+2026-02-25 15:00:00,781 - INFO - Updated in-memory store for Nifty
+2026-02-25 15:00:00,783 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 15:00:01,072 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_150001.csv
+2026-02-25 15:00:01,087 - INFO - Updated in-memory store for BankNifty
+2026-02-25 15:00:01,087 - INFO - Auto-fetching data for Sensex...
+2026-02-25 15:00:01,422 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_150001.csv
+2026-02-25 15:00:01,435 - INFO - Updated in-memory store for Sensex
+2026-02-25 15:00:01,435 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 15:00:01,435 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 15:15:00,011 - INFO - Auto-fetch cycle triggered at 2026-02-25 15:15:00
+2026-02-25 15:15:00,219 - INFO - Auto-fetching data for Nifty...
+2026-02-25 15:15:01,173 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_151501.csv
+2026-02-25 15:15:01,177 - INFO - Updated in-memory store for Nifty
+2026-02-25 15:15:01,182 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 15:15:01,451 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_151501.csv
+2026-02-25 15:15:01,456 - INFO - Updated in-memory store for BankNifty
+2026-02-25 15:15:01,456 - INFO - Auto-fetching data for Sensex...
+2026-02-25 15:15:01,921 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_151501.csv
+2026-02-25 15:15:01,922 - INFO - Updated in-memory store for Sensex
+2026-02-25 15:15:01,922 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 15:15:01,922 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 15:30:00,010 - INFO - Auto-fetch cycle triggered at 2026-02-25 15:30:00
+2026-02-25 15:30:00,111 - INFO - Auto-fetching data for Nifty...
+2026-02-25 15:30:00,851 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_153000.csv
+2026-02-25 15:30:00,863 - INFO - Updated in-memory store for Nifty
+2026-02-25 15:30:00,863 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 15:30:01,133 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_153001.csv
+2026-02-25 15:30:01,142 - INFO - Updated in-memory store for BankNifty
+2026-02-25 15:30:01,143 - INFO - Auto-fetching data for Sensex...
+2026-02-25 15:30:01,534 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_153001.csv
+2026-02-25 15:30:01,537 - INFO - Updated in-memory store for Sensex
+2026-02-25 15:30:01,537 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 15:30:01,537 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 15:44:59,993 - INFO - Auto-fetch cycle triggered at 2026-02-25 15:44:59
+2026-02-25 15:45:00,176 - INFO - Auto-fetching data for Nifty...
+2026-02-25 15:45:00,783 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\25_154500.csv
+2026-02-25 15:45:00,792 - INFO - Updated in-memory store for Nifty
+2026-02-25 15:45:00,794 - INFO - Auto-fetching data for BankNifty...
+2026-02-25 15:45:01,134 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\25_154501.csv
+2026-02-25 15:45:01,143 - INFO - Updated in-memory store for BankNifty
+2026-02-25 15:45:01,143 - INFO - Auto-fetching data for Sensex...
+2026-02-25 15:45:01,435 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-02-26\25_154501.csv
+2026-02-25 15:45:01,445 - INFO - Updated in-memory store for Sensex
+2026-02-25 15:45:01,445 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-25 15:45:01,448 - INFO - Next auto-fetch in 14m 58s (aligned to 15m clock).
+2026-02-25 15:53:18,685 - INFO - Auto-fetch is disabled in config.
+2026-02-26 09:20:59,378 - INFO - Auto-fetch is disabled in config.
+2026-02-26 09:21:10,569 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-26 09:21:15,569 - INFO - Next auto-fetch in 8m 44s (aligned to 15m clock).
+2026-02-26 09:30:00,016 - INFO - Auto-fetch cycle triggered at 2026-02-26 09:30:00
+2026-02-26 09:30:00,064 - INFO - Auto-fetching data for Nifty...
+2026-02-26 09:30:00,308 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_093000.csv
+2026-02-26 09:30:00,318 - INFO - Updated in-memory store for Nifty
+2026-02-26 09:30:00,319 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 09:30:00,431 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_093000.csv
+2026-02-26 09:30:00,441 - INFO - Updated in-memory store for BankNifty
+2026-02-26 09:30:00,442 - INFO - Auto-fetching data for Sensex...
+2026-02-26 09:30:00,623 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_093000.csv
+2026-02-26 09:30:00,630 - INFO - Updated in-memory store for Sensex
+2026-02-26 09:30:00,630 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 09:30:00,630 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 09:45:00,005 - INFO - Auto-fetch cycle triggered at 2026-02-26 09:45:00
+2026-02-26 09:45:00,023 - INFO - Auto-fetching data for Nifty...
+2026-02-26 09:45:00,269 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_094500.csv
+2026-02-26 09:45:00,284 - INFO - Updated in-memory store for Nifty
+2026-02-26 09:45:00,284 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 09:45:00,396 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_094500.csv
+2026-02-26 09:45:00,405 - INFO - Updated in-memory store for BankNifty
+2026-02-26 09:45:00,406 - INFO - Auto-fetching data for Sensex...
+2026-02-26 09:45:00,556 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_094500.csv
+2026-02-26 09:45:00,562 - INFO - Updated in-memory store for Sensex
+2026-02-26 09:45:00,562 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 09:45:00,567 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 09:59:59,998 - INFO - Auto-fetch cycle triggered at 2026-02-26 09:59:59
+2026-02-26 10:00:00,025 - INFO - Auto-fetching data for Nifty...
+2026-02-26 10:00:00,329 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_100000.csv
+2026-02-26 10:00:00,339 - INFO - Updated in-memory store for Nifty
+2026-02-26 10:00:00,339 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 10:00:00,473 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_100000.csv
+2026-02-26 10:00:00,485 - INFO - Updated in-memory store for BankNifty
+2026-02-26 10:00:00,485 - INFO - Auto-fetching data for Sensex...
+2026-02-26 10:00:00,630 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_100000.csv
+2026-02-26 10:00:00,637 - INFO - Updated in-memory store for Sensex
+2026-02-26 10:00:00,637 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 10:00:00,643 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 10:14:59,995 - INFO - Auto-fetch cycle triggered at 2026-02-26 10:14:59
+2026-02-26 10:15:00,019 - INFO - Auto-fetching data for Nifty...
+2026-02-26 10:15:00,234 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_101500.csv
+2026-02-26 10:15:00,246 - INFO - Updated in-memory store for Nifty
+2026-02-26 10:15:00,248 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 10:15:00,384 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_101500.csv
+2026-02-26 10:15:00,386 - INFO - Updated in-memory store for BankNifty
+2026-02-26 10:15:00,386 - INFO - Auto-fetching data for Sensex...
+2026-02-26 10:15:00,525 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_101500.csv
+2026-02-26 10:15:00,533 - INFO - Updated in-memory store for Sensex
+2026-02-26 10:15:00,533 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 10:15:00,533 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 10:30:00,001 - INFO - Auto-fetch cycle triggered at 2026-02-26 10:30:00
+2026-02-26 10:30:00,025 - INFO - Auto-fetching data for Nifty...
+2026-02-26 10:30:00,294 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_103000.csv
+2026-02-26 10:30:00,303 - INFO - Updated in-memory store for Nifty
+2026-02-26 10:30:00,304 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 10:30:00,433 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_103000.csv
+2026-02-26 10:30:00,443 - INFO - Updated in-memory store for BankNifty
+2026-02-26 10:30:00,443 - INFO - Auto-fetching data for Sensex...
+2026-02-26 10:30:00,632 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_103000.csv
+2026-02-26 10:30:00,640 - INFO - Updated in-memory store for Sensex
+2026-02-26 10:30:00,640 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 10:30:00,640 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 10:45:00,002 - INFO - Auto-fetch cycle triggered at 2026-02-26 10:45:00
+2026-02-26 10:45:10,437 - INFO - Auto-fetching data for Nifty...
+2026-02-26 10:45:10,790 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_104510.csv
+2026-02-26 10:45:10,805 - INFO - Updated in-memory store for Nifty
+2026-02-26 10:45:10,805 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 10:45:11,019 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_104511.csv
+2026-02-26 10:45:11,030 - INFO - Updated in-memory store for BankNifty
+2026-02-26 10:45:11,034 - INFO - Auto-fetching data for Sensex...
+2026-02-26 10:45:11,244 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_104511.csv
+2026-02-26 10:45:11,252 - INFO - Updated in-memory store for Sensex
+2026-02-26 10:45:11,252 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 10:45:11,252 - INFO - Next auto-fetch in 14m 48s (aligned to 15m clock).
+2026-02-26 11:00:00,002 - INFO - Auto-fetch cycle triggered at 2026-02-26 11:00:00
+2026-02-26 11:00:00,038 - INFO - Auto-fetching data for Nifty...
+2026-02-26 11:00:00,299 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_110000.csv
+2026-02-26 11:00:00,308 - INFO - Updated in-memory store for Nifty
+2026-02-26 11:00:00,310 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 11:00:00,449 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_110000.csv
+2026-02-26 11:00:00,457 - INFO - Updated in-memory store for BankNifty
+2026-02-26 11:00:00,457 - INFO - Auto-fetching data for Sensex...
+2026-02-26 11:00:00,628 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_110000.csv
+2026-02-26 11:00:00,636 - INFO - Updated in-memory store for Sensex
+2026-02-26 11:00:00,636 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 11:00:00,636 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 11:15:00,022 - INFO - Auto-fetch cycle triggered at 2026-02-26 11:15:00
+2026-02-26 11:15:00,071 - INFO - Auto-fetching data for Nifty...
+2026-02-26 11:15:00,301 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_111500.csv
+2026-02-26 11:15:00,314 - INFO - Updated in-memory store for Nifty
+2026-02-26 11:15:00,314 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 11:15:00,461 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_111500.csv
+2026-02-26 11:15:00,469 - INFO - Updated in-memory store for BankNifty
+2026-02-26 11:15:00,475 - INFO - Auto-fetching data for Sensex...
+2026-02-26 11:15:00,638 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_111500.csv
+2026-02-26 11:15:00,649 - INFO - Updated in-memory store for Sensex
+2026-02-26 11:15:00,649 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 11:15:00,649 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 11:30:00,022 - INFO - Auto-fetch cycle triggered at 2026-02-26 11:30:00
+2026-02-26 11:30:00,071 - INFO - Auto-fetching data for Nifty...
+2026-02-26 11:30:00,303 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_113000.csv
+2026-02-26 11:30:00,311 - INFO - Updated in-memory store for Nifty
+2026-02-26 11:30:00,313 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 11:30:00,435 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_113000.csv
+2026-02-26 11:30:00,443 - INFO - Updated in-memory store for BankNifty
+2026-02-26 11:30:00,443 - INFO - Auto-fetching data for Sensex...
+2026-02-26 11:30:00,580 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_113000.csv
+2026-02-26 11:30:00,589 - INFO - Updated in-memory store for Sensex
+2026-02-26 11:30:00,592 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 11:30:00,593 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 11:45:00,009 - INFO - Auto-fetch cycle triggered at 2026-02-26 11:45:00
+2026-02-26 11:45:00,050 - INFO - Auto-fetching data for Nifty...
+2026-02-26 11:45:00,285 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_114500.csv
+2026-02-26 11:45:00,291 - INFO - Updated in-memory store for Nifty
+2026-02-26 11:45:00,291 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 11:45:00,400 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_114500.csv
+2026-02-26 11:45:00,407 - INFO - Updated in-memory store for BankNifty
+2026-02-26 11:45:00,407 - INFO - Auto-fetching data for Sensex...
+2026-02-26 11:45:00,555 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_114500.csv
+2026-02-26 11:45:00,570 - INFO - Updated in-memory store for Sensex
+2026-02-26 11:45:00,570 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 11:45:00,572 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 11:59:59,991 - INFO - Auto-fetch cycle triggered at 2026-02-26 11:59:59
+2026-02-26 12:00:00,032 - INFO - Auto-fetching data for Nifty...
+2026-02-26 12:00:00,294 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\26_120000.csv
+2026-02-26 12:00:00,302 - INFO - Updated in-memory store for Nifty
+2026-02-26 12:00:00,302 - INFO - Auto-fetching data for BankNifty...
+2026-02-26 12:00:00,452 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\26_120000.csv
+2026-02-26 12:00:00,461 - INFO - Updated in-memory store for BankNifty
+2026-02-26 12:00:00,461 - INFO - Auto-fetching data for Sensex...
+2026-02-26 12:00:00,656 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\26_120000.csv
+2026-02-26 12:00:00,677 - INFO - Updated in-memory store for Sensex
+2026-02-26 12:00:00,679 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 12:00:00,680 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-26 12:38:27,439 - INFO - Auto-fetch cycle triggered at 2026-02-26 12:38:27
+2026-02-26 12:38:27,501 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-26 12:38:27,519 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 12:38:27,531 - INFO - Next auto-fetch in 6m 32s (aligned to 15m clock).
+2026-02-26 18:33:35,613 - INFO - Auto-fetch cycle triggered at 2026-02-26 18:33:35
+2026-02-26 18:33:35,613 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-26 18:33:35,613 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-26 18:33:35,624 - INFO - Next auto-fetch in 11m 24s (aligned to 15m clock).
+2026-02-26 18:38:40,600 - INFO - Auto-fetch is disabled in config.
+2026-02-26 21:03:10,032 - INFO - Auto-fetch is disabled in config.
+2026-02-27 08:25:54,419 - INFO - Auto-fetch is disabled in config.
+2026-02-27 08:30:27,108 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-27 08:30:32,104 - INFO - Next auto-fetch in 14m 27s (aligned to 15m clock).
+2026-02-27 08:44:59,991 - INFO - Auto-fetch cycle triggered at 2026-02-27 08:44:59
+2026-02-27 08:45:00,032 - INFO - Auto-fetching data for Nifty...
+2026-02-27 08:45:00,271 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_084500.csv
+2026-02-27 08:45:00,285 - INFO - Updated in-memory store for Nifty
+2026-02-27 08:45:00,285 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 08:45:00,384 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_084500.csv
+2026-02-27 08:45:00,392 - INFO - Updated in-memory store for BankNifty
+2026-02-27 08:45:00,392 - INFO - Auto-fetching data for Sensex...
+2026-02-27 08:45:00,495 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_084500.csv
+2026-02-27 08:45:00,498 - INFO - Updated in-memory store for Sensex
+2026-02-27 08:45:00,498 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 08:45:00,498 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 09:00:00,019 - INFO - Auto-fetch cycle triggered at 2026-02-27 09:00:00
+2026-02-27 09:00:00,037 - INFO - Auto-fetching data for Nifty...
+2026-02-27 09:00:00,240 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_090000.csv
+2026-02-27 09:00:00,243 - INFO - Updated in-memory store for Nifty
+2026-02-27 09:00:00,243 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 09:00:00,375 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_090000.csv
+2026-02-27 09:00:00,375 - INFO - Updated in-memory store for BankNifty
+2026-02-27 09:00:00,375 - INFO - Auto-fetching data for Sensex...
+2026-02-27 09:00:00,533 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_090000.csv
+2026-02-27 09:00:00,533 - INFO - Updated in-memory store for Sensex
+2026-02-27 09:00:00,533 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 09:00:00,533 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 09:15:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-27 09:15:00
+2026-02-27 09:15:00,039 - INFO - Auto-fetching data for Nifty...
+2026-02-27 09:15:00,256 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_091500.csv
+2026-02-27 09:15:00,256 - INFO - Updated in-memory store for Nifty
+2026-02-27 09:15:00,256 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 09:15:00,352 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_091500.csv
+2026-02-27 09:15:00,356 - INFO - Updated in-memory store for BankNifty
+2026-02-27 09:15:00,356 - INFO - Auto-fetching data for Sensex...
+2026-02-27 09:15:00,452 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_091500.csv
+2026-02-27 09:15:00,457 - INFO - Updated in-memory store for Sensex
+2026-02-27 09:15:00,457 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 09:15:00,457 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 09:29:59,983 - INFO - Auto-fetch cycle triggered at 2026-02-27 09:29:59
+2026-02-27 09:30:00,022 - INFO - Auto-fetching data for Nifty...
+2026-02-27 09:30:00,215 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_093000.csv
+2026-02-27 09:30:00,223 - INFO - Updated in-memory store for Nifty
+2026-02-27 09:30:00,223 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 09:30:00,323 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_093000.csv
+2026-02-27 09:30:00,323 - INFO - Updated in-memory store for BankNifty
+2026-02-27 09:30:00,323 - INFO - Auto-fetching data for Sensex...
+2026-02-27 09:30:00,441 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_093000.csv
+2026-02-27 09:30:00,441 - INFO - Updated in-memory store for Sensex
+2026-02-27 09:30:00,441 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 09:30:00,441 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 09:44:59,999 - INFO - Auto-fetch cycle triggered at 2026-02-27 09:44:59
+2026-02-27 09:45:00,024 - INFO - Auto-fetching data for Nifty...
+2026-02-27 09:45:00,191 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_094500.csv
+2026-02-27 09:45:00,200 - INFO - Updated in-memory store for Nifty
+2026-02-27 09:45:00,200 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 09:45:00,287 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_094500.csv
+2026-02-27 09:45:00,287 - INFO - Updated in-memory store for BankNifty
+2026-02-27 09:45:00,291 - INFO - Auto-fetching data for Sensex...
+2026-02-27 09:45:00,375 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_094500.csv
+2026-02-27 09:45:00,383 - INFO - Updated in-memory store for Sensex
+2026-02-27 09:45:00,383 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 09:45:00,383 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 10:00:00,020 - INFO - Auto-fetch cycle triggered at 2026-02-27 10:00:00
+2026-02-27 10:00:00,053 - INFO - Auto-fetching data for Nifty...
+2026-02-27 10:00:00,248 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_100000.csv
+2026-02-27 10:00:00,248 - INFO - Updated in-memory store for Nifty
+2026-02-27 10:00:00,248 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 10:00:00,353 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_100000.csv
+2026-02-27 10:00:00,353 - INFO - Updated in-memory store for BankNifty
+2026-02-27 10:00:00,353 - INFO - Auto-fetching data for Sensex...
+2026-02-27 10:00:00,503 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_100000.csv
+2026-02-27 10:00:00,503 - INFO - Updated in-memory store for Sensex
+2026-02-27 10:00:00,503 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 10:00:00,503 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 10:14:59,986 - INFO - Auto-fetch cycle triggered at 2026-02-27 10:14:59
+2026-02-27 10:15:00,005 - INFO - Auto-fetching data for Nifty...
+2026-02-27 10:15:00,210 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_101500.csv
+2026-02-27 10:15:00,210 - INFO - Updated in-memory store for Nifty
+2026-02-27 10:15:00,213 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 10:15:00,297 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_101500.csv
+2026-02-27 10:15:00,301 - INFO - Updated in-memory store for BankNifty
+2026-02-27 10:15:00,301 - INFO - Auto-fetching data for Sensex...
+2026-02-27 10:15:00,398 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_101500.csv
+2026-02-27 10:15:00,398 - INFO - Updated in-memory store for Sensex
+2026-02-27 10:15:00,405 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 10:15:00,405 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 10:30:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-27 10:30:00
+2026-02-27 10:30:00,024 - INFO - Auto-fetching data for Nifty...
+2026-02-27 10:30:00,265 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_103000.csv
+2026-02-27 10:30:00,267 - INFO - Updated in-memory store for Nifty
+2026-02-27 10:30:00,267 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 10:30:00,391 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_103000.csv
+2026-02-27 10:30:00,391 - INFO - Updated in-memory store for BankNifty
+2026-02-27 10:30:00,391 - INFO - Auto-fetching data for Sensex...
+2026-02-27 10:30:00,499 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_103000.csv
+2026-02-27 10:30:00,499 - INFO - Updated in-memory store for Sensex
+2026-02-27 10:30:00,499 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 10:30:00,499 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 11:23:40,866 - INFO - Auto-fetch cycle triggered at 2026-02-27 11:23:40
+2026-02-27 11:23:41,068 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 11:23:41,082 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 11:23:41,098 - INFO - Next auto-fetch in 6m 18s (aligned to 15m clock).
+2026-02-27 16:09:21,998 - INFO - Auto-fetch cycle triggered at 2026-02-27 16:09:21
+2026-02-27 16:09:22,048 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 16:09:22,048 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 16:09:22,048 - INFO - Next auto-fetch in 5m 37s (aligned to 15m clock).
+2026-02-27 18:38:33,564 - INFO - Auto-fetch cycle triggered at 2026-02-27 18:38:33
+2026-02-27 18:38:33,567 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 18:38:33,567 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 18:38:33,567 - INFO - Next auto-fetch in 6m 26s (aligned to 15m clock).
+2026-02-27 18:45:00,002 - INFO - Auto-fetch cycle triggered at 2026-02-27 18:45:00
+2026-02-27 18:45:00,176 - INFO - Auto-fetching data for Nifty...
+2026-02-27 18:45:00,483 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_184500.csv
+2026-02-27 18:45:00,483 - INFO - Updated in-memory store for Nifty
+2026-02-27 18:45:00,483 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 18:45:00,615 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_184500.csv
+2026-02-27 18:45:00,615 - INFO - Updated in-memory store for BankNifty
+2026-02-27 18:45:00,615 - INFO - Auto-fetching data for Sensex...
+2026-02-27 18:45:00,784 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_184500.csv
+2026-02-27 18:45:00,784 - INFO - Updated in-memory store for Sensex
+2026-02-27 18:45:00,784 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 18:45:00,784 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 19:00:00,004 - INFO - Auto-fetch cycle triggered at 2026-02-27 19:00:00
+2026-02-27 19:00:00,054 - INFO - Auto-fetching data for Nifty...
+2026-02-27 19:00:00,462 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_190000.csv
+2026-02-27 19:00:00,464 - INFO - Updated in-memory store for Nifty
+2026-02-27 19:00:00,465 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 19:00:00,702 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_190000.csv
+2026-02-27 19:00:00,702 - INFO - Updated in-memory store for BankNifty
+2026-02-27 19:00:00,702 - INFO - Auto-fetching data for Sensex...
+2026-02-27 19:00:00,900 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_190000.csv
+2026-02-27 19:00:00,900 - INFO - Updated in-memory store for Sensex
+2026-02-27 19:00:00,900 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 19:00:00,900 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 19:15:00,021 - INFO - Auto-fetch cycle triggered at 2026-02-27 19:15:00
+2026-02-27 19:15:00,078 - INFO - Auto-fetching data for Nifty...
+2026-02-27 19:15:00,408 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_191500.csv
+2026-02-27 19:15:00,410 - INFO - Updated in-memory store for Nifty
+2026-02-27 19:15:00,410 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 19:15:00,558 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_191500.csv
+2026-02-27 19:15:00,558 - INFO - Updated in-memory store for BankNifty
+2026-02-27 19:15:00,558 - INFO - Auto-fetching data for Sensex...
+2026-02-27 19:15:00,729 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_191500.csv
+2026-02-27 19:15:00,732 - INFO - Updated in-memory store for Sensex
+2026-02-27 19:15:00,732 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 19:15:00,732 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 19:30:00,003 - INFO - Auto-fetch cycle triggered at 2026-02-27 19:30:00
+2026-02-27 19:30:00,014 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 19:30:00,014 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 19:30:00,014 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 19:45:00,014 - INFO - Auto-fetch cycle triggered at 2026-02-27 19:45:00
+2026-02-27 19:45:00,071 - INFO - Auto-fetching data for Nifty...
+2026-02-27 19:45:00,325 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_194500.csv
+2026-02-27 19:45:00,327 - INFO - Updated in-memory store for Nifty
+2026-02-27 19:45:00,328 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 19:45:00,478 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_194500.csv
+2026-02-27 19:45:00,478 - INFO - Updated in-memory store for BankNifty
+2026-02-27 19:45:00,478 - INFO - Auto-fetching data for Sensex...
+2026-02-27 19:45:00,712 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_194500.csv
+2026-02-27 19:45:00,714 - INFO - Updated in-memory store for Sensex
+2026-02-27 19:45:00,714 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 19:45:00,714 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 20:00:00,013 - INFO - Auto-fetch cycle triggered at 2026-02-27 20:00:00
+2026-02-27 20:00:00,066 - INFO - Auto-fetching data for Nifty...
+2026-02-27 20:00:00,341 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_200000.csv
+2026-02-27 20:00:00,346 - INFO - Updated in-memory store for Nifty
+2026-02-27 20:00:00,346 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 20:00:00,533 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_200000.csv
+2026-02-27 20:00:00,540 - INFO - Updated in-memory store for BankNifty
+2026-02-27 20:00:00,540 - INFO - Auto-fetching data for Sensex...
+2026-02-27 20:00:00,715 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_200000.csv
+2026-02-27 20:00:00,716 - INFO - Updated in-memory store for Sensex
+2026-02-27 20:00:00,716 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 20:00:00,716 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 20:15:00,007 - INFO - Auto-fetch cycle triggered at 2026-02-27 20:15:00
+2026-02-27 20:15:00,068 - INFO - Auto-fetching data for Nifty...
+2026-02-27 20:15:00,422 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_201500.csv
+2026-02-27 20:15:00,435 - INFO - Updated in-memory store for Nifty
+2026-02-27 20:15:00,435 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 20:15:00,576 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_201500.csv
+2026-02-27 20:15:00,589 - INFO - Updated in-memory store for BankNifty
+2026-02-27 20:15:00,590 - INFO - Auto-fetching data for Sensex...
+2026-02-27 20:15:00,835 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_201500.csv
+2026-02-27 20:15:00,841 - INFO - Updated in-memory store for Sensex
+2026-02-27 20:15:00,843 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 20:15:00,844 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 20:29:59,998 - INFO - Auto-fetch cycle triggered at 2026-02-27 20:29:59
+2026-02-27 20:30:00,158 - INFO - Auto-fetching data for Nifty...
+2026-02-27 20:30:00,408 - INFO - Successfully saved Nifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Nifty\2026-03-10\27_203000.csv
+2026-02-27 20:30:00,419 - INFO - Updated in-memory store for Nifty
+2026-02-27 20:30:00,419 - INFO - Auto-fetching data for BankNifty...
+2026-02-27 20:30:00,533 - INFO - Successfully saved BankNifty data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\BankNifty\2026-03-31\27_203000.csv
+2026-02-27 20:30:00,542 - INFO - Updated in-memory store for BankNifty
+2026-02-27 20:30:00,542 - INFO - Auto-fetching data for Sensex...
+2026-02-27 20:30:00,720 - INFO - Successfully saved Sensex data (filtered ±20) to D:\Investments\Participant_Wise_OI\Analytical_App\gamma_stocks\GC_gamma\nifty\web_app\backend\data\Sensex\2026-03-05\27_203000.csv
+2026-02-27 20:30:00,728 - INFO - Updated in-memory store for Sensex
+2026-02-27 20:30:00,729 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 20:30:00,731 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-27 21:34:07,854 - INFO - Auto-fetch cycle triggered at 2026-02-27 21:34:07
+2026-02-27 21:34:08,038 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 21:34:08,059 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 21:34:08,102 - INFO - Next auto-fetch in 10m 51s (aligned to 15m clock).
+2026-02-27 22:53:05,262 - INFO - Auto-fetch cycle triggered at 2026-02-27 22:53:05
+2026-02-27 22:53:05,326 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 22:53:05,330 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 22:53:05,330 - INFO - Next auto-fetch in 6m 54s (aligned to 15m clock).
+2026-02-27 23:19:41,096 - INFO - Auto-fetch cycle triggered at 2026-02-27 23:19:41
+2026-02-27 23:19:41,232 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 23:19:41,307 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 23:19:41,358 - INFO - Next auto-fetch in 10m 18s (aligned to 15m clock).
+2026-02-27 23:30:54,740 - INFO - Auto-fetch cycle triggered at 2026-02-27 23:30:54
+2026-02-27 23:30:54,749 - WARNING - Connection to api.upstox.com failed. Skipping this fetch cycle.
+2026-02-27 23:30:54,751 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-27 23:30:54,751 - INFO - Next auto-fetch in 14m 5s (aligned to 15m clock).
+2026-02-28 16:59:44,641 - INFO - Starting auto-fetcher. Interval: 15 minutes.

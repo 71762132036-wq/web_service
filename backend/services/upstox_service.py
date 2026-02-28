@@ -13,7 +13,7 @@ from typing import Optional, Tuple, List
 import pandas as pd
 import requests
 
-from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, INDICES
+from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, DATA_DIR, INDICES
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,25 @@ def fetch_option_chain_data(
 
         option_data = data.get("data", [])
         if not option_data:
-            return None, "No data received from API"
+            # Fallback: on expiry day the API may no longer serve today's expiry.
+            # Automatically retry with +7 days for weekly, next month for monthly.
+            index_config = INDICES.get(index_name, {})
+            if index_config.get("expiry_type") == "weekly":
+                from datetime import datetime as _dt
+                _orig = _dt.strptime(expiry_date, "%Y-%m-%d").date()
+                _next = _orig + timedelta(days=7)
+                fallback_date = _next.strftime("%Y-%m-%d")
+                print(f"[EXPIRY FALLBACK] No data for {expiry_date}, retrying with {fallback_date}")
+                params["expiry_date"] = fallback_date
+                response2 = requests.get(API_URL, params=params, headers=headers, timeout=15)
+                response2.raise_for_status()
+                option_data = response2.json().get("data", [])
+                if not option_data:
+                    return None, f"No data for {expiry_date} or {fallback_date}"
+                # Patch expiry_date for correct folder naming
+                expiry_date = fallback_date
+            else:
+                return None, "No data received from API"
 
         records = []
         for item in option_data:
@@ -188,14 +206,19 @@ def filter_near_strikes(df: pd.DataFrame, filter_radius: int = 20) -> pd.DataFra
 # File I/O
 # ---------------------------------------------------------------------------
 
-def save_data(df: pd.DataFrame, index_name: str, data_dir: str = "data") -> str:
+def save_data(df: pd.DataFrame, index_name: str, data_dir: str | None = None) -> str:
     """Save DataFrame → data/<INDEX>/<EXPIRY>/<TIMESTAMP>.csv"""
+    if data_dir is None:
+        data_dir = DATA_DIR
     expiry_date = df["expiry"].iloc[0]
     folder = Path(data_dir) / index_name / expiry_date
     folder.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%d_%H%M%S")
     filepath = folder / f"{timestamp}.csv"
+    
+    print(f"[DEBUG] Saving data. data_dir={data_dir}, target_file={filepath}")
+    
     df.to_csv(filepath, index=False)
     return str(filepath)
 
@@ -209,11 +232,13 @@ def load_data_file(filepath: str) -> Tuple[Optional[pd.DataFrame], Optional[str]
         return None, f"Error loading file: {exc}"
 
 
-def get_available_files(index_name: str, data_dir: str = "data") -> dict:
+def get_available_files(index_name: str, data_dir: str | None = None) -> dict:
     """
     Return dict of { expiry_date: [filename, ...] } for the given index.
     Supports both new structure (data/INDEX/EXPIRY/) and old (data/EXPIRY/).
     """
+    if data_dir is None:
+        data_dir = DATA_DIR
     files_dict = {}
     data_path = Path(data_dir)
 

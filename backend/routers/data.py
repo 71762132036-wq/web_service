@@ -85,6 +85,7 @@ def fetch_data(body: FetchRequest):
         lot_size    = INDICES[index_name]["lot_size"]
         df_filtered = calculate_gex(df_filtered, lot_size)
 
+        print(f"[DEBUG] fetch_data: Calling save_data with data_dir={DATA_DIR}")
         filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR)
 
         # Auto-load into store
