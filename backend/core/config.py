@@ -61,4 +61,9 @@ CUTOFF_HOUR = 9             # 9 AM — roll to next expiry on expiry day at/afte
 AUTO_FETCH          = True  # Toggle background fetching
 FETCH_INTERVAL_MINS = 15    # Interval in minutes
 
+# ---------------------------------------------------------------------------
+# Render Remote Collector
+# ---------------------------------------------------------------------------
+# Set to your deployed Render service URL, e.g. https://gc-gamma-collector.onrender.com
+RENDER_API_URL: str = os.getenv("RENDER_API_URL", "")
 

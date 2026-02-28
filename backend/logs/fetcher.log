@@ -812,3 +812,38 @@
 2026-02-28 17:00:00,801 - INFO - Fetch cycle complete. Waiting for next aligned slot.
 2026-02-28 17:00:00,804 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
 2026-02-28 17:05:07,742 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 17:05:13,790 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 17:05:18,802 - INFO - Next auto-fetch in 9m 41s (aligned to 15m clock).
+2026-02-28 17:15:00,000 - INFO - Auto-fetch cycle triggered at 2026-02-28 17:15:00
+2026-02-28 17:15:00,014 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-02-28 17:15:00,018 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 17:15:00,019 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-02-28 17:29:59,995 - INFO - Auto-fetch cycle triggered at 2026-02-28 17:29:59
+2026-02-28 17:29:59,997 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-02-28 17:29:59,997 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 17:29:59,997 - INFO - Next auto-fetch in 15m 0s (aligned to 15m clock).
+2026-02-28 17:44:59,983 - INFO - Auto-fetch cycle triggered at 2026-02-28 17:44:59
+2026-02-28 17:44:59,984 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-02-28 17:44:59,984 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 17:44:59,984 - INFO - Next auto-fetch in 15m 0s (aligned to 15m clock).
+2026-02-28 17:59:59,981 - INFO - Auto-fetch cycle triggered at 2026-02-28 17:59:59
+2026-02-28 17:59:59,982 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-02-28 17:59:59,982 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 17:59:59,982 - INFO - Next auto-fetch in 15m 0s (aligned to 15m clock).
+2026-02-28 18:06:22,843 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:06:27,677 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:06:29,744 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:06:31,430 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:06:36,439 - INFO - Next auto-fetch in 8m 23s (aligned to 15m clock).
+2026-02-28 18:07:13,872 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:07:15,822 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:07:17,543 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:07:22,553 - INFO - Next auto-fetch in 7m 37s (aligned to 15m clock).
+2026-02-28 18:08:30,957 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:08:35,959 - INFO - Next auto-fetch in 6m 24s (aligned to 15m clock).
+2026-02-28 18:09:00,265 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-02-28 18:09:05,277 - INFO - Next auto-fetch in 5m 54s (aligned to 15m clock).
+2026-02-28 18:15:00,008 - INFO - Auto-fetch cycle triggered at 2026-02-28 18:15:00
+2026-02-28 18:15:00,009 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-02-28 18:15:00,009 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-02-28 18:15:00,009 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).

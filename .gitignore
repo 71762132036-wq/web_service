@@ -1,2 +1,7 @@
 backend/data/*
 backend/logs/*
+
+# Secrets — never commit
+.env
+backend/render/.env
+**/.env

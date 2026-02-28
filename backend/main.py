@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routers import analysis, charts, data, export, indices
+from routers import analysis, charts, data, export, indices, sync
 
 # ---------------------------------------------------------------------------
 # App
@@ -51,6 +51,7 @@ app.include_router(data.router)
 app.include_router(analysis.router)
 app.include_router(charts.router)
 app.include_router(export.router)
+app.include_router(sync.router)
 
 # ---------------------------------------------------------------------------
 # Health check  (must be BEFORE the static file mount)
