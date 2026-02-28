@@ -5,6 +5,11 @@ from pathlib import Path
 DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")
 print(f"[BOOTSTRAP] DATA_DIR resolved to: {DATA_DIR}")
 
+# ---------------------------------------------------------------------------
+# Supabase — used by local /api/sync to pull data from the Render cron job
+# ---------------------------------------------------------------------------
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://wxhhzedijpgzlukbvwia.supabase.co")
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")  # Set via env var — never hardcode
 
 # ---------------------------------------------------------------------------
 # Upstox API credentials

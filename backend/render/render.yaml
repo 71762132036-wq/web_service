@@ -1,16 +1,18 @@
-# render.yaml — Render IaC for one-click deploy
+# render.yaml — Render IaC for one-click Cron Job deploy (FREE TIER)
 # Docs: https://render.com/docs/blueprint-spec
 
 services:
-  - type: web
+  - type: cron
     name: gc-gamma-collector
     runtime: python
-    region: singapore   # Closest to IST — change to frankfurt/ohio if preferred
-    plan: starter       # Required for always-on (no sleep). ~$7/month.
+    region: singapore        # IST offset is UTC+5:30; singapore = UTC+8 (close enough)
+    plan: free               # Cron Jobs are FREE on Render
     rootDir: backend/render
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    # Every 15 minutes, Mon–Fri, 04:00–10:00 UTC = 09:30–15:30 IST
+    # The script also has its own is_market_hours() guard for exact precision.
+    schedule: "*/15 4-10 * * 1-5"
+    startCommand: python cron_job.py
 
     envVars:
       - key: SUPABASE_URL
@@ -18,7 +20,7 @@ services:
       - key: SUPABASE_KEY
         sync: false
       - key: UPSTOX_ACCESS_TOKEN
-        sync: false          # Updated daily via POST /set-token
+        sync: false          # Updated daily (you can set this in Render env vars)
       - key: COLLECT_INTERVAL_MINS
         value: "15"
       - key: FILTER_STRIKES_RADIUS
