@@ -847,3 +847,9 @@
 2026-02-28 18:15:00,009 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
 2026-02-28 18:15:00,009 - INFO - Fetch cycle complete. Waiting for next aligned slot.
 2026-02-28 18:15:00,009 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
+2026-03-01 16:33:18,200 - INFO - Starting auto-fetcher. Interval: 15 minutes.
+2026-03-01 16:33:23,191 - INFO - Next auto-fetch in 11m 36s (aligned to 15m clock).
+2026-03-01 16:45:00,003 - INFO - Auto-fetch cycle triggered at 2026-03-01 16:45:00
+2026-03-01 16:45:00,003 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 16:45:00,005 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 16:45:00,005 - INFO - Next auto-fetch in 14m 59s (aligned to 15m clock).
