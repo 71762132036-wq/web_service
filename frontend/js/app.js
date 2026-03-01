@@ -69,8 +69,12 @@ const App = (() => {
 
     async function _refreshFileControls(index) {
         const expirySel = document.getElementById('select-expiry');
+        const dateSel = document.getElementById('select-date');
         const fileSel = document.getElementById('select-file');
-        if (!expirySel || !fileSel) return;
+        const dateSel2 = document.getElementById('select-date-2');
+        const fileSel2 = document.getElementById('select-file-2');
+
+        if (!expirySel || !dateSel || !fileSel) return;
 
         try {
             const data = await API.getFiles(index);
@@ -80,33 +84,66 @@ const App = (() => {
             const idxData = State.getIndexData(index);
             const selExpiry = idxData.selectedExpiry || (expiries.length ? expiries[0] : '');
 
-            // Populate Expiry
+            // 1. Populate Expiry
             expirySel.innerHTML = expiries.length
                 ? expiries.map(e => `<option value="${e}" ${e === selExpiry ? 'selected' : ''}>${e}</option>`).join('')
                 : '<option value="">No Data</option>';
 
-            // Populate Files for selected expiry
-            const files = filesDict[selExpiry] || [];
-            const selFile = idxData.selectedFile || (files.length ? files[0] : '');
-            const selFile2 = idxData.selectedFile2 || (files.length > 1 ? files[1] : (files.length ? files[0] : ''));
+            // Helper to process files for an expiry
+            const processFiles = (expiry) => {
+                const files = filesDict[expiry] || [];
+                const dateMap = {}; // { date: [files] }
+                files.forEach(f => {
+                    const date = f.substring(0, 2);
+                    if (!dateMap[date]) dateMap[date] = [];
+                    dateMap[date].push(f);
+                });
+                return dateMap;
+            };
 
-            const fileOptions = files.length
-                ? files.map(f => `<option value="${f}">${f}</option>`).join('')
+            const dateMap = processFiles(selExpiry);
+            const dates = Object.keys(dateMap).sort().reverse();
+            const selDate = idxData.selectedDate || (dates.length ? dates[0] : '');
+
+            // 2. Populate Date
+            dateSel.innerHTML = dates.length
+                ? dates.map(d => `<option value="${d}" ${d === selDate ? 'selected' : ''}>${d}</option>`).join('')
                 : '<option value="">—</option>';
 
-            fileSel.innerHTML = fileOptions;
-            fileSel.value = selFile;
+            // 3. Populate Files for selected date
+            const files = dateMap[selDate] || [];
+            const selFile = idxData.selectedFile || (files.length ? files[0] : '');
 
-            const fileSel2 = document.getElementById('select-file-2');
-            if (fileSel2) {
-                fileSel2.innerHTML = '<option value="">Compare With...</option>' + fileOptions;
-                fileSel2.value = selFile2;
+            fileSel.innerHTML = files.length
+                ? files.map(f => `<option value="${f}" ${f === selFile ? 'selected' : ''}>${f}</option>`).join('')
+                : '<option value="">—</option>';
+
+            // 4. Handle Compare Mode (Repeat for File 2)
+            let selDate2 = idxData.selectedDate2;
+            let selFile2 = idxData.selectedFile2;
+
+            if (State.get().compareMode) {
+                dateSel2.style.display = 'block';
+                fileSel2.style.display = 'block';
+
+                if (!selDate2) selDate2 = dates.length > 0 ? dates[0] : '';
+                dateSel2.innerHTML = dates.map(d => `<option value="${d}" ${d === selDate2 ? 'selected' : ''}>${d}</option>`).join('');
+
+                const files2 = dateMap[selDate2] || [];
+                if (!selFile2) selFile2 = files2.length > 1 ? files2[1] : (files2.length ? files2[0] : '');
+                fileSel2.innerHTML = '<option value="">Compare With...</option>' +
+                    files2.map(f => `<option value="${f}" ${f === selFile2 ? 'selected' : ''}>${f}</option>`).join('');
+            } else {
+                dateSel2.style.display = 'none';
+                fileSel2.style.display = 'none';
             }
 
             // Important: update state so renderDashboard has the correct values
             State.setIndexData(index, {
                 selectedExpiry: selExpiry,
+                selectedDate: selDate,
                 selectedFile: selFile,
+                selectedDate2: selDate2,
                 selectedFile2: selFile2
             });
 
@@ -135,14 +172,31 @@ const App = (() => {
         expirySel?.addEventListener('change', async () => {
             const expiry = expirySel.value;
             const index = State.getIndex();
-            State.setIndexData(index, { selectedExpiry: expiry });
+            State.setIndexData(index, {
+                selectedExpiry: expiry,
+                selectedDate: '', // Reset down the chain
+                selectedFile: ''
+            });
 
-            // Re-fetch files for this expiry to update the file dropdown
             await _refreshFileControls(index);
+            const st = State.getIndexData(index);
+            if (st.selectedFile) _triggerLoad(index, expiry, st.selectedFile);
+        });
 
-            // Trigger load if a file is now available/selected
-            const newFile = fileSel.value;
-            if (newFile) _triggerLoad(index, expiry, newFile);
+        // 2.1 Date Change
+        const dateSel = document.getElementById('select-date');
+        dateSel?.addEventListener('change', async () => {
+            const date = dateSel.value;
+            const index = State.getIndex();
+            const expiry = expirySel.value;
+            State.setIndexData(index, {
+                selectedDate: date,
+                selectedFile: ''
+            });
+
+            await _refreshFileControls(index);
+            const st = State.getIndexData(index);
+            if (st.selectedFile) _triggerLoad(index, expiry, st.selectedFile);
         });
 
         // 3. File Change
@@ -154,7 +208,20 @@ const App = (() => {
             _triggerLoad(index, expiry, file);
         });
 
-        // 6. File 2 Change
+        // 6. Date 2 Change
+        const dateSel2 = document.getElementById('select-date-2');
+        dateSel2?.addEventListener('change', async () => {
+            const date = dateSel2.value;
+            const index = State.getIndex();
+            State.setIndexData(index, {
+                selectedDate2: date,
+                selectedFile2: ''
+            });
+            await _refreshFileControls(index);
+            renderDashboard();
+        });
+
+        // 6.1 File 2 Change
         const fileSel2 = document.getElementById('select-file-2');
         fileSel2?.addEventListener('change', () => {
             const file = fileSel2.value;
