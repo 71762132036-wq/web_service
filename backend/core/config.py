@@ -12,7 +12,7 @@ print(f"[BOOTSTRAP] DATA_DIR resolved to: {DATA_DIR}")
 # Supabase — used by local /api/sync to pull data from the Render cron job
 # ---------------------------------------------------------------------------
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://wxhhzedijpgzlukbvwia.supabase.co")
-SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4aGh6ZWRpanBnemx1a2J2d2lhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjI3NDI3NCwiZXhwIjoyMDg3ODUwMjc0fQ.4-ldzajVrNi3-Wq8pdjZHQ502UNMGCkvolX8kTHcQ08")  # Set via env var — never hardcode
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4aGh6ZWRpanBnemx1a2J2d2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNzQyNzQsImV4cCI6MjA4Nzg1MDI3NH0.ynXWwZ3Tm6zz24qt8FShr0xsYP7gcw9TMqU868P8Qnw")  # Set via env var — never hardcode
 
 # ---------------------------------------------------------------------------
 # Upstox API credentials
@@ -64,7 +64,7 @@ CUTOFF_HOUR = 9             # 9 AM — roll to next expiry on expiry day at/afte
 # ---------------------------------------------------------------------------
 # Auto-Fetch Configuration
 # ---------------------------------------------------------------------------
-AUTO_FETCH          = True  # Toggle background fetching
+AUTO_FETCH          = False  # Toggle background fetching
 FETCH_INTERVAL_MINS = 15    # Interval in minutes
 
 

@@ -201,6 +201,32 @@ const App = (() => {
             // Re-render dashboard
             renderDashboard();
         });
+
+        // 6. Sync DB Button
+        const syncBtn = document.getElementById('btn-sync-db');
+        let _isSyncing = false;
+        syncBtn?.addEventListener('click', async () => {
+            if (_isSyncing) return;
+            _isSyncing = true;
+            syncBtn.innerHTML = '<div class="spinner"></div> Syncing…';
+
+            try {
+                const response = await API.syncSupabaseData();
+                const syncedCount = response?.synced_count || 0;
+                if (syncedCount > 0) {
+                    Toast.show(`Successfully synced ${syncedCount} snapshots from DB`, "success");
+                    await updateTopbar();
+                    renderDashboard();
+                } else {
+                    Toast.show("DB is already fully synced", "info");
+                }
+            } catch (e) {
+                Toast.show(`Sync failed: ${e.message}`, "error");
+            } finally {
+                _isSyncing = false;
+                syncBtn.innerHTML = '<div class="status-dot-small online" id="sync-status-dot"></div> Sync DB';
+            }
+        });
     }
 
     async function _triggerLoad(index, expiry, filename) {

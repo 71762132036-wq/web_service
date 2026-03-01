@@ -51,6 +51,9 @@ const API = {
       body: JSON.stringify({ index, expiry, filename }),
     }),
 
+  /** POST /api/sync → Sync data from Supabase to local DB */
+  syncSupabaseData: () => apiFetch('/api/sync', { method: 'POST' }),
+
   // ── Analysis ────────────────────────────────────────────
 
   /** GET /api/metrics/{index} */
