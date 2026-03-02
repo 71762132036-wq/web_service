@@ -214,7 +214,7 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: str | None = None) ->
     folder = Path(data_dir) / index_name / expiry_date
     folder.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     filepath = folder / f"{timestamp}.csv"
     
     print(f"[DEBUG] Saving data. data_dir={data_dir}, target_file={filepath}")
