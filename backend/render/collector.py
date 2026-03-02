@@ -218,6 +218,7 @@ def collect_all(token: str, api_url: str, indices: dict, radius: int, cutoff: in
     Fetch all indices, filter strikes, return list of snapshot dicts ready for DB insert.
     Returns: [{"index_name": ..., "expiry_date": ..., "data": [...rows...]}, ...]
     """
+    import numpy as np
     results = []
     for index_name in indices:
         df, err = fetch_option_chain(index_name, token, api_url, indices, cutoff)
@@ -228,6 +229,9 @@ def collect_all(token: str, api_url: str, indices: dict, radius: int, cutoff: in
         df_filtered = filter_near_strikes(df, radius)
         expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
 
+        # Replace NaN with None so JSON serialization works (NaN is not valid JSON)
+        df_filtered = df_filtered.where(pd.notna(df_filtered), None)
+        
         results.append({
             "index_name":  index_name,
             "expiry_date": expiry_date,

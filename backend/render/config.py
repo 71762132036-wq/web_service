@@ -10,8 +10,8 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Supabase
 # ---------------------------------------------------------------------------
-SUPABASE_URL: str = os.environ["SUPABASE_URL"]
-SUPABASE_KEY: str = os.environ["SUPABASE_KEY"]
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
 # ---------------------------------------------------------------------------
 # Upstox API

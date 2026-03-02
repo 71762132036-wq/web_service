@@ -70,11 +70,14 @@ def main():
     )
 
     if not snapshots:
-        logger.warning("No snapshots collected (API error or empty data).")
-        sys.exit(0)
+        logger.error("No snapshots collected (API error or empty data). Aborting.")
+        sys.exit(1)
 
     # 5. Insert into Supabase
     inserted = db.insert_snapshots(client, snapshots)
+    if inserted == 0:
+        logger.error("Failed to insert snapshots into Supabase. Aborting.")
+        sys.exit(1)
     logger.info("Done. Inserted %d snapshot(s) into Supabase.", inserted)
 
 
