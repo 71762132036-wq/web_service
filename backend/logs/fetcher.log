@@ -864,3 +864,238 @@
 2026-03-01 18:29:59,785 - INFO - Auto-fetch is disabled in config.
 2026-03-01 19:08:55,813 - INFO - Auto-fetch is disabled in config.
 2026-03-01 19:14:20,643 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:33:51,336 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:33:55,173 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:37:45,105 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:38:52,342 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:39:48,852 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:39:53,861 - INFO - Next auto-fetch in 0m 6s (aligned to 1m clock).
+2026-03-01 19:40:00,000 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:40:00
+2026-03-01 19:40:00,000 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:40:00,020 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:40:00,020 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:40:59,999 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:40:59
+2026-03-01 19:40:59,999 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:40:59,999 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:40:59,999 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:41:33,296 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:42:00,005 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:42:00
+2026-03-01 19:42:00,005 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:42:00,005 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:42:00,005 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:43:00,009 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:43:00
+2026-03-01 19:43:00,009 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:43:00,011 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:43:00,011 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:43:05,559 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:43:10,561 - INFO - Next auto-fetch in 0m 49s (aligned to 1m clock).
+2026-03-01 19:43:59,994 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:43:59
+2026-03-01 19:43:59,994 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:43:59,994 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:43:59,994 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:44:00,010 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:44:00
+2026-03-01 19:44:00,012 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:44:00,012 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:44:00,012 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:44:59,991 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:44:59
+2026-03-01 19:44:59,991 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:44:59
+2026-03-01 19:44:59,991 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:44:59,991 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:44:59,991 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:44:59,991 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:44:59,991 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:44:59,991 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:45:59,989 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:45:59
+2026-03-01 19:45:59,990 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:45:59,990 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:45:59,990 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:45:59,990 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:45:59,990 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:46:20,407 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:46:59,991 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:46:59
+2026-03-01 19:46:59,991 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:46:59,991 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:46:59,991 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:47:59,994 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:47:59
+2026-03-01 19:47:59,995 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:47:59,995 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:47:59,995 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:48:54,129 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:48:59,992 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:48:59
+2026-03-01 19:48:59,993 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:48:59,993 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:48:59,995 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:49:00,184 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:49:05,191 - INFO - Next auto-fetch in 0m 54s (aligned to 1m clock).
+2026-03-01 19:49:37,482 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:49:42,479 - INFO - Next auto-fetch in 0m 17s (aligned to 1m clock).
+2026-03-01 19:49:59,992 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:49:59
+2026-03-01 19:49:59,992 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:49:59,992 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:49:59,992 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:50:00,007 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:50:00
+2026-03-01 19:50:00,007 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:50:00,007 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:50:00,010 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:50:46,873 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:50:51,887 - INFO - Next auto-fetch in 0m 8s (aligned to 1m clock).
+2026-03-01 19:50:59,994 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:50:59
+2026-03-01 19:50:59,994 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:50:59
+2026-03-01 19:50:59,995 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:50:59,995 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:50:59,996 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:50:59,996 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:50:59,996 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:51:59,998 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:51:59
+2026-03-01 19:51:59,998 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:51:59
+2026-03-01 19:51:59,999 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:51:59,999 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:51:59,999 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:51:59,999 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:51:59,999 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:52:17,536 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:53:00,008 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:53:00
+2026-03-01 19:53:00,009 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:53:00,009 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:53:00,011 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:54:00,001 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:54:00
+2026-03-01 19:54:00,001 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:54:00,001 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:54:00,001 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:55:00,009 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:55:00
+2026-03-01 19:55:00,009 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:55:00,009 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:55:00,010 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:55:59,997 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:55:59
+2026-03-01 19:55:59,998 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:55:59,998 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:55:59,998 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 19:57:00,004 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:57:00
+2026-03-01 19:57:00,004 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:57:00,004 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:57:00,004 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:58:00,023 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:58:00
+2026-03-01 19:58:00,024 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:58:00,024 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:58:00,025 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:58:47,752 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:58:50,646 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:58:53,901 - INFO - Auto-fetch is disabled in config.
+2026-03-01 19:59:00,003 - INFO - Auto-fetch cycle triggered at 2026-03-01 19:59:00
+2026-03-01 19:59:00,003 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 19:59:00,006 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 19:59:00,006 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 19:59:22,636 - INFO - Starting auto-fetcher. Interval: 1 minutes.
+2026-03-01 19:59:27,625 - INFO - Next auto-fetch in 0m 32s (aligned to 1m clock).
+2026-03-01 20:00:00,016 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:00:00
+2026-03-01 20:00:00,016 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:00:00
+2026-03-01 20:00:00,016 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:00:00,016 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:00:00,016 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:00:00,746 - INFO - Auto-fetching 212 symbols in this cycle.
+2026-03-01 20:00:00,747 - INFO - [1/212] Auto-fetching data for Nifty...
+2026-03-01 20:00:01,588 - ERROR - Failed to fetch Nifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+50&expiry_date=2026-03-03
+2026-03-01 20:00:02,090 - INFO - [2/212] Auto-fetching data for BankNifty...
+2026-03-01 20:00:02,785 - ERROR - Failed to fetch BankNifty: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_INDEX%7CNifty+Bank&expiry_date=2026-03-31
+2026-03-01 20:00:03,290 - INFO - [3/212] Auto-fetching data for Sensex...
+2026-03-01 20:00:03,788 - ERROR - Failed to fetch Sensex: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=BSE_INDEX%7CSENSEX&expiry_date=2026-03-05
+2026-03-01 20:00:04,297 - INFO - [4/212] Auto-fetching data for 360 ONE WAM LIMITED...
+2026-03-01 20:00:04,836 - ERROR - Failed to fetch 360 ONE WAM LIMITED: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE466L01038&expiry_date=2026-03-26
+2026-03-01 20:00:05,334 - INFO - [5/212] Auto-fetching data for ABB INDIA LIMITED...
+2026-03-01 20:00:06,163 - ERROR - Failed to fetch ABB INDIA LIMITED: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE117A01022&expiry_date=2026-03-26
+2026-03-01 20:00:06,658 - INFO - [6/212] Auto-fetching data for ADANI ENERGY SOLUTION LTD...
+2026-03-01 20:00:07,699 - ERROR - Failed to fetch ADANI ENERGY SOLUTION LTD: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE931S01010&expiry_date=2026-03-26
+2026-03-01 20:00:08,198 - INFO - [7/212] Auto-fetching data for ADANI ENTERPRISES LIMITED...
+2026-03-01 20:00:09,200 - ERROR - Failed to fetch ADANI ENTERPRISES LIMITED: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE423A01024&expiry_date=2026-03-26
+2026-03-01 20:00:09,698 - INFO - [8/212] Auto-fetching data for ADANI GREEN ENERGY LTD...
+2026-03-01 20:00:10,974 - ERROR - Failed to fetch ADANI GREEN ENERGY LTD: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE364U01010&expiry_date=2026-03-26
+2026-03-01 20:00:11,484 - INFO - [9/212] Auto-fetching data for ADANI PORT & SEZ LTD...
+2026-03-01 20:00:16,507 - ERROR - Failed to fetch ADANI PORT & SEZ LTD: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE742F01042&expiry_date=2026-03-26
+2026-03-01 20:00:17,013 - INFO - [10/212] Auto-fetching data for ADITYA BIRLA CAPITAL LTD....
+2026-03-01 20:00:18,146 - ERROR - Failed to fetch ADITYA BIRLA CAPITAL LTD.: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE674K01013&expiry_date=2026-03-26
+2026-03-01 20:00:18,642 - INFO - [11/212] Auto-fetching data for ALKEM LABORATORIES LTD....
+2026-03-01 20:00:19,923 - ERROR - Failed to fetch ALKEM LABORATORIES LTD.: API Error: 401 Client Error: Unauthorized for url: https://api.upstox.com/v2/option/chain?instrument_key=NSE_EQ%7CINE540L01014&expiry_date=2026-03-26
+2026-03-01 20:00:59,983 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:00:59
+2026-03-01 20:00:59,984 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:00:59,985 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:00:59,985 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 20:01:59,997 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:01:59
+2026-03-01 20:01:59,998 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:01:59,998 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:01:59,998 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-01 20:03:00,010 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:03:00
+2026-03-01 20:03:00,010 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:03:00,012 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:03:00,012 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:04:00,010 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:04:00
+2026-03-01 20:04:00,012 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:04:00,012 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:04:00,012 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:05:00,002 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:05:00
+2026-03-01 20:05:00,004 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:05:00,004 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:05:00,004 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:06:00,016 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:06:00
+2026-03-01 20:06:00,017 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:06:00,017 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:06:00,018 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:07:00,017 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:07:00
+2026-03-01 20:07:00,017 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:07:00,017 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:07:00,017 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:08:00,001 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:08:00
+2026-03-01 20:08:00,001 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:08:00,001 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:08:00,001 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:09:00,006 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:09:00
+2026-03-01 20:09:00,006 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:09:00,006 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:09:00,006 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-01 20:42:02,795 - INFO - Auto-fetch cycle triggered at 2026-03-01 20:42:02
+2026-03-01 20:42:02,859 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-01 20:42:02,910 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-01 20:42:02,950 - INFO - Next auto-fetch in 0m 57s (aligned to 1m clock).
+2026-03-02 01:27:14,205 - INFO - Auto-fetch cycle triggered at 2026-03-02 01:27:14
+2026-03-02 01:27:14,221 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 01:27:14,239 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 01:27:14,296 - INFO - Next auto-fetch in 0m 45s (aligned to 1m clock).
+2026-03-02 09:07:54,507 - INFO - Auto-fetch cycle triggered at 2026-03-02 09:07:54
+2026-03-02 09:07:54,523 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 09:07:54,528 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 09:07:54,530 - INFO - Next auto-fetch in 0m 5s (aligned to 1m clock).
+2026-03-02 09:08:00,025 - INFO - Auto-fetch cycle triggered at 2026-03-02 09:08:00
+2026-03-02 09:08:00,028 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 09:08:00,030 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 09:08:00,030 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-02 09:09:00,013 - INFO - Auto-fetch cycle triggered at 2026-03-02 09:09:00
+2026-03-02 09:09:00,014 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 09:09:00,015 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 09:09:00,017 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-02 09:10:00,000 - INFO - Auto-fetch cycle triggered at 2026-03-02 09:10:00
+2026-03-02 09:10:00,001 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 09:10:00,005 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 09:10:00,007 - INFO - Next auto-fetch in 0m 59s (aligned to 1m clock).
+2026-03-02 09:10:59,992 - INFO - Auto-fetch cycle triggered at 2026-03-02 09:10:59
+2026-03-02 09:10:59,994 - INFO - Outside market hours (Mon–Fri 09:30–15:30). Skipping this fetch cycle.
+2026-03-02 09:10:59,994 - INFO - Fetch cycle complete. Waiting for next aligned slot.
+2026-03-02 09:10:59,994 - INFO - Next auto-fetch in 1m 0s (aligned to 1m clock).
+2026-03-02 09:12:10,297 - INFO - Auto-fetch is disabled in config.
+2026-03-02 09:13:55,744 - INFO - Auto-fetch is disabled in config.
+2026-03-02 09:21:45,252 - INFO - Auto-fetch is disabled in config.
+2026-03-02 09:23:26,393 - INFO - Auto-fetch is disabled in config.
+2026-03-02 09:24:18,374 - INFO - Auto-fetch is disabled in config.
+2026-03-02 18:51:02,014 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:01:19,931 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:01:36,025 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:01:43,615 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:02:38,837 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:05:32,068 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:06:04,717 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:06:08,388 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:06:25,923 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:23:39,899 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:32:08,260 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:32:40,068 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:32:56,839 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:37:11,898 - INFO - Auto-fetch is disabled in config.
+2026-03-02 19:37:32,789 - INFO - Auto-fetch is disabled in config.

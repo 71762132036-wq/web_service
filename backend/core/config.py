@@ -2,8 +2,15 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from web_app folder (parent of backend)
+env_file = Path("D:/Investments/Participant_Wise_OI/Analytical_App/gamma_stocks/GC_gamma/nifty/web_app/") / ".env"
+print(f"[BOOTSTRAP] Loading .env from: {env_file}")
 
+load_dotenv(dotenv_path=env_file, encoding="utf-8-sig")
+
+if os.getenv("ACCESS_TOKEN") is None and os.getenv("\ufeffACCESS_TOKEN"):
+    os.environ["ACCESS_TOKEN"] = os.environ.pop("\ufeffACCESS_TOKEN")
+print("ACCESS_TOKEN:", os.getenv("ACCESS_TOKEN"))
 # Base data directory (inside backend)
 DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")
 print(f"[BOOTSTRAP] DATA_DIR resolved to: {DATA_DIR}")
