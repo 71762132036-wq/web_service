@@ -58,10 +58,12 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
 
     # 1. Fetch unsynced rows
     try:
+        today_str = datetime.now().strftime("%Y-%m-%d")
         query = (
             client.table("option_snapshots")
             .select("id, index_name, expiry_date, captured_at, data")
             .eq("synced", False)
+            .gte("expiry_date", today_str)
             .order("captured_at", desc=False)
         )
         if body.since:

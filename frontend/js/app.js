@@ -279,7 +279,7 @@ const App = (() => {
 
             try {
                 const response = await API.syncSupabaseData();
-                const syncedCount = response?.synced_count || 0;
+                const syncedCount = response?.synced || 0;
                 if (syncedCount > 0) {
                     Toast.show(`Successfully synced ${syncedCount} snapshots from DB`, "success");
                     await updateTopbar();
