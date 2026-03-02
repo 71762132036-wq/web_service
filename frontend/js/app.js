@@ -94,14 +94,7 @@ const App = (() => {
                 const files = filesDict[expiry] || [];
                 const dateMap = {}; // { date: [files] }
                 files.forEach(f => {
-                    let datePart;
-                    if (f.length >= 10 && f.includes('-')) {
-                        // New format: YYYY-MM-DD_HHMMSS.csv
-                        datePart = f.substring(0, 10);
-                    } else {
-                        // Legacy format: DD_HHMMSS.csv or similar
-                        datePart = f.substring(0, 2);
-                    }
+                    const datePart = f.substring(0, 2);
                     if (!dateMap[datePart]) dateMap[datePart] = [];
                     dateMap[datePart].push(f);
                 });

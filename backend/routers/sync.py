@@ -97,9 +97,9 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             utc_ts = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
             # Convert UTC to IST (UTC+5:30)
             local_ts = utc_ts + timedelta(hours=5, minutes=30)
-            filename = local_ts.strftime("%Y-%m-%d_%H%M%S") + ".csv"
+            filename = local_ts.strftime("%d_%H%M%S") + ".csv"
         except Exception:
-            filename = datetime.now().strftime("%Y-%m-%d_%H%M%S") + ".csv"
+            filename = datetime.now().strftime("%d_%H%M%S") + ".csv"
 
         folder = Path(DATA_DIR) / index_name / expiry_date
         folder.mkdir(parents=True, exist_ok=True)
