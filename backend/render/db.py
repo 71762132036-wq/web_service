@@ -37,9 +37,13 @@ def get_token(client: Client) -> Optional[str]:
 
 def set_token(client: Client, token: str) -> bool:
     """Upsert the Upstox access token (id=1 is the single row)."""
+    from datetime import datetime
+    import zoneinfo
+    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist).isoformat()
     try:
         client.table("tokens").upsert(
-            {"id": 1, "token": token, "updated_at": "now()"}
+            {"id": 1, "token": token, "updated_at": now_ist}
         ).execute()
         return True
     except Exception as exc:
@@ -59,11 +63,17 @@ def insert_snapshots(client: Client, snapshots: list[dict]) -> int:
     """
     if not snapshots:
         return 0
+    from datetime import datetime
+    import zoneinfo
+    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist).isoformat()
+
     rows = [
         {
             "index_name":  s["index_name"],
             "expiry_date": s["expiry_date"],
             "data":        s["data"],
+            "captured_at": now_ist,
             "synced":      False,
         }
         for s in snapshots
