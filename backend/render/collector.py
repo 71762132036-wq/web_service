@@ -12,6 +12,7 @@ from typing import Optional
 
 import pandas as pd
 import requests
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -227,15 +228,20 @@ def collect_all(token: str, api_url: str, indices: dict, radius: int, cutoff: in
             continue
 
         df_filtered = filter_near_strikes(df, radius)
+        if df_filtered.empty:
+            logger.warning("[COLLECT] %s filtered to 0 rows. Skipping.", index_name)
+            continue
+            
         expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
 
-        # Replace NaN with None so JSON serialization works (NaN is not valid JSON)
-        df_filtered = df_filtered.where(pd.notna(df_filtered), None)
+        # Robustly replace NaN/Inf and convert to list of dicts for JSON serialization
+        df_cleaned = df_filtered.replace([np.inf, -np.inf], np.nan)
+        clean_rows = json.loads(df_cleaned.to_json(orient="records", date_format="iso"))
         
         results.append({
             "index_name":  index_name,
             "expiry_date": expiry_date,
-            "data":        df_filtered.to_dict(orient="records"),
+            "data":        clean_rows,
         })
         logger.info("[COLLECT] %s → %d rows (expiry %s)", index_name, len(df_filtered), expiry_date)
 
