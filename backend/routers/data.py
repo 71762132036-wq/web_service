@@ -66,39 +66,70 @@ class FetchRequest(BaseModel):
 @router.post("/fetch")
 def fetch_data(body: FetchRequest):
     """Fetch live option chain data from Upstox API for one or all indices."""
+    print(f"\n[DEBUG-FETCH] /fetch endpoint called with indices={body.indices}")
     target_indices = body.indices or list(INDICES.keys())
+    print(f"[DEBUG-FETCH] Target indices: {target_indices}")
     results = []
 
     for index_name in target_indices:
-        if index_name not in INDICES:
-            results.append({"index": index_name, "success": False, "error": "Unknown index"})
-            continue
+        try:
+            print(f"\n[DEBUG-FETCH] Processing {index_name}...")
+            
+            if index_name not in INDICES:
+                error_msg = f"Unknown index: {index_name}"
+                print(f"[DEBUG-FETCH] ✗ {index_name}: {error_msg}")
+                results.append({"index": index_name, "success": False, "error": error_msg})
+                continue
 
-        expiry = get_next_expiry(index_name)
-        df, error = fetch_option_chain_data(index_name, expiry_date=expiry)
+            print(f"[DEBUG-FETCH] Getting next expiry for {index_name}")
+            expiry = get_next_expiry(index_name)
+            print(f"[DEBUG-FETCH] Next expiry: {expiry}")
+            
+            print(f"[DEBUG-FETCH] Fetching option chain data...")
+            df, error = fetch_option_chain_data(index_name, expiry_date=expiry)
 
-        if error:
-            results.append({"index": index_name, "success": False, "error": error})
-            continue
+            if error:
+                error_msg = f"Failed to fetch data: {error}"
+                print(f"[DEBUG-FETCH] ✗ {index_name}: {error_msg}")
+                results.append({"index": index_name, "success": False, "error": error_msg})
+                continue
 
-        df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
-        lot_size    = INDICES[index_name]["lot_size"]
-        df_filtered = calculate_gex(df_filtered, lot_size)
+            print(f"[DEBUG-FETCH] Fetched {len(df)} rows, filtering strikes...")
+            df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
+            print(f"[DEBUG-FETCH] After filter: {len(df_filtered)} strikes")
+            
+            lot_size    = INDICES[index_name]["lot_size"]
+            df_filtered = calculate_gex(df_filtered, lot_size)
+            print(f"[DEBUG-FETCH] Calculated GEX for {len(df_filtered)} strikes")
 
-        print(f"[DEBUG] fetch_data: Calling save_data with data_dir={DATA_DIR}")
-        filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR)
+            print(f"[DEBUG-FETCH] Calling save_data with data_dir={DATA_DIR}")
+            filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR)
+            print(f"[DEBUG-FETCH] save_data returned: {filepath}")
 
-        # Auto-load into store
-        store.set_data(index_name, df_filtered, filepath)
+            print(f"[DEBUG-FETCH] Setting data in store...")
+            # Auto-load into store
+            store.set_data(index_name, df_filtered, filepath)
+            print(f"[DEBUG-FETCH] ✓ Store updated for {index_name}")
 
-        results.append({
-            "index":     index_name,
-            "success":   True,
-            "strikes":   len(df_filtered),
-            "filepath":  filepath,
-            "expiry":    expiry,
-        })
+            results.append({
+                "index":     index_name,
+                "success":   True,
+                "strikes":   len(df_filtered),
+                "filepath":  filepath,
+                "expiry":    expiry,
+            })
+            print(f"[DEBUG-FETCH] ✓ {index_name} completed successfully")
+        
+        except Exception as e:
+            error_msg = f"Exception during fetch for {index_name}: {type(e).__name__}: {e}"
+            print(f"[ERROR-FETCH] {error_msg}")
+            results.append({
+                "index": index_name,
+                "success": False,
+                "error": str(e)
+            })
 
+    print(f"[DEBUG-FETCH] /fetch endpoint returning results\n")
     return {"results": results}
 
 

@@ -208,19 +208,53 @@ def filter_near_strikes(df: pd.DataFrame, filter_radius: int = 20) -> pd.DataFra
 
 def save_data(df: pd.DataFrame, index_name: str, data_dir: str | None = None) -> str:
     """Save DataFrame → data/<INDEX>/<EXPIRY>/<TIMESTAMP>.csv"""
-    if data_dir is None:
-        data_dir = DATA_DIR
-    expiry_date = df["expiry"].iloc[0]
-    folder = Path(data_dir) / index_name / expiry_date
-    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        print(f"\n[DEBUG-SAVE] Starting save_data for {index_name}")
+        print(f"[DEBUG-SAVE] Input DataFrame shape: {df.shape}")
+        print(f"[DEBUG-SAVE] DataFrame columns: {list(df.columns)}")
+        
+        if data_dir is None:
+            data_dir = DATA_DIR
+        
+        print(f"[DEBUG-SAVE] data_dir={data_dir}")
+        
+        if "expiry" not in df.columns:
+            raise KeyError(f"'expiry' column not found in DataFrame. Available columns: {list(df.columns)}")
+        
+        if df.empty:
+            raise ValueError("DataFrame is empty, cannot save")
+        
+        expiry_date = df["expiry"].iloc[0]
+        print(f"[DEBUG-SAVE] Extracted expiry_date: {expiry_date}")
+        
+        folder = Path(data_dir) / index_name / expiry_date
+        print(f"[DEBUG-SAVE] Target folder: {folder}")
+        print(f"[DEBUG-SAVE] Folder exists before mkdir: {folder.exists()}")
+        
+        folder.mkdir(parents=True, exist_ok=True)
+        
+        print(f"[DEBUG-SAVE] Folder exists after mkdir: {folder.exists()}")
+        print(f"[DEBUG-SAVE] Folder is writable: {os.access(str(folder), os.W_OK)}")
 
-    timestamp = datetime.now().strftime("%d_%H%M%S")
-    filepath = folder / f"{timestamp}.csv"
+        timestamp = datetime.now().strftime("%d_%H%M%S")
+        filepath = folder / f"{timestamp}.csv"
+        
+        print(f"[DEBUG-SAVE] Target filepath: {filepath}")
+        print(f"[DEBUG-SAVE] About to write CSV with {len(df)} rows")
+        
+        df.to_csv(filepath, index=False)
+        
+        print(f"[DEBUG-SAVE] File written successfully")
+        print(f"[DEBUG-SAVE] File exists: {filepath.exists()}")
+        print(f"[DEBUG-SAVE] File size: {filepath.stat().st_size if filepath.exists() else 'N/A'} bytes")
+        print(f"[DEBUG-SAVE] ✓ save_data completed for {index_name}\n")
+        
+        return str(filepath)
     
-    print(f"[DEBUG] Saving data. data_dir={data_dir}, target_file={filepath}")
-    
-    df.to_csv(filepath, index=False)
-    return str(filepath)
+    except Exception as exc:
+        error_msg = f"save_data FAILED for {index_name}: {type(exc).__name__}: {exc}"
+        print(f"[ERROR-SAVE] {error_msg}\n")
+        raise Exception(error_msg) from exc
 
 
 def load_data_file(filepath: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
