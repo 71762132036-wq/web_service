@@ -6,6 +6,7 @@ import asyncio
 import socket
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from core.config import AUTO_FETCH, FETCH_INTERVAL_MINS, INDICES, DATA_DIR, FILTER_STRIKES_RADIUS
 from services.upstox_service import fetch_option_chain_data, save_data, filter_near_strikes
@@ -52,12 +53,16 @@ def is_internet_available(host="api.upstox.com", port=443, timeout=5):
 def is_market_hours() -> bool:
     """
     Returns True only during NSE trading hours: Mon–Fri, 09:30–15:30 IST.
+    Uses explicit timezone to work consistently across all environments.
     """
-    now = datetime.now()
+    ist = ZoneInfo("Asia/Kolkata")
+    now = datetime.now(ist)
+    
     # 0=Monday … 4=Friday, 5=Saturday, 6=Sunday
     if now.weekday() >= 5:
         return False
-    market_open  = now.replace(hour=9,  minute=15, second=0, microsecond=0)
+    
+    market_open  = now.replace(hour=9,  minute=30, second=0, microsecond=0)
     market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
     return market_open <= now <= market_close
 
@@ -77,7 +82,8 @@ async def run_auto_fetcher():
     while True:
         try:
             # 1. Calculate time until next aligned slot
-            now_ts = datetime.now().timestamp()
+            ist = ZoneInfo("Asia/Kolkata")
+            now_ts = datetime.now(ist).timestamp()
             interval_sec = FETCH_INTERVAL_MINS * 60
             sleep_sec = interval_sec - (now_ts % interval_sec)
             
@@ -88,7 +94,8 @@ async def run_auto_fetcher():
             logger.info(f"Next auto-fetch in {int(sleep_sec/60)}m {int(sleep_sec%60)}s (aligned to {FETCH_INTERVAL_MINS}m clock).")
             await asyncio.sleep(sleep_sec)
 
-            now = datetime.now()
+            ist = ZoneInfo("Asia/Kolkata")
+            now = datetime.now(ist)
             logger.info(f"Auto-fetch cycle triggered at {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
             if not is_market_hours():

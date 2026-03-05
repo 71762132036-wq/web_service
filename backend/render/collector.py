@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import calendar
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -27,7 +28,8 @@ def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str
     if not index_config:
         raise ValueError(f"Unknown index: {index_name}")
 
-    now = datetime.now()
+    ist = ZoneInfo("Asia/Kolkata")
+    now = datetime.now(ist)
     today = now.date()
     expiry_type = index_config["expiry_type"]
     expiry_day  = index_config["expiry_day"]
@@ -201,10 +203,14 @@ def is_market_hours(
     open_h: int = 9, open_m: int = 30,
     close_h: int = 15, close_m: int = 30,
 ) -> bool:
-    """Returns True only Mon–Fri, 09:30–15:30 IST."""
-    now = datetime.now()
-    if now.weekday() >= 5:
+    """Returns True only Mon–Fri, 09:30–15:30 IST (timezone-aware)."""
+    # Always use IST (Asia/Kolkata), regardless of system timezone
+    ist = ZoneInfo("Asia/Kolkata")
+    now = datetime.now(ist)
+    
+    if now.weekday() >= 5:  # Saturday=5, Sunday=6
         return False
+    
     market_open  = now.replace(hour=open_h,  minute=open_m,  second=0, microsecond=0)
     market_close = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
     return market_open <= now <= market_close

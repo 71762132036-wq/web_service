@@ -11,7 +11,7 @@ on:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5        # Kill if it hangs
+    timeout-minutes: 5       
 
     defaults:
       run:
@@ -38,5 +38,4 @@ jobs:
           UPSTOX_ACCESS_TOKEN:   ${{ secrets.UPSTOX_ACCESS_TOKEN }}
           COLLECT_INTERVAL_MINS: "15"
           FILTER_STRIKES_RADIUS: "20"
-          TZ:                    "Asia/Kolkata"
         run: python cron_job.py
