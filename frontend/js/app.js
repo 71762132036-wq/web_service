@@ -155,10 +155,39 @@ const App = (() => {
     // ── Wire Controls ────────────────────────────────────
 
     function _wireControls() {
+        const typeSel = document.getElementById('category-select');
         const indexSel = document.getElementById('index-select');
         const expirySel = document.getElementById('select-expiry');
         const fileSel = document.getElementById('select-file');
         const fetchBtn = document.getElementById('btn-fetch-all');
+
+        // Setup category/type selector
+        if (typeSel) {
+            typeSel.addEventListener('change', async () => {
+                const t = typeSel.value;
+                State.setInstrumentType(t);
+                populateIndexOptions();
+                await updateTopbar();
+                renderDashboard();
+            });
+            // initialize with current state
+            typeSel.value = State.getInstrumentType();
+        }
+
+        function populateIndexOptions() {
+            const type = State.getInstrumentType();
+            const list = State.getInstruments(type);
+            if (indexSel) {
+                indexSel.innerHTML = list.map(idx => `<option value="${idx}" ${idx === State.getIndex() ? 'selected' : ''}>${idx}</option>`).join('');
+                // also update selectedIndex if not in list
+                if (!list.includes(State.getIndex()) && list.length) {
+                    State.set({ selectedIndex: list[0] });
+                }
+            }
+        }
+
+        // Populate on first wire
+        populateIndexOptions();
 
         // 1. Index Change
         indexSel?.addEventListener('change', async () => {
@@ -316,6 +345,10 @@ const App = (() => {
 
     async function init() {
         try {
+            // Initialize indices/stocks from API
+            const resp = await API.getIndices();
+            State.initIndices(resp);
+
             const status = await API.getStatus();
             if (status && status.status) {
                 Object.entries(status.status).forEach(([idx, info]) => {

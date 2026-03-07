@@ -60,11 +60,12 @@ def main():
         logger.error("No Upstox access token available. Set it via POST /set-token or UPSTOX_ACCESS_TOKEN env var.")
         sys.exit(1)
 
-    # 4. Collect all indices
+    # 4. Collect all indices and stocks
     snapshots = collector.collect_all(
         token=token,
         api_url=config.API_URL,
         indices=config.INDICES,
+        stocks=config.STOCKS,
         radius=config.FILTER_STRIKES_RADIUS,
         cutoff=config.CUTOFF_HOUR,
     )

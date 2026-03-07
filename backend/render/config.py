@@ -3,7 +3,9 @@ config.py — Environment-based configuration for the Render collector service.
 All secrets are injected as environment variables on the Render dashboard.
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
 
@@ -56,4 +58,22 @@ INDICES: dict = {
     },
 }
 
-CUTOFF_HOUR: int = 9   # Roll to next expiry at/after 9 AM on expiry day
+# ---------------------------------------------------------------------------
+# Stock definitions (loaded from stocks.csv)
+# ---------------------------------------------------------------------------
+STOCKS_CSV = Path(__file__).resolve().parent.parent.parent / "stocks.csv"
+STOCKS: dict[str, dict] = {}
+if STOCKS_CSV.exists():
+    df = pd.read_csv(STOCKS_CSV)
+    for _, row in df.iterrows():
+        name = row["Name"].strip()
+        key = row["Key"].strip()
+        STOCKS[name] = {
+            "instrument_key": key,
+            "lot_size": 1,  # Assume 1 for stocks, adjust if needed
+            "expiry_type": "monthly_last_tuesday",
+        }
+else:
+    print(f"[BOOTSTRAP] Warning: stocks.csv not found at {STOCKS_CSV}")
+
+# ---------------------------------------------------------------------------

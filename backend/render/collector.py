@@ -65,6 +65,29 @@ def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str
             if month == 13:
                 month, year = 1, year + 1
             expiry_date = last_weekday(year, month, expiry_day)
+
+    elif expiry_type == "monthly_last_tuesday":
+        year, month = now.year, now.month
+
+        def last_tuesday(y: int, m: int):
+            _, last = calendar.monthrange(y, m)
+            d = datetime(y, m, last)
+            while d.weekday() != 1:  # Tuesday = 1
+                d -= timedelta(days=1)
+            return d.date()
+
+        expiry_date = last_tuesday(year, month)
+
+        if expiry_date <= today and now.hour >= cutoff_hour:
+            month += 1
+            if month == 13:
+                month, year = 1, year + 1
+            expiry_date = last_tuesday(year, month)
+        elif expiry_date < today:
+            month += 1
+            if month == 13:
+                month, year = 1, year + 1
+            expiry_date = last_tuesday(year, month)
     else:
         expiry_date = today
 
@@ -224,22 +247,23 @@ def is_market_hours(
 # Full collection run (called by scheduler)
 # ---------------------------------------------------------------------------
 
-def collect_all(token: str, api_url: str, indices: dict, radius: int, cutoff: int) -> list[dict]:
+def collect_all(token: str, api_url: str, indices: dict, stocks: dict, radius: int, cutoff: int) -> list[dict]:
     """
-    Fetch all indices, filter strikes, return list of snapshot dicts ready for DB insert.
+    Fetch all indices and stocks, filter strikes, return list of snapshot dicts ready for DB insert.
     Returns: [{"index_name": ..., "expiry_date": ..., "data": [...rows...]}, ...]
     """
     import numpy as np
     results = []
-    for index_name in indices:
-        df, err = fetch_option_chain(index_name, token, api_url, indices, cutoff)
+    all_instruments = {**indices, **stocks}
+    for instrument_name in all_instruments:
+        df, err = fetch_option_chain(instrument_name, token, api_url, all_instruments, cutoff)
         if err:
-            logger.warning("[COLLECT] %s failed: %s", index_name, err)
+            logger.warning("[COLLECT] %s failed: %s", instrument_name, err)
             continue
 
         df_filtered = filter_near_strikes(df, radius)
         if df_filtered.empty:
-            logger.warning("[COLLECT] %s filtered to 0 rows. Skipping.", index_name)
+            logger.warning("[COLLECT] %s filtered to 0 rows. Skipping.", instrument_name)
             continue
             
         expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
@@ -249,10 +273,10 @@ def collect_all(token: str, api_url: str, indices: dict, radius: int, cutoff: in
         clean_rows = json.loads(df_cleaned.to_json(orient="records", date_format="iso"))
         
         results.append({
-            "index_name":  index_name,
+            "index_name":  instrument_name,
             "expiry_date": expiry_date,
             "data":        clean_rows,
         })
-        logger.info("[COLLECT] %s → %d rows (expiry %s)", index_name, len(df_filtered), expiry_date)
+        logger.info("[COLLECT] %s → %d rows (expiry %s)", instrument_name, len(df_filtered), expiry_date)
 
     return results

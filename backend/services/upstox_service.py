@@ -20,8 +20,8 @@ from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, DATA_DIR, INDICES
 # Expiry date helpers
 # ---------------------------------------------------------------------------
 
-def get_next_expiry(index_name: str) -> str:
-    """Return next expiry date (YYYY-MM-DD) based on index rules.
+def get_next_expiry(index_name: str, indices: dict = None) -> str:
+    """Return next expiry date (YYYY-MM-DD) based on index/stock rules.
 
     Uses IST timezone so that expiry rollovers behave the same way as the
     render collector (which already uses explicit Asia/Kolkata). Previously
@@ -30,15 +30,19 @@ def get_next_expiry(index_name: str) -> str:
     """
     import zoneinfo
 
-    index_config = INDICES.get(index_name)
+    if indices is None:
+        from core.config import INDICES
+        indices = INDICES
+
+    index_config = indices.get(index_name)
     if not index_config:
-        raise ValueError(f"Unknown index: {index_name}")
+        raise ValueError(f"Unknown index/stock: {index_name}")
 
     ist = zoneinfo.ZoneInfo("Asia/Kolkata")
     now = datetime.now(ist)
     today = now.date()
     expiry_type = index_config["expiry_type"]
-    expiry_day = index_config["expiry_day"]
+    expiry_day = index_config.get("expiry_day", 1)  # Default to 1 for stocks
 
     if expiry_type == "weekly":
         days_until = (expiry_day - now.weekday()) % 7
@@ -71,6 +75,29 @@ def get_next_expiry(index_name: str) -> str:
             if month == 13:
                 month, year = 1, year + 1
             expiry_date = last_weekday(year, month, expiry_day)
+
+    elif expiry_type == "monthly_last_tuesday":
+        year, month = now.year, now.month
+
+        def last_tuesday(y: int, m: int):
+            _, last = calendar.monthrange(y, m)
+            d = datetime(y, m, last)
+            while d.weekday() != 1:  # Tuesday = 1
+                d -= timedelta(days=1)
+            return d.date()
+
+        expiry_date = last_tuesday(year, month)
+
+        if expiry_date == today and now.hour >= CUTOFF_HOUR:
+            month += 1
+            if month == 13:
+                month, year = 1, year + 1
+            expiry_date = last_tuesday(year, month)
+        elif expiry_date < today:
+            month += 1
+            if month == 13:
+                month, year = 1, year + 1
+            expiry_date = last_tuesday(year, month)
     else:
         expiry_date = today
 
@@ -82,7 +109,7 @@ def get_next_expiry(index_name: str) -> str:
 # ---------------------------------------------------------------------------
 
 def fetch_option_chain_data(
-    index_name: str = "Nifty", expiry_date: str | None = None
+    index_name: str = "Nifty", expiry_date: str | None = None, indices: dict = None
 ) -> tuple[pd.DataFrame | None, str | None]:
     """Fetch live option chain from Upstox.
 
@@ -90,18 +117,16 @@ def fetch_option_chain_data(
     remote collector and avoid data skew when the backend is running on a
     machine configured with UTC or another timezone.
     """
-    """
-    Fetch option chain from Upstox API.
+    if indices is None:
+        from core.config import INDICES
+        indices = INDICES
 
-    Returns:
-        (DataFrame, None) on success, (None, error_message) on failure.
-    """
-    index_config = INDICES.get(index_name)
+    index_config = indices.get(index_name)
     if not index_config:
-        return None, f"Unknown index: {index_name}"
+        return None, f"Unknown index/stock: {index_name}"
 
     if expiry_date is None:
-        expiry_date = get_next_expiry(index_name)
+        expiry_date = get_next_expiry(index_name, indices)
 
     params = {
         "instrument_key": index_config["instrument_key"],
@@ -120,25 +145,81 @@ def fetch_option_chain_data(
 
         option_data = data.get("data", [])
         if not option_data:
-            # Fallback: on expiry day the API may no longer serve today's expiry.
-            # Automatically retry with +7 days for weekly, next month for monthly.
-            index_config = INDICES.get(index_name, {})
-            if index_config.get("expiry_type") == "weekly":
+            # Fallback: API returned empty data for this expiry.
+            # Try earlier expiries (stocks often have limited expiry availability).
+            index_config = indices.get(index_name, {})
+            expiry_type = index_config.get("expiry_type", "")
+            fallback_dates = []
+            
+            # Generate candidate expiries to try (go backwards first, then forwards)
+            if expiry_type == "weekly":
                 from datetime import datetime as _dt
                 _orig = _dt.strptime(expiry_date, "%Y-%m-%d").date()
-                _next = _orig + timedelta(days=7)
-                fallback_date = _next.strftime("%Y-%m-%d")
-                print(f"[EXPIRY FALLBACK] No data for {expiry_date}, retrying with {fallback_date}")
+                # Try previous week first, then next week
+                fallback_dates = [
+                    (_orig - timedelta(days=7)).strftime("%Y-%m-%d"),
+                    (_orig + timedelta(days=7)).strftime("%Y-%m-%d"),
+                ]
+            elif expiry_type == "monthly" or expiry_type == "monthly_last_tuesday":
+                # For monthly stocks, try previous month and next month
+                import calendar as cal
+                _orig = datetime.strptime(expiry_date, "%Y-%m-%d").date()
+                
+                # Previous month
+                if _orig.month == 1:
+                    prev_m, prev_y = 12, _orig.year - 1
+                else:
+                    prev_m, prev_y = _orig.month - 1, _orig.year
+                
+                # Next month
+                if _orig.month == 12:
+                    next_m, next_y = 1, _orig.year + 1
+                else:
+                    next_m, next_y = _orig.month + 1, _orig.year
+                
+                if expiry_type == "monthly_last_tuesday":
+                    def last_tuesday(y: int, m: int):
+                        _, last = cal.monthrange(y, m)
+                        d = datetime(y, m, last)
+                        while d.weekday() != 1:
+                            d -= timedelta(days=1)
+                        return d.date()
+                    
+                    prev_expiry = last_tuesday(prev_y, prev_m).strftime("%Y-%m-%d")
+                    next_expiry = last_tuesday(next_y, next_m).strftime("%Y-%m-%d")
+                else:
+                    def last_weekday(y: int, m: int, wd: int):
+                        _, last = cal.monthrange(y, m)
+                        d = datetime(y, m, last)
+                        while d.weekday() != wd:
+                            d -= timedelta(days=1)
+                        return d.date()
+                    
+                    day = index_config.get("expiry_day", 4)  # Default to Friday(4)
+                    prev_expiry = last_weekday(prev_y, prev_m, day).strftime("%Y-%m-%d")
+                    next_expiry = last_weekday(next_y, next_m, day).strftime("%Y-%m-%d")
+                
+                fallback_dates = [prev_expiry, next_expiry]
+            
+            # Try fallback expiries
+            for fallback_date in fallback_dates:
+                if fallback_date == expiry_date:
+                    continue
+                print(f"[EXPIRY FALLBACK] No data for {expiry_date}, trying {fallback_date}")
                 params["expiry_date"] = fallback_date
-                response2 = requests.get(API_URL, params=params, headers=headers, timeout=15)
-                response2.raise_for_status()
-                option_data = response2.json().get("data", [])
-                if not option_data:
-                    return None, f"No data for {expiry_date} or {fallback_date}"
-                # Patch expiry_date for correct folder naming
-                expiry_date = fallback_date
-            else:
-                return None, "No data received from API"
+                try:
+                    response2 = requests.get(API_URL, params=params, headers=headers, timeout=15)
+                    response2.raise_for_status()
+                    option_data = response2.json().get("data", [])
+                    if option_data:
+                        expiry_date = fallback_date
+                        print(f"[EXPIRY FALLBACK] Success with {fallback_date}")
+                        break
+                except Exception:
+                    continue
+            
+            if not option_data:
+                return None, f"No option chain data available for {index_name} on {expiry_date} or nearby expiries"
 
         records = []
         for item in option_data:

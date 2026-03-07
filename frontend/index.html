@@ -39,10 +39,12 @@
 
                 <div class="topbar-right">
                     <div class="unified-controls">
+                        <select id="category-select" class="macos-select" style="width: 100px;">
+                            <option value="Index">Index</option>
+                            <option value="Stock">Stock</option>
+                        </select>
                         <select id="index-select" class="macos-select">
-                            <option value="Nifty">Nifty</option>
-                            <option value="BankNifty">BankNifty</option>
-                            <option value="Sensex">Sensex</option>
+                            <!-- Options populated dynamically from API -->
                         </select>
                         <div class="control-divider"></div>
                         <select id="select-expiry" class="macos-select">

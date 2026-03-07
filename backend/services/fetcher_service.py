@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from core.config import AUTO_FETCH, FETCH_INTERVAL_MINS, INDICES, DATA_DIR, FILTER_STRIKES_RADIUS
+from core.config import AUTO_FETCH, FETCH_INTERVAL_MINS, INDICES, DATA_DIR, FILTER_STRIKES_RADIUS, STOCKS
 from services.upstox_service import fetch_option_chain_data, save_data, filter_near_strikes
 
 import os
@@ -103,31 +103,32 @@ async def run_auto_fetcher():
             elif not is_internet_available():
                 logger.warning("Connection to api.upstox.com failed. Skipping this fetch cycle.")
             else:
-                for index_name in INDICES.keys():
-                    logger.info(f"Auto-fetching data for {index_name}...")
+                all_instruments = {**INDICES, **STOCKS}
+                for instrument_name in all_instruments.keys():
+                    logger.info(f"Auto-fetching data for {instrument_name}...")
                     
-                    df, err = fetch_option_chain_data(index_name)
+                    df, err = fetch_option_chain_data(instrument_name, indices=all_instruments)
                     if err:
-                        logger.error(f"Failed to fetch {index_name}: {err}")
+                        logger.error(f"Failed to fetch {instrument_name}: {err}")
                         continue
                     
                     if df is not None and not df.empty:
                         # APPLY FILTERING HERE
                         df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
                         
-                        path = save_data(df_filtered, index_name, data_dir=DATA_DIR)
-                        logger.info(f"Successfully saved {index_name} data (filtered ±{FILTER_STRIKES_RADIUS}) to {path}")
+                        path = save_data(df_filtered, instrument_name, data_dir=DATA_DIR)
+                        logger.info(f"Successfully saved {instrument_name} data (filtered ±{FILTER_STRIKES_RADIUS}) to {path}")
                         
                         # Auto-load into store so dashboard metrics/charts update automatically
                         import store
                         from services.calculations import calculate_gex
                         
-                        lot_size = INDICES[index_name]["lot_size"]
+                        lot_size = all_instruments[instrument_name]["lot_size"]
                         df_with_gex = calculate_gex(df_filtered, lot_size)
-                        store.set_data(index_name, df_with_gex, path)
-                        logger.info(f"Updated in-memory store for {index_name}")
+                        store.set_data(instrument_name, df_with_gex, path)
+                        logger.info(f"Updated in-memory store for {instrument_name}")
                     else:
-                        logger.warning(f"No data received for {index_name}")
+                        logger.warning(f"No data received for {instrument_name}")
 
             logger.info(f"Fetch cycle complete. Waiting for next aligned slot.")
 

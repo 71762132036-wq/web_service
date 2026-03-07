@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import store
-from core.config import FILTER_STRIKES_RADIUS, INDICES, DATA_DIR
+from core.config import FILTER_STRIKES_RADIUS, INDICES, DATA_DIR, STOCKS
 from services.calculations import calculate_gex
 from services.upstox_service import (
     fetch_option_chain_data,
@@ -36,9 +36,10 @@ router = APIRouter(prefix="/api", tags=["data"])
 
 @router.get("/files/{index}")
 def list_files(index: str):
-    """Return all saved data files for the given index, grouped by expiry."""
-    if index not in INDICES:
-        raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
+    """Return all saved data files for the given index/stock, grouped by expiry."""
+    all_instruments = {**INDICES, **STOCKS}
+    if index not in all_instruments:
+        raise HTTPException(status_code=404, detail=f"Unknown index/stock: {index}")
     files = get_available_files(index, data_dir=DATA_DIR)
     return {"index": index, "files": files}
 
@@ -49,10 +50,11 @@ def list_files(index: str):
 
 @router.get("/next-expiry/{index}")
 def next_expiry(index: str):
-    """Return the next expiry date for the given index."""
-    if index not in INDICES:
-        raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
-    return {"index": index, "expiry": get_next_expiry(index)}
+    """Return the next expiry date for the given index/stock."""
+    all_instruments = {**INDICES, **STOCKS}
+    if index not in all_instruments:
+        raise HTTPException(status_code=404, detail=f"Unknown index/stock: {index}")
+    return {"index": index, "expiry": get_next_expiry(index, all_instruments)}
 
 
 # ---------------------------------------------------------------------------
@@ -60,33 +62,34 @@ def next_expiry(index: str):
 # ---------------------------------------------------------------------------
 
 class FetchRequest(BaseModel):
-    indices: Optional[List[str]] = None  # None = all indices
+    indices: Optional[List[str]] = None  # None = all indices and stocks
 
 
 @router.post("/fetch")
 def fetch_data(body: FetchRequest):
-    """Fetch live option chain data from Upstox API for one or all indices."""
+    """Fetch live option chain data from Upstox API for one or all indices/stocks."""
     print(f"\n[DEBUG-FETCH] /fetch endpoint called with indices={body.indices}")
-    target_indices = body.indices or list(INDICES.keys())
-    print(f"[DEBUG-FETCH] Target indices: {target_indices}")
+    all_instruments = {**INDICES, **STOCKS}
+    target_indices = body.indices or list(all_instruments.keys())
+    print(f"[DEBUG-FETCH] Target indices/stocks: {target_indices}")
     results = []
 
     for index_name in target_indices:
         try:
             print(f"\n[DEBUG-FETCH] Processing {index_name}...")
             
-            if index_name not in INDICES:
-                error_msg = f"Unknown index: {index_name}"
+            if index_name not in all_instruments:
+                error_msg = f"Unknown index/stock: {index_name}"
                 print(f"[DEBUG-FETCH] ✗ {index_name}: {error_msg}")
                 results.append({"index": index_name, "success": False, "error": error_msg})
                 continue
 
             print(f"[DEBUG-FETCH] Getting next expiry for {index_name}")
-            expiry = get_next_expiry(index_name)
+            expiry = get_next_expiry(index_name, all_instruments)
             print(f"[DEBUG-FETCH] Next expiry: {expiry}")
             
             print(f"[DEBUG-FETCH] Fetching option chain data...")
-            df, error = fetch_option_chain_data(index_name, expiry_date=expiry)
+            df, error = fetch_option_chain_data(index_name, expiry_date=expiry, indices=all_instruments)
 
             if error:
                 error_msg = f"Failed to fetch data: {error}"
@@ -98,7 +101,7 @@ def fetch_data(body: FetchRequest):
             df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
             print(f"[DEBUG-FETCH] After filter: {len(df_filtered)} strikes")
             
-            lot_size    = INDICES[index_name]["lot_size"]
+            lot_size    = all_instruments[index_name]["lot_size"]
             df_filtered = calculate_gex(df_filtered, lot_size)
             print(f"[DEBUG-FETCH] Calculated GEX for {len(df_filtered)} strikes")
 
@@ -146,8 +149,9 @@ class LoadRequest(BaseModel):
 @router.post("/load")
 def load_data(body: LoadRequest):
     """Load a previously saved CSV file into the in-memory store."""
-    if body.index not in INDICES:
-        raise HTTPException(status_code=404, detail=f"Unknown index: {body.index}")
+    all_instruments = {**INDICES, **STOCKS}
+    if body.index not in all_instruments:
+        raise HTTPException(status_code=404, detail=f"Unknown index/stock: {body.index}")
 
     # Try new structure first, then legacy
     filepath = Path(DATA_DIR) / body.index / body.expiry / body.filename
@@ -163,7 +167,7 @@ def load_data(body: LoadRequest):
 
     # Recalculate GEX if missing (backward compat)
     if "Total_GEX" not in df.columns:
-        lot_size = INDICES[body.index]["lot_size"]
+        lot_size = all_instruments[body.index]["lot_size"]
         df = calculate_gex(df, lot_size)
 
     store.set_data(body.index, df, str(filepath))

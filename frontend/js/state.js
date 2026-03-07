@@ -10,13 +10,17 @@ const State = (() => {
         selectedSubChart: null, // Track sub-chart within category
         gammaChartMode: 'net', // 'net' or 'raw'
         compareMode: false,
-        indices: ['Nifty', 'BankNifty', 'Sensex'],
-        // Store data status per index: { indexName: { hasData, loadedFile, expiry, selectedExpiry, selectedFile } }
-        indexData: {
-            'Nifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedDate: '', selectedFile: '', selectedDate2: '', selectedFile2: '' },
-            'BankNifty': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedDate: '', selectedFile: '', selectedDate2: '', selectedFile2: '' },
-            'Sensex': { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedDate: '', selectedFile: '', selectedDate2: '', selectedFile2: '' },
-        }
+        // instrumentType drives whether we are looking at indices or stocks
+        instrumentType: 'Index',
+        // lists populated from API
+        indexList: [],
+        stockList: [],
+        // raw metadata returned from server
+        metadata: {},
+        // full combined list for backward compatibility
+        indices: [],
+        // Store data status per instrument
+        indexData: {},
     };
 
     const _listeners = new Set();
@@ -27,6 +31,18 @@ const State = (() => {
         _state = { ..._state, ...patch };
         _listeners.forEach(fn => fn(_state));
     }
+
+    function getInstruments(type) {
+        if (type === 'Stock') return [..._state.stockList];
+        return [..._state.indexList];
+    }
+
+    function setInstrumentType(type) {
+        if (type !== 'Index' && type !== 'Stock') return;
+        set({ instrumentType: type });
+    }
+
+    function getInstrumentType() { return _state.instrumentType; }
 
     function subscribe(fn) {
         _listeners.add(fn);
@@ -53,5 +69,22 @@ const State = (() => {
         _listeners.forEach(fn => fn(_state));
     }
 
-    return { get, set, subscribe, getIndex, getIndexData, setIndexData };
+    function initIndices(response) {
+        // response: { indices: [...], default: ..., metadata: { name: {lot_size, expiry_type, type} } }
+        const { indices, metadata } = response;
+        _state.indices = indices;
+        _state.metadata = metadata || {};
+        _state.indexList = indices.filter(n => _state.metadata[n]?.type === 'index');
+        _state.stockList = indices.filter(n => _state.metadata[n]?.type === 'stock');
+        // ensure indexData exists for each instrument
+        indices.forEach(index => {
+            if (!_state.indexData[index]) {
+                _state.indexData[index] = { hasData: false, loadedFile: '', expiry: '', selectedExpiry: '', selectedDate: '', selectedFile: '', selectedDate2: '', selectedFile2: '' };
+            }
+        });
+        notifySubscribers();
+    }
+
+    return { get, set, subscribe, getIndex, getIndexData, setIndexData, initIndices,
+             getInstruments, setInstrumentType, getInstrumentType };
 })();

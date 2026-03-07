@@ -34,14 +34,15 @@ def has_data(index_name: str) -> bool:
     return index_name in _store and _store[index_name]["df"] is not None
 
 def initialize_from_disk() -> None:
-    """Bootstrap the store by loading the latest file for each index from disk."""
-    from core.config import INDICES, DATA_DIR
+    """Bootstrap the store by loading the latest file for each index/stock from disk."""
+    from core.config import INDICES, STOCKS, DATA_DIR
     from services.upstox_service import get_available_files, load_data_file
     from services.calculations import calculate_gex
     
     print("[BOOTSTRAP] Initializing store from disk...")
     
-    for index_name in INDICES:
+    all_instruments = {**INDICES, **STOCKS}
+    for index_name in all_instruments:
         try:
             files_dict = get_available_files(index_name, data_dir=DATA_DIR)
             if not files_dict:
@@ -60,7 +61,7 @@ def initialize_from_disk() -> None:
                 if not error:
                     # Ensure GEX is calculated for legacy files
                     if "Total_GEX" not in df.columns:
-                        lot_size = INDICES[index_name]["lot_size"]
+                        lot_size = all_instruments[index_name]["lot_size"]
                         df = calculate_gex(df, lot_size)
                         
                     set_data(index_name, df, str(filepath))

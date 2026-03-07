@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 import store
-from core.config import INDICES
+from core.config import INDICES, STOCKS
 
 router = APIRouter(prefix="/api", tags=["export"])
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api", tags=["export"])
 @router.get("/export/{index}")
 def export_csv(index: str):
     """Stream the loaded DataFrame as a CSV file download."""
-    if index not in INDICES:
+    if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
     if not store.has_data(index):
         raise HTTPException(status_code=404, detail="No data loaded for this index")

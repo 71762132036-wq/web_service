@@ -9,7 +9,7 @@ Routes:
 from fastapi import APIRouter, HTTPException
 
 import store
-from core.config import GAMMA_CAGE_WIDTH, INDICES
+from core.config import GAMMA_CAGE_WIDTH, INDICES, STOCKS
 from services.calculations import (
     calculate_flip_point,
     calculate_vol_surface,
@@ -24,7 +24,8 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 
 
 def _require_data(index: str):
-    if index not in INDICES:
+    # accept both indices and stocks
+    if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
     
     # Diagnostic print

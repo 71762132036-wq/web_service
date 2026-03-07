@@ -9,7 +9,7 @@ chart_type options:
 from fastapi import APIRouter, HTTPException
 
 import store
-from core.config import INDICES, DATA_DIR
+from core.config import INDICES, STOCKS, DATA_DIR
 from services.upstox_service import load_data_file
 from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure, calculate_iv_cone, calculate_vtl
 from services.chart_service import (
@@ -49,7 +49,7 @@ def get_compare_chart(index: str, chart_type: str, expiry: str, file1: str, file
     
     print(f"[COMPARE] index={index}, type={chart_type}, expiry={expiry}, f1={file1}, f2={file2}")
     
-    if index not in INDICES:
+    if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
         
     # Build paths and verify
@@ -97,7 +97,7 @@ def get_direction_chart(index: str, chart_type: str, expiry: str, file1: str, fi
     """Directional flow analysis based on two snapshots."""
     from pathlib import Path
     
-    if index not in INDICES:
+    if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
         
     data_path = Path(DATA_DIR).resolve()
@@ -140,7 +140,7 @@ def get_direction_chart(index: str, chart_type: str, expiry: str, file1: str, fi
 @router.get("/charts/{index}/{chart_type}")
 def get_chart(index: str, chart_type: str, mode: str = "net"):
     """Return Plotly JSON string for the requested chart."""
-    if index not in INDICES:
+    if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
     if chart_type not in CHART_TYPES:
         raise HTTPException(
@@ -155,29 +155,37 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
     try:
         if chart_type == "gex":
             from services.calculations import calculate_gex
-            df_gex = calculate_gex(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_gex = calculate_gex(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_gamma_chart(df_gex, index, mode=mode)
         elif chart_type == "dex":
-            df_dex   = calculate_delta_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_dex   = calculate_delta_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "cum_gex":
             from services.calculations import calculate_gex
-            df_gex = calculate_gex(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_gex = calculate_gex(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_cumulative_gamma_chart(df_gex, index, mode=mode)
         elif chart_type == "cum_dex":
-            df_dex   = calculate_delta_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_dex   = calculate_delta_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_cumulative_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "vex":
-            df_vex   = calculate_vanna_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_vex   = calculate_vanna_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_vanna_chart(df_vex, index, mode=mode)
         elif chart_type == "cum_vex":
-            df_vex   = calculate_vanna_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_vex   = calculate_vanna_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_cumulative_vanna_chart(df_vex, index, mode=mode)
         elif chart_type == "cex":
-            df_cex   = calculate_charm_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_cex   = calculate_charm_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_charm_chart(df_cex, index, mode=mode)
         elif chart_type == "cum_cex":
-            df_cex   = calculate_charm_exposure(df, lot_size=INDICES[index].get("lot_size", 75))
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            df_cex   = calculate_charm_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_cumulative_charm_chart(df_cex, index, mode=mode)
         elif chart_type == "regime":
             json_str = build_dealer_regime_map(df, index)

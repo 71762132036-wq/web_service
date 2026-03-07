@@ -13,11 +13,11 @@ const DataManagementPage = (() => {
       <div class="card">
         <div class="card-title">Fetch Live Data</div>
         <div class="alert alert-info" style="margin-bottom:16px;">
-          Fetches data from Upstox API for <strong>all indices</strong> simultaneously
+          Fetches data from Upstox API for <strong>all instruments</strong> simultaneously
           and auto-loads the result.
         </div>
         <button class="btn btn-primary btn-full" id="btn-fetch-all">
-          Fetch Data for All Indices
+          Fetch Data for All Instruments
         </button>
         <div id="fetch-results" style="margin-top:14px;"></div>
       </div>`;
@@ -117,7 +117,7 @@ const DataManagementPage = (() => {
             }
           });
 
-          Toast.show('Data updated for all indices!', 'success');
+          Toast.show('Data updated for all instruments!', 'success');
           App.updateTopbar();
 
           // If current index was successful, we might want to refresh current view
