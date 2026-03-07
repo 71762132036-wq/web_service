@@ -184,8 +184,12 @@ def fetch_option_chain(
 # ---------------------------------------------------------------------------
 
 def filter_near_strikes(df: pd.DataFrame, radius: int = 20) -> pd.DataFrame:
-    """Keep only ±radius strikes around the ATM strike."""
-    ltp = df["Spot"].iloc[0]
+    """Keep only ±radius strikes around the ATM strike.
+
+    The spot price can vary slightly between rows; use the median value so
+    that both live fetch and cron-collected data use the same centre.
+    """
+    ltp = float(df["Spot"].median())
     strikes = sorted(df["Strike"].unique())
     closest = min(strikes, key=lambda x: abs(x - ltp))
     idx = strikes.index(closest)

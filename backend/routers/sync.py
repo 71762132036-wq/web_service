@@ -26,6 +26,44 @@ from core.config import (
 )
 from services.calculations import calculate_gex
 
+# ---------------------------------------------------------------------------
+# Column order helpers
+#
+# We record the "canonical" column ordering used by the live-fetcher so that
+# snapshots pulled from the database are written with the same header.  The
+# Supabase JSON API tends to reorder object keys (often alphabetically) which
+# caused files saved by /api/sync to have columns shuffled, leading to
+# misleading comparisons and mismatched data when loading multiple sources.
+#
+_canonical_cols: list[str] | None = None
+
+def _get_canonical_cols() -> list[str]:
+    """Return a list of columns in the order produced by fetch_option_chain_data.
+    Cached after the first call; if the API fails we fall back to an empty list.
+    """
+    global _canonical_cols
+    if _canonical_cols is None:
+        try:
+            from services.upstox_service import fetch_option_chain_data
+            df, err = fetch_option_chain_data("Nifty")
+            if df is not None:
+                _canonical_cols = df.columns.tolist()
+            else:
+                _canonical_cols = []
+        except Exception:
+            _canonical_cols = []
+    return _canonical_cols
+
+
+def _reorder_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Reorder columns to match canonical order, preserving any extras at end."""
+    cols = _get_canonical_cols()
+    if not cols:
+        return df
+    ordered = [c for c in cols if c in df.columns]
+    ordered += [c for c in df.columns if c not in ordered]
+    return df[ordered]
+
 router = APIRouter(prefix="/api", tags=["sync"])
 logger = logging.getLogger(__name__)
 
@@ -93,12 +131,17 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             skip_count += 1
             continue
 
-        # Build filename from captured_at timestamp (Supabase stores UTC)
+        # Build filename from captured_at timestamp (stored in UTC now)
         try:
-            from datetime import timedelta
-            utc_ts = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
-            # Convert UTC to IST (UTC+5:30)
-            local_ts = utc_ts + timedelta(hours=5, minutes=30)
+            from datetime import timedelta, timezone
+            # preserve any offset info from ISO string
+            utc_ts = datetime.fromisoformat(captured_at)
+            if utc_ts.tzinfo is None:
+                # assume UTC if naive
+                utc_ts = utc_ts.replace(tzinfo=timezone.utc)
+            # convert to IST for human‑readable filename
+            ist = timezone(timedelta(hours=5, minutes=30))
+            local_ts = utc_ts.astimezone(ist)
             filename = local_ts.strftime("%d_%H%M%S") + ".csv"
         except Exception:
             filename = datetime.now().strftime("%d_%H%M%S") + ".csv"
@@ -114,10 +157,13 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             skip_count += 1
             continue
 
-        # Convert to DataFrame, add GEX if missing
+        # Convert to DataFrame and force canonical column order before saving.
         df = pd.DataFrame(rows)
+        df = _reorder_df(df)
+        # Add GEX if missing (calculate_gex may add new columns at the end)
         if "Total_GEX" not in df.columns and index_name in INDICES:
             df = calculate_gex(df, INDICES[index_name]["lot_size"])
+            df = _reorder_df(df)  # place any new columns in canonical position (end)
 
         df.to_csv(filepath, index=False)
         logger.info("[SYNC] Saved: %s", filepath)

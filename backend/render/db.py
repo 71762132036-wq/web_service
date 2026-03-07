@@ -60,20 +60,24 @@ def insert_snapshots(client: Client, snapshots: list[dict]) -> int:
     Insert a list of snapshots.
     Each snapshot: {"index_name": str, "expiry_date": str, "data": list[dict]}
     Returns number of rows inserted.
+
+    NOTE: timestamps are stored in UTC to keep the database timezone-agnostic.
+    Previous implementation saved IST, which caused the sync logic to miscompute
+    local timestamps and led to mismatched filenames/duplicates.
     """
     if not snapshots:
         return 0
-    from datetime import datetime
-    import zoneinfo
-    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
-    now_ist = datetime.now(ist).isoformat()
+    from datetime import datetime, timezone
+
+    # use UTC for consistency (ISO format includes 'Z')
+    now_utc = datetime.now(timezone.utc).isoformat()
 
     rows = [
         {
             "index_name":  s["index_name"],
             "expiry_date": s["expiry_date"],
             "data":        s["data"],
-            "captured_at": now_ist,
+            "captured_at": now_utc,
             "synced":      False,
         }
         for s in snapshots

@@ -21,12 +21,21 @@ from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, DATA_DIR, INDICES
 # ---------------------------------------------------------------------------
 
 def get_next_expiry(index_name: str) -> str:
-    """Return next expiry date (YYYY-MM-DD) based on index rules."""
+    """Return next expiry date (YYYY-MM-DD) based on index rules.
+
+    Uses IST timezone so that expiry rollovers behave the same way as the
+    render collector (which already uses explicit Asia/Kolkata). Previously
+    the comparison ran in system-local time which could differ on servers and
+    lead to mismatched expiry dates between live-fetch and scheduled jobs.
+    """
+    import zoneinfo
+
     index_config = INDICES.get(index_name)
     if not index_config:
         raise ValueError(f"Unknown index: {index_name}")
 
-    now = datetime.now()
+    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
+    now = datetime.now(ist)
     today = now.date()
     expiry_type = index_config["expiry_type"]
     expiry_day = index_config["expiry_day"]
@@ -75,6 +84,12 @@ def get_next_expiry(index_name: str) -> str:
 def fetch_option_chain_data(
     index_name: str = "Nifty", expiry_date: str | None = None
 ) -> tuple[pd.DataFrame | None, str | None]:
+    """Fetch live option chain from Upstox.
+
+    All time-based logic inside this module is now IST-aware to match the
+    remote collector and avoid data skew when the backend is running on a
+    machine configured with UTC or another timezone.
+    """
     """
     Fetch option chain from Upstox API.
 
@@ -189,8 +204,15 @@ def fetch_option_chain_data(
 # ---------------------------------------------------------------------------
 
 def filter_near_strikes(df: pd.DataFrame, filter_radius: int = 20) -> pd.DataFrame:
-    """Keep only ±filter_radius strikes around the spot price."""
-    ltp = df["Spot"].iloc[0]
+    """Keep only ±filter_radius strikes around the spot price.
+
+    Use the median spot across all rows rather than the first row. The API
+    sometimes returns slightly different underlying_spot_price values per
+    strike, and relying on the first row could pick the wrong centre, leading
+    to inconsistent strike subsets between live fetch and scheduled collector.
+    """
+    # use median to be robust to small per-row variations
+    ltp = float(df["Spot"].median())
     all_strikes = sorted(df["Strike"].unique())
     closest = min(all_strikes, key=lambda x: abs(x - ltp))
     idx = all_strikes.index(closest)
