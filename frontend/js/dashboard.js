@@ -8,6 +8,15 @@ const DashboardPage = (() => {
   let _lastFlowSummary = null;
   let _lastFilterData = null;
   let _lastFilterContext = null;
+
+  // Track what's currently on screen to avoid wipes
+  let _currentBucket = null;
+  let _currentCategory = null;
+  let _currentSubChart = null;
+  let _currentMode = null; // Track mode changes
+  
+  let _isRendering = false; // Render lock
+  let _isWired = false; 
   
   // High-level data cache to prevent global flickers
   const _metricsCache = new Map(); // index -> data
@@ -204,22 +213,32 @@ const DashboardPage = (() => {
   }
 
   // ── Render ─────────────────────────────────────────────
-
+  
   async function render(container) {
     const st = State.get();
     const index = st.selectedIndex;
     const structure = getStructure();
 
-    // 1. Partial Update Logic — if dashboard exists, don't wipe it
-    const existingDashboard = container.querySelector('.dashboard-wrapper');
-    if (!existingDashboard) {
-      container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
-    }
+    // Prevent concurrent renders
+    if (_isRendering) return;
+    _isRendering = true;
 
     try {
-      // 2. Multi-level caching for Metrics & Vol
+      const isPageChange = (
+        _currentBucket !== st.selectedBucket ||
+        _currentCategory !== st.selectedCategory ||
+        _currentSubChart !== st.selectedSubChart
+      );
+      const isModeChange = _currentMode !== st.gammaChartMode;
+
+      // 1. Partial Update Logic — if dashboard exists, don't wipe it unless the page changed
+      const existingDashboard = container.querySelector('.dashboard-wrapper');
+      if (!existingDashboard) {
+        container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
+      }
+
+      // 2. Fetch critical layout data
       let metrics, volData;
-      
       if (_metricsCache.has(index) && _volCache.has(index)) {
         metrics = _metricsCache.get(index);
         volData = _volCache.get(index);
@@ -233,104 +252,61 @@ const DashboardPage = (() => {
       }
 
       const vs = volData?.vol_surface;
-      const regimeClass = metrics.regime?.includes('LONG') ? 'long-gamma' : 'short-gamma';
+      const regimeClass = (metrics.regime || '').includes('LONG') ? 'long-gamma' : 'short-gamma';
 
-      container.innerHTML = `
-        <div class="dashboard-wrapper">
-          
-          <!-- Consolidated Analysis Header -->
-          <div class="analysis-nav-section">
-            <div class="nav-row top-row">
-              <div class="nav-group">
-                <span class="nav-label">NAV</span>
-                <div class="bucket-selector">${buildBucketNav()}</div>
+      // 3. Structural Update
+      if (!existingDashboard || isPageChange) {
+        container.innerHTML = `
+          <div class="dashboard-wrapper">
+            <div class="analysis-nav-section">
+              <div class="nav-row top-row">
+                <div class="nav-group"><span class="nav-label">NAV</span><div class="bucket-selector">${buildBucketNav()}</div></div>
+                <div class="nav-group context-group mode-toggle-area"></div>
               </div>
-
-              ${['Gamma', 'Delta', 'Vanna', 'Charm'].includes(st.selectedCategory) ? `
-                <div class="nav-group context-group">
-                  <span class="nav-label">CONTEXT</span>
-                  <div class="segmented-control mode-toggle">
-                    <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net Exposure</button>
-                    <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Call vs Put</button>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-
-            <div class="nav-row cat-row">
-              <div class="nav-group">
-                <span class="nav-label">CAT</span>
-                <div class="category-pills">${buildCategoryNav()}</div>
+              <div class="nav-row cat-row">
+                <div class="nav-group"><span class="nav-label">CAT</span><div class="category-pills"></div></div>
+                <div class="nav-group context-group sub-nav-area"></div>
               </div>
-
-              ${structure[st.selectedBucket]?.[st.selectedCategory]?.length > 1 ? `
-                <div class="nav-group context-group">
-                  <span class="nav-label">SUB</span>
-                  ${buildSubChartNav()}
-                </div>
-              ` : ''}
             </div>
-
-            ${st.selectedCategory === 'Filter' ? `
-              <!-- Filter Controls Removed (Sorting implemented via Headers) -->
-            ` : ''}
-          </div>
-
-          <!-- Main Analysis Canvas -->
-          <div class="analysis-content">
-            ${buildChartPanel()}
-          </div>
-
-          <!-- Secondary Metrics Row -->
-          ${!['Filter'].includes(st.selectedCategory) ? `
-          <div class="metrics-section">
-            <div class="metrics-grid">
-              ${_lastFlowSummary?.vtl ? `
-                ${buildMetricCard('VTL Level', _lastFlowSummary.vtl.toLocaleString(), `Price: ${_lastFlowSummary.vtl.toLocaleString()}`, 'flow-status')}
-                ${buildMetricCard('VTL Distance', `${Math.abs(_lastFlowSummary.distance_pct).toFixed(2)}%`, `Spot is ${_lastFlowSummary.direction} VTL`, `flow-status ${_lastFlowSummary.distance_pct > 0 ? 'bullish' : 'bearish'}`)}
-                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-              ` : (st.selectedBucket === 'Direction' && _lastFlowSummary ? `
-                ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
-                ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
-                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-              ` : `
-                ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-                ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-                ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
-                ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
-              `)}
+            <div class="analysis-content">
+              ${buildChartPanel()}
             </div>
-          </div>
-          ` : ''}
+            <div class="metrics-section"><div class="metrics-grid"></div></div>
+            <div class="surface-details-area"></div>
+          </div>`;
+      }
 
-          <!-- Contextual Surface Details -->
-          ${st.selectedBucket === 'Volatility' ? `
-            <div class="section-overlay">
-              <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
-              <div class="card glass-card">${buildVolSurface(vs)}</div>
-            </div>
-          ` : ''}
+      // Always update dynamic parts
+      _updateNavState(container, structure);
+      _updateMetricsState(container, metrics, regimeClass);
+      _updateSurfaceState(container, vs);
 
-        </div>`;
+      // Save tracking state
+      _currentBucket = st.selectedBucket;
+      _currentCategory = st.selectedCategory;
+      _currentSubChart = st.selectedSubChart;
+      _currentMode = st.gammaChartMode;
 
-      _wireAnalysisNav(container);
+      if (!_isWired) {
+        _wireDashboard(container);
+        _isWired = true;
+      }
 
-      _loadedCharts.clear();
-
-      // 1. Chart Loading Logic
+      // 4. Chart Loading Logic
       const activeCharts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
       const filterKeys = ['overall_filter', 'strike_filter'];
+      
+      const shouldReloadChart = isPageChange || isModeChange || (filterKeys.includes(activeCharts[0]?.key));
+      const chartId = st.selectedSubChart || activeCharts[0]?.id;
 
-      if (activeCharts.length > 0) {
+      if (activeCharts.length > 0 && (shouldReloadChart || !_loadedCharts.has(chartId))) {
+        _loadedCharts.clear(); 
         const activeId = st.selectedSubChart || activeCharts[0].id;
         const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
 
         if (st.selectedBucket === 'Direction') {
           const idxData = State.getIndexData(index);
           const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
-
           if (file1 && file2) {
             const res = await Charts.fetchAndRenderDirection(index, chart.key, expiry, file1, file2, chart.id);
             _lastFlowSummary = res?.summary || null;
@@ -343,18 +319,16 @@ const DashboardPage = (() => {
         else if (st.compareMode) {
           const idxData = State.getIndexData(index);
           const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
-
           if (file1 && file2) {
-            Charts.fetchAndRenderCompare(index, chart.key, expiry, file1, file2, chart.id);
+            await Charts.fetchAndRenderCompare(index, chart.key, expiry, file1, file2, chart.id);
           } else {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files to compare</span></div>';
           }
         } 
         else if (filterKeys.includes(chart.key)) {
-          // Render filter table into the standard chart container
           const filterArea = container.querySelector(`#${chart.id}`);
-          if (filterArea) renderFilterPage(filterArea);
+          if (filterArea) await renderFilterPage(filterArea);
         } 
         else {
           const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
@@ -363,27 +337,24 @@ const DashboardPage = (() => {
           _lastFlowSummary = res?.summary || null;
           _renderMetricsOnly(container, metrics, regimeClass);
         }
-        
         _loadedCharts.add(chart.id);
       }
-      
-      _wireAnalysisNav(container);
-      _wireAnalysisContent(container);
-
     } catch (err) {
-      if (err.message.includes('No data loaded')) {
+      console.error("Dashboard render error:", err);
+      if (err?.message?.includes('No data loaded')) {
         container.innerHTML = buildEmptyState();
       } else {
-        container.innerHTML = `<div class="alert alert-error">Dashboard error: ${err.message}</div>`;
+        container.innerHTML = `<div class="alert alert-error">Dashboard error: ${err?.message || 'Unknown error'}</div>`;
       }
+    } finally {
+      _isRendering = false;
     }
   }
 
-  function _wireAnalysisNav(container) {
-    const navSection = container.querySelector('.analysis-nav-section');
-
-    navSection.addEventListener('click', e => {
-      // 1. Bucket clicks
+  function _wireDashboard(container) {
+    // Single consolidated event delegation on root container
+    container.addEventListener('click', e => {
+      // 1. Navigation (Bucket, Category, Sub)
       const bucketBtn = e.target.closest('.bucket-btn');
       if (bucketBtn) {
         const bucket = bucketBtn.dataset.bucket;
@@ -391,52 +362,36 @@ const DashboardPage = (() => {
         const firstCat = Object.keys(structure[bucket])[0];
         const firstSub = structure[bucket][firstCat][0]?.id || null;
         State.set({ selectedBucket: bucket, selectedCategory: firstCat, selectedSubChart: firstSub });
-        render(container);
-        return;
+        render(container); return;
       }
-
-      // 2. Category clicks
+      
       const catBtn = e.target.closest('.category-btn');
       if (catBtn) {
         const cat = catBtn.dataset.category;
         const structure = getStructure();
         const firstSub = structure[State.get().selectedBucket][cat][0]?.id || null;
         State.set({ selectedCategory: cat, selectedSubChart: firstSub });
-        render(container);
-        return;
+        render(container); return;
       }
 
-      // 3. Sub-chart clicks
       const subBtn = e.target.closest('.sub-tab-btn');
       if (subBtn) {
         State.set({ selectedSubChart: subBtn.dataset.subchart });
-        render(container);
-        return;
+        render(container); return;
       }
 
-      // 4. View mode clicks
       const modeBtn = e.target.closest('.segment-btn');
       if (modeBtn && modeBtn.closest('.mode-toggle')) {
         State.set({ gammaChartMode: modeBtn.dataset.mode });
-        render(container);
-        return;
+        render(container); return;
       }
 
-      // 5. ... removed trend and threshold ...
-    });
-  }
-
-  function _wireAnalysisContent(container) {
-    const contentSection = container.querySelector('.analysis-content');
-    if (!contentSection) return;
-
-    contentSection.addEventListener('click', e => {
+      // 2. Table Sorting
       const sortHeader = e.target.closest('.sortable-header');
       if (sortHeader) {
         const col = sortHeader.dataset.col;
         const currentSort = State.get().filterSortCol;
         const currentDir = State.get().filterSortDir;
-        
         const newDir = (col === currentSort && currentDir === 'desc') ? 'asc' : 'desc';
         State.set({ filterSortCol: col, filterSortDir: newDir });
         render(container);
@@ -444,28 +399,88 @@ const DashboardPage = (() => {
     });
   }
 
-  function _renderMetricsOnly(container, metrics, regimeClass) {
+  function _updateNavState(container, structure) {
+    const st = State.get();
+    
+    // 1. Bucket Nav
+    const bucketArea = container.querySelector('.bucket-selector');
+    if (bucketArea) bucketArea.innerHTML = buildBucketNav();
+    
+    // 2. Category Nav
+    const catArea = container.querySelector('.category-pills');
+    if (catArea) catArea.innerHTML = buildCategoryNav();
+    
+    // 3. Sub Nav
+    const subNavArea = container.querySelector('.sub-nav-area');
+    if (subNavArea) {
+      const hasSub = structure[st.selectedBucket]?.[st.selectedCategory]?.length > 1;
+      subNavArea.innerHTML = hasSub ? `<span class="nav-label">SUB</span>${buildSubChartNav()}` : '';
+    }
+
+    // 4. Mode Toggle (Gamma/exposure modes)
+    const toggleArea = container.querySelector('.mode-toggle-area');
+    if (toggleArea) {
+      const hasToggle = ['Gamma', 'Delta', 'Vanna', 'Charm'].includes(st.selectedCategory);
+      toggleArea.innerHTML = hasToggle ? `
+        <span class="nav-label">CONTEXT</span>
+        <div class="segmented-control mode-toggle">
+          <button class="segment-btn ${st.gammaChartMode === 'net' ? 'active' : ''}" data-mode="net">Net Exposure</button>
+          <button class="segment-btn ${st.gammaChartMode === 'raw' ? 'active' : ''}" data-mode="raw">Call vs Put</button>
+        </div>
+      ` : '';
+    }
+  }
+
+  function _updateMetricsState(container, metrics, regimeClass) {
     const grid = container.querySelector('.metrics-grid');
     if (!grid) return;
     const st = State.get();
-    grid.innerHTML = `
-      ${_lastFlowSummary?.vtl ? `
-        ${buildMetricCard('VTL Level', _lastFlowSummary.vtl.toLocaleString(), `Price: ${_lastFlowSummary.vtl.toLocaleString()}`, 'flow-status')}
-        ${buildMetricCard('VTL Distance', `${Math.abs(_lastFlowSummary.distance_pct).toFixed(2)}%`, `Spot is ${_lastFlowSummary.direction} VTL`, `flow-status ${_lastFlowSummary.distance_pct > 0 ? 'bullish' : 'bearish'}`)}
-        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-      ` : (st.selectedBucket === 'Direction' && _lastFlowSummary ? `
-        ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
-        ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
-        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-      ` : `
-        ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
-        ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
-        ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
-        ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
-      `)}
-    `;
+
+    if (st.selectedCategory === 'Filter') {
+      const section = container.querySelector('.metrics-section');
+      if (section) section.style.display = 'none';
+      return;
+    } else {
+      const section = container.querySelector('.metrics-section');
+      if (section) section.style.display = 'block';
+    }
+
+    grid.innerHTML = _lastFlowSummary?.vtl ? `
+      ${buildMetricCard('VTL Level', _lastFlowSummary.vtl.toLocaleString(), `Price: ${_lastFlowSummary.vtl.toLocaleString()}`, 'flow-status')}
+      ${buildMetricCard('VTL Distance', `${Math.abs(_lastFlowSummary.distance_pct).toFixed(2)}%`, `Spot is ${_lastFlowSummary.direction} VTL`, `flow-status ${_lastFlowSummary.distance_pct > 0 ? 'bullish' : 'bearish'}`)}
+      ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+      ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+    ` : (st.selectedBucket === 'Direction' && _lastFlowSummary ? `
+      ${buildMetricCard('Call Flow', _lastFlowSummary.calls.label, `Pressure: ${(_lastFlowSummary.calls.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.calls.pressure > 0.2 ? 'bullish' : (_lastFlowSummary.calls.pressure < -0.2 ? 'bearish' : '')}`)}
+      ${buildMetricCard('Put Flow', _lastFlowSummary.puts.label, `Pressure: ${(_lastFlowSummary.puts.pressure * 100).toFixed(1)}%`, `flow-status ${_lastFlowSummary.puts.pressure > 0.2 ? 'bearish' : (_lastFlowSummary.puts.pressure < -0.2 ? 'bullish' : '')}`)}
+      ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+      ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+    ` : `
+      ${buildMetricCard('Spot Price', metrics.spot.toLocaleString())}
+      ${buildMetricCard('Quant Power', metrics.quant_power.toLocaleString(), 'Blended Zero Level')}
+      ${buildMetricCard('Flip Point', metrics.flip_point.toLocaleString(), 'Zero Gamma Level')}
+      ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
+    `);
+  }
+
+  function _updateSurfaceState(container, vs) {
+    const area = container.querySelector('.surface-details-area');
+    if (!area) return;
+    const st = State.get();
+
+    if (st.selectedBucket === 'Volatility') {
+      area.innerHTML = `
+        <div class="section-overlay">
+          <div class="section-header"><h2>Surface Details</h2><div class="section-line"></div></div>
+          <div class="card glass-card">${buildVolSurface(vs)}</div>
+        </div>`;
+    } else {
+      area.innerHTML = '';
+    }
+  }
+
+  function _renderMetricsOnly(container, metrics, regimeClass) {
+    _updateMetricsState(container, metrics, regimeClass);
   }
 
   async function renderFilterPage(container) {
@@ -556,7 +571,7 @@ const DashboardPage = (() => {
                     ` : `
                         <div class="empty-results">
                             <div class="empty-icon" style="font-size: 24px; margin-bottom: 12px; opacity: 0.5;">🔍</div>
-                            <p>No stocks currently meet the filtering criteria (>${threshold}% Gross OI Change).</p>
+                            <p>No stocks currently meet the filtering criteria.</p>
                         </div>
                     `}
                 </div>`;
