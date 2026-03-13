@@ -1345,6 +1345,44 @@ body {
   color: var(--accent-cyan);
 }
 
+.text-accent-green {
+  color: var(--accent-green) !important;
+}
+
+.text-accent-red {
+  color: var(--accent-red) !important;
+}
+
+.text-accent-amber {
+  color: var(--accent-amber) !important;
+}
+
+/* Sortable Table Headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.sortable-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sort-icon-active {
+  color: var(--accent-cyan);
+  margin-left: 4px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.sort-icon-neutral {
+  color: rgba(255, 255, 255, 0.2);
+  margin-left: 4px;
+  font-size: 0.8em;
+  opacity: 0.5;
+}
+
 .hidden {
   display: none !important;
 }

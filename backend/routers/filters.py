@@ -100,9 +100,21 @@ def get_overall_filter(
                 if trend == "negative" and net_chg >= 0:
                     continue
                     
+                call_oi = df['Call_OI'].sum()
+                put_oi = df['Put_OI'].sum()
+                
+                call_oi_chg = df['call_oi_chg'].sum()
+                put_oi_chg = df['put_oi_chg'].sum()
+                
+                # Calculate percentages relative to their own strike map totals
+                call_chg_pct = (call_oi_chg / call_oi * 100) if call_oi > 0 else 0
+                put_chg_pct = (put_oi_chg / put_oi * 100) if put_oi > 0 else 0
+                
                 results.append({
                     "Stock": name,
                     "Change(%)": round(percentage, 2),
+                    "Call_OI_Chg_Pct": round(float(call_chg_pct), 2),
+                    "Put_OI_Chg_Pct": round(float(put_chg_pct), 2),
                     "Net_Chg": float(net_chg)
                 })
         except Exception:

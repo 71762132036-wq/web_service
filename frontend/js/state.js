@@ -14,6 +14,8 @@ const State = (() => {
         instrumentType: 'Index',
         filterThreshold: 80,
         filterTrend: 'all',
+        filterSortCol: 'Change(%)', // Default sort column
+        filterSortDir: 'desc',      // Default sort direction
         // lists populated from API
         indexList: [],
         stockList: [],

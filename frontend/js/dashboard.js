@@ -6,6 +6,8 @@ const DashboardPage = (() => {
 
   const _loadedCharts = new Set();
   let _lastFlowSummary = null;
+  let _lastFilterData = null;
+  let _lastFilterContext = null;
 
   const ANALYSIS_STRUCTURE = {
     'Exposure': {
@@ -253,30 +255,7 @@ const DashboardPage = (() => {
             </div>
 
             ${st.selectedCategory === 'Filter' ? `
-              <div class="nav-row ctrl-row">
-                <div class="nav-group">
-                  <span class="nav-label">CONTROLS</span>
-                  <div class="filter-controls-integrated" style="display: flex; align-items: center; gap: 20px;">
-                      <div class="input-group-clean">
-                          <div class="segmented-control" id="filter-apply-toggle">
-                              <button class="segment ${st.applyFilter !== false ? 'active' : ''}" data-value="true">Apply Filter</button>
-                              <button class="segment ${st.applyFilter === false ? 'active' : ''}" data-value="false">Show All</button>
-                          </div>
-                      </div>
-                      <div class="input-group-clean">
-                          <div class="segmented-control" id="filter-trend-toggle">
-                              <button class="segment ${st.filterTrend === 'all' || !st.filterTrend ? 'active' : ''}" data-value="all">All</button>
-                              <button class="segment ${st.filterTrend === 'positive' ? 'active' : ''}" data-value="positive">Positive</button>
-                              <button class="segment ${st.filterTrend === 'negative' ? 'active' : ''}" data-value="negative">Negative</button>
-                          </div>
-                      </div>
-                      <div class="input-group-clean">
-                          <input type="number" id="filter-threshold-input" class="macos-input-small" value="${st.filterThreshold || 80}" min="1" max="100">
-                          <span class="nav-label" style="margin-left:5px; opacity:0.8;">% THRESHOLD</span>
-                      </div>
-                  </div>
-                </div>
-              </div>
+              <!-- Filter Controls Removed (Sorting implemented via Headers) -->
             ` : ''}
           </div>
 
@@ -370,8 +349,9 @@ const DashboardPage = (() => {
         
         _loadedCharts.add(chart.id);
       }
-
-      // No-op, handled above
+      
+      _wireAnalysisNav(container);
+      _wireAnalysisContent(container);
 
     } catch (err) {
       if (err.message.includes('No data loaded')) {
@@ -425,31 +405,24 @@ const DashboardPage = (() => {
         return;
       }
 
-      // 5. Filter Controls Wiring (Trend)
-      const trendSegment = e.target.closest('.segment');
-      if (trendSegment && trendSegment.closest('#filter-trend-toggle')) {
-        State.set({ filterTrend: trendSegment.dataset.value });
-        render(container);
-        return;
-      }
-
-      // 5b. Apply Filter Toggle
-      const applySegment = e.target.closest('.segment');
-      if (applySegment && applySegment.closest('#filter-apply-toggle')) {
-        State.set({ applyFilter: applySegment.dataset.value === 'true' });
-        render(container);
-        return;
-      }
+      // 5. ... removed trend and threshold ...
     });
+  }
 
-    // 6. Filter Controls Wiring (Threshold - Change event)
-    navSection.addEventListener('change', e => {
-      if (e.target.id === 'filter-threshold-input') {
-        const val = parseFloat(e.target.value);
-        if (!isNaN(val)) {
-          State.set({ filterThreshold: val });
-          render(container);
-        }
+  function _wireAnalysisContent(container) {
+    const contentSection = container.querySelector('.analysis-content');
+    if (!contentSection) return;
+
+    contentSection.addEventListener('click', e => {
+      const sortHeader = e.target.closest('.sortable-header');
+      if (sortHeader) {
+        const col = sortHeader.dataset.col;
+        const currentSort = State.get().filterSortCol;
+        const currentDir = State.get().filterSortDir;
+        
+        const newDir = (col === currentSort && currentDir === 'desc') ? 'asc' : 'desc';
+        State.set({ filterSortCol: col, filterSortDir: newDir });
+        render(container);
       }
     });
   }
@@ -500,10 +473,39 @@ const DashboardPage = (() => {
       // Temporal sync: get expiry and filename from current dashboard selection
       const idxData = State.getIndexData(st.selectedIndex);
       const { selectedExpiry: expiry, selectedFile: filename } = idxData;
-      const applyFilter = st.applyFilter !== false;
+      const contextKey = `${st.selectedIndex}|${expiry}|${filename}`;
 
-      const data = await API.getOverallFilter(threshold, trend, expiry, filename, applyFilter);
-      const results = data.results || [];
+      let results;
+      if (_lastFilterData && _lastFilterContext === contextKey) {
+        results = [..._lastFilterData];
+      } else {
+        const data = await API.getOverallFilter(0, 'all', expiry, filename, false);
+        _lastFilterData = data.results || [];
+        _lastFilterContext = contextKey;
+        results = [..._lastFilterData];
+      }
+
+      // Client-Side Sorting
+      const sortCol = st.filterSortCol || 'Change(%)';
+      const sortDir = st.filterSortDir || 'desc';
+
+      results.sort((a, b) => {
+        let valA = a[sortCol];
+        let valB = b[sortCol];
+        
+        // Handle string comparison for names
+        if (sortCol === 'Stock') {
+          return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        
+        // Handle numeric comparison
+        return sortDir === 'asc' ? valA - valB : valB - valA;
+      });
+
+      const getSortIcon = (col) => {
+        if (st.filterSortCol !== col) return '<span class="sort-icon-neutral">↕</span>';
+        return st.filterSortDir === 'desc' ? '<span class="sort-icon-active">▼</span>' : '<span class="sort-icon-active">▲</span>';
+      };
 
       container.innerHTML = `
                 <div class="filter-table-wrapper" style="margin-top: 0;">
@@ -511,17 +513,29 @@ const DashboardPage = (() => {
                         <table class="simple-table">
                             <thead>
                                 <tr>
-                                    <th>Stock Name</th>
-                                    <th style="text-align: right;">Gross Change (%)</th>
+                                    <th class="sortable-header" data-col="Stock">Stock Name ${getSortIcon('Stock')}</th>
+                                    <th class="sortable-header" data-col="Change(%)" style="text-align: right;">Gross Chg (%) ${getSortIcon('Change(%)')}</th>
+                                    <th class="sortable-header" data-col="Call_OI_Chg_Pct" style="text-align: right;">Call Chg (%) ${getSortIcon('Call_OI_Chg_Pct')}</th>
+                                    <th class="sortable-header" data-col="Put_OI_Chg_Pct" style="text-align: right;">Put Chg (%) ${getSortIcon('Put_OI_Chg_Pct')}</th>
+                                    <th class="sortable-header" data-col="Net_Chg" style="text-align: right;">Net Chg ${getSortIcon('Net_Chg')}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${results.map(r => `
+                                ${results.map(r => {
+                                    const netClass = r.Net_Chg > 0 ? 'text-accent-green' : (r.Net_Chg < 0 ? 'text-accent-red' : '');
+                                    const callClass = r.Call_OI_Chg_Pct > 0 ? 'text-accent-green' : (r.Call_OI_Chg_Pct < 0 ? 'text-accent-red' : '');
+                                    const putClass = r.Put_OI_Chg_Pct > 0 ? 'text-accent-green' : (r.Put_OI_Chg_Pct < 0 ? 'text-accent-red' : '');
+                                    
+                                    return `
                                     <tr>
                                         <td class="stock-name">${r.Stock}</td>
                                         <td class="stock-change" style="text-align: right;">${r["Change(%)"]}%</td>
+                                        <td style="text-align: right; font-weight: 600;" class="${callClass}">${r.Call_OI_Chg_Pct}%</td>
+                                        <td style="text-align: right; font-weight: 600;" class="${putClass}">${r.Put_OI_Chg_Pct}%</td>
+                                        <td style="text-align: right; font-weight: 700;" class="${netClass}">${r.Net_Chg.toLocaleString()}</td>
                                     </tr>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     ` : `
