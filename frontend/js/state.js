@@ -12,6 +12,8 @@ const State = (() => {
         compareMode: false,
         // instrumentType drives whether we are looking at indices or stocks
         instrumentType: 'Index',
+        filterThreshold: 80,
+        filterTrend: 'all',
         // lists populated from API
         indexList: [],
         stockList: [],
@@ -85,6 +87,8 @@ const State = (() => {
         notifySubscribers();
     }
 
-    return { get, set, subscribe, getIndex, getIndexData, setIndexData, initIndices,
-             getInstruments, setInstrumentType, getInstrumentType };
+    return {
+        get, set, subscribe, getIndex, getIndexData, setIndexData, initIndices,
+        getInstruments, setInstrumentType, getInstrumentType
+    };
 })();

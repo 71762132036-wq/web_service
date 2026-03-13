@@ -171,7 +171,7 @@ def load_data(body: LoadRequest):
         df = calculate_gex(df, lot_size)
 
     store.set_data(body.index, df, str(filepath))
-    print(f"[DEBUG] Load successful for {body.index}. Updated store: {list(store._store.keys())}")
+    # print(f"[DEBUG] Load successful for {body.index}. Updated store: {list(store._store.keys())}")
 
     return {
         "success":  True,

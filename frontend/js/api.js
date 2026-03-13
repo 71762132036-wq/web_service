@@ -83,6 +83,14 @@ const API = {
   getDirectionChart: (index, chartType, expiry, file1, file2) =>
     apiFetch(`/api/charts/direction/${index}/${chartType}?expiry=${expiry}&file1=${file1}&file2=${file2}`),
 
+  /** GET /api/filters/overall?threshold=...&trend=...&expiry=...&filename=...&apply_filter=... */
+  async getOverallFilter(threshold = 80, trend = 'all', expiry = null, filename = null, applyFilter = true) {
+    let url = `/api/filters/overall?threshold=${threshold}&trend=${trend}&apply_filter=${applyFilter}`;
+    if (expiry) url += `&expiry=${expiry}`;
+    if (filename) url += `&filename=${filename}`;
+    return apiFetch(url);
+  },
+
   // ── Export ──────────────────────────────────────────────
 
   /** GET /api/export/{index} — triggers browser download */

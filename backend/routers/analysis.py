@@ -30,7 +30,7 @@ def _require_data(index: str):
     
     # Diagnostic print
     import store
-    print(f"[DEBUG] Require data for {index}. Available in store: {list(store._store.keys())}")
+    # print(f"[DEBUG] Require data for {index}. Available in store: {list(store._store.keys())}")
     
     if not store.has_data(index):
         raise HTTPException(status_code=404, detail="No data loaded for this index")

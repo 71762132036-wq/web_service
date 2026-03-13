@@ -8,7 +8,7 @@ import calendar
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 import pandas as pd
 import requests
@@ -109,8 +109,8 @@ def get_next_expiry(index_name: str, indices: dict = None) -> str:
 # ---------------------------------------------------------------------------
 
 def fetch_option_chain_data(
-    index_name: str = "Nifty", expiry_date: str | None = None, indices: dict = None
-) -> tuple[pd.DataFrame | None, str | None]:
+    index_name: str = "Nifty", expiry_date: Optional[str] = None, indices: Optional[dict] = None
+) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """Fetch live option chain from Upstox.
 
     All time-based logic inside this module is now IST-aware to match the
@@ -303,23 +303,15 @@ def filter_near_strikes(df: pd.DataFrame, filter_radius: int = 20) -> pd.DataFra
     selected = all_strikes[low:high]
 
     return df[df["Strike"].isin(selected)].reset_index(drop=True)
-
-
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # File I/O
 # ---------------------------------------------------------------------------
 
-def save_data(df: pd.DataFrame, index_name: str, data_dir: str | None = None) -> str:
+def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None, timestamp_str: Optional[str] = None) -> str:
     """Save DataFrame → data/<INDEX>/<EXPIRY>/<TIMESTAMP>.csv"""
     try:
-        print(f"\n[DEBUG-SAVE] Starting save_data for {index_name}")
-        print(f"[DEBUG-SAVE] Input DataFrame shape: {df.shape}")
-        print(f"[DEBUG-SAVE] DataFrame columns: {list(df.columns)}")
-        
         if data_dir is None:
             data_dir = DATA_DIR
-        
-        print(f"[DEBUG-SAVE] data_dir={data_dir}")
         
         if "expiry" not in df.columns:
             raise KeyError(f"'expiry' column not found in DataFrame. Available columns: {list(df.columns)}")
@@ -328,29 +320,17 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: str | None = None) ->
             raise ValueError("DataFrame is empty, cannot save")
         
         expiry_date = df["expiry"].iloc[0]
-        print(f"[DEBUG-SAVE] Extracted expiry_date: {expiry_date}")
-        
         folder = Path(data_dir) / index_name / expiry_date
-        print(f"[DEBUG-SAVE] Target folder: {folder}")
-        print(f"[DEBUG-SAVE] Folder exists before mkdir: {folder.exists()}")
-        
         folder.mkdir(parents=True, exist_ok=True)
-        
-        print(f"[DEBUG-SAVE] Folder exists after mkdir: {folder.exists()}")
-        print(f"[DEBUG-SAVE] Folder is writable: {os.access(str(folder), os.W_OK)}")
 
-        timestamp = datetime.now().strftime("%d_%H%M%S")
+        # 1. Resolve Timestamp (Deterministic for batch-locking, or now() for ad-hoc)
+        if timestamp_str:
+            timestamp = timestamp_str
+        else:
+            timestamp = datetime.now().strftime("%d_%H%M%S")
+            
         filepath = folder / f"{timestamp}.csv"
-        
-        print(f"[DEBUG-SAVE] Target filepath: {filepath}")
-        print(f"[DEBUG-SAVE] About to write CSV with {len(df)} rows")
-        
         df.to_csv(filepath, index=False)
-        
-        print(f"[DEBUG-SAVE] File written successfully")
-        print(f"[DEBUG-SAVE] File exists: {filepath.exists()}")
-        print(f"[DEBUG-SAVE] File size: {filepath.stat().st_size if filepath.exists() else 'N/A'} bytes")
-        print(f"[DEBUG-SAVE] ✓ save_data completed for {index_name}\n")
         
         return str(filepath)
     
@@ -369,7 +349,7 @@ def load_data_file(filepath: str) -> Tuple[Optional[pd.DataFrame], Optional[str]
         return None, f"Error loading file: {exc}"
 
 
-def get_available_files(index_name: str, data_dir: str | None = None) -> dict:
+def get_available_files(index_name: str, data_dir: Optional[str] = None) -> dict:
     """
     Return dict of { expiry_date: [filename, ...] } for the given index.
     Supports both new structure (data/INDEX/EXPIRY/) and old (data/EXPIRY/).

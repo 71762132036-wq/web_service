@@ -191,7 +191,13 @@ const DataManagementPage = (() => {
       try {
         const data = await API.loadFile(index, expiry, filename);
         resultEl.innerHTML = `<div class="alert alert-success">Loaded ${data.strikes} strikes successfully!</div>`;
-        State.setIndexData(index, { hasData: true, loadedFile: data.filepath, expiry: data.expiry });
+        State.setIndexData(index, { 
+          hasData: true, 
+          loadedFile: data.filepath, 
+          expiry: data.expiry,
+          selectedExpiry: expiry,
+          selectedFile: filename
+        });
         Toast.show(`${index} data loaded — ${data.strikes} strikes`, 'success');
         App.updateTopbar();
 

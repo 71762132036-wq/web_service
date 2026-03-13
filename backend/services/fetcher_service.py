@@ -103,6 +103,11 @@ async def run_auto_fetcher():
             elif not is_internet_available():
                 logger.warning("Connection to api.upstox.com failed. Skipping this fetch cycle.")
             else:
+                # 2. Batch-Locking: Generate a single timestamp for this entire fetch cycle
+                # Format: DD_HHMMSS (matching the expected filename format)
+                cycle_timestamp = datetime.now(ist).strftime("%d_%H%M%S")
+                logger.info(f"Starting synchronized fetch cycle with timestamp: {cycle_timestamp}")
+
                 all_instruments = {**INDICES, **STOCKS}
                 for instrument_name in all_instruments.keys():
                     logger.info(f"Auto-fetching data for {instrument_name}...")
@@ -116,8 +121,9 @@ async def run_auto_fetcher():
                         # APPLY FILTERING HERE
                         df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
                         
-                        path = save_data(df_filtered, instrument_name, data_dir=DATA_DIR)
-                        logger.info(f"Successfully saved {instrument_name} data (filtered ±{FILTER_STRIKES_RADIUS}) to {path}")
+                        # Pass cycle_timestamp to save_data to enforce batch synchronicity
+                        path = save_data(df_filtered, instrument_name, data_dir=DATA_DIR, timestamp_str=cycle_timestamp)
+                        logger.info(f"Successfully saved {instrument_name} data (batch-locked: {cycle_timestamp}) to {path}")
                         
                         # Auto-load into store so dashboard metrics/charts update automatically
                         import store

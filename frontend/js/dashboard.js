@@ -52,6 +52,10 @@ const DashboardPage = (() => {
       ],
       'OI Flow': [
         { key: 'oi_flow', label: 'OI vs Vol', id: 'chart-oi-flow' },
+      ],
+      'Filter': [
+        { key: 'overall_filter', label: 'Overall', id: 'filter-overall' },
+        { key: 'strike_filter', label: 'Strike Wise', id: 'filter-strike' }
       ]
     },
     'Others': {
@@ -198,6 +202,7 @@ const DashboardPage = (() => {
   async function render(container) {
     const st = State.get();
     const index = st.selectedIndex;
+    const structure = getStructure();
 
     // Loading overlay
     container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
@@ -221,7 +226,7 @@ const DashboardPage = (() => {
                 <span class="nav-label">NAV</span>
                 <div class="bucket-selector">${buildBucketNav()}</div>
               </div>
-              
+
               ${['Gamma', 'Delta', 'Vanna', 'Charm'].includes(st.selectedCategory) ? `
                 <div class="nav-group context-group">
                   <span class="nav-label">CONTEXT</span>
@@ -233,16 +238,46 @@ const DashboardPage = (() => {
               ` : ''}
             </div>
 
-            <div class="nav-row bottom-row">
+            <div class="nav-row cat-row">
               <div class="nav-group">
                 <span class="nav-label">CAT</span>
                 <div class="category-pills">${buildCategoryNav()}</div>
               </div>
-              <div class="nav-group">
-                <span class="nav-label">SUB</span>
-                <div class="sub-nav-container">${buildSubChartNav()}</div>
-              </div>
+
+              ${structure[st.selectedBucket]?.[st.selectedCategory]?.length > 1 ? `
+                <div class="nav-group context-group">
+                  <span class="nav-label">SUB</span>
+                  ${buildSubChartNav()}
+                </div>
+              ` : ''}
             </div>
+
+            ${st.selectedCategory === 'Filter' ? `
+              <div class="nav-row ctrl-row">
+                <div class="nav-group">
+                  <span class="nav-label">CONTROLS</span>
+                  <div class="filter-controls-integrated" style="display: flex; align-items: center; gap: 20px;">
+                      <div class="input-group-clean">
+                          <div class="segmented-control" id="filter-apply-toggle">
+                              <button class="segment ${st.applyFilter !== false ? 'active' : ''}" data-value="true">Apply Filter</button>
+                              <button class="segment ${st.applyFilter === false ? 'active' : ''}" data-value="false">Show All</button>
+                          </div>
+                      </div>
+                      <div class="input-group-clean">
+                          <div class="segmented-control" id="filter-trend-toggle">
+                              <button class="segment ${st.filterTrend === 'all' || !st.filterTrend ? 'active' : ''}" data-value="all">All</button>
+                              <button class="segment ${st.filterTrend === 'positive' ? 'active' : ''}" data-value="positive">Positive</button>
+                              <button class="segment ${st.filterTrend === 'negative' ? 'active' : ''}" data-value="negative">Negative</button>
+                          </div>
+                      </div>
+                      <div class="input-group-clean">
+                          <input type="number" id="filter-threshold-input" class="macos-input-small" value="${st.filterThreshold || 80}" min="1" max="100">
+                          <span class="nav-label" style="margin-left:5px; opacity:0.8;">% THRESHOLD</span>
+                      </div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
           </div>
 
           <!-- Main Analysis Canvas -->
@@ -251,6 +286,7 @@ const DashboardPage = (() => {
           </div>
 
           <!-- Secondary Metrics Row -->
+          ${!['Filter'].includes(st.selectedCategory) ? `
           <div class="metrics-section">
             <div class="metrics-grid">
               ${_lastFlowSummary?.vtl ? `
@@ -271,6 +307,7 @@ const DashboardPage = (() => {
               `)}
             </div>
           </div>
+          ` : ''}
 
           <!-- Contextual Surface Details -->
           ${st.selectedBucket === 'Volatility' ? `
@@ -284,14 +321,15 @@ const DashboardPage = (() => {
 
       _wireAnalysisNav(container);
 
-      // Load ONLY the active sub-chart
-      const structure = getStructure();
+      _loadedCharts.clear();
+
+      // 1. Chart Loading Logic
       const activeCharts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
+      const filterKeys = ['overall_filter', 'strike_filter'];
+
       if (activeCharts.length > 0) {
         const activeId = st.selectedSubChart || activeCharts[0].id;
         const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
-
-        _loadedCharts.clear();
 
         if (st.selectedBucket === 'Direction') {
           const idxData = State.getIndexData(index);
@@ -299,17 +337,14 @@ const DashboardPage = (() => {
 
           if (file1 && file2) {
             const res = await Charts.fetchAndRenderDirection(index, chart.key, expiry, file1, file2, chart.id);
-            if (res && res.summary) {
-              _lastFlowSummary = res.summary;
-            } else {
-              _lastFlowSummary = null;
-            }
+            _lastFlowSummary = res?.summary || null;
             _renderMetricsOnly(container, metrics, regimeClass);
           } else {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files in Compare mode</span></div>';
           }
-        } else if (st.compareMode) {
+        } 
+        else if (st.compareMode) {
           const idxData = State.getIndexData(index);
           const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
 
@@ -319,19 +354,24 @@ const DashboardPage = (() => {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files to compare</span></div>';
           }
-        } else {
+        } 
+        else if (filterKeys.includes(chart.key)) {
+          // Render filter table into the standard chart container
+          const filterArea = container.querySelector(`#${chart.id}`);
+          if (filterArea) renderFilterPage(filterArea);
+        } 
+        else {
           const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
           const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
           const res = await Charts.fetchAndRender(index, chart.key, chart.id, mode);
-          if (res && res.summary) {
-            _lastFlowSummary = res.summary;
-          } else {
-            _lastFlowSummary = null;
-          }
+          _lastFlowSummary = res?.summary || null;
           _renderMetricsOnly(container, metrics, regimeClass);
         }
+        
         _loadedCharts.add(chart.id);
       }
+
+      // No-op, handled above
 
     } catch (err) {
       if (err.message.includes('No data loaded')) {
@@ -379,9 +419,37 @@ const DashboardPage = (() => {
 
       // 4. View mode clicks
       const modeBtn = e.target.closest('.segment-btn');
-      if (modeBtn) {
+      if (modeBtn && modeBtn.closest('.mode-toggle')) {
         State.set({ gammaChartMode: modeBtn.dataset.mode });
         render(container);
+        return;
+      }
+
+      // 5. Filter Controls Wiring (Trend)
+      const trendSegment = e.target.closest('.segment');
+      if (trendSegment && trendSegment.closest('#filter-trend-toggle')) {
+        State.set({ filterTrend: trendSegment.dataset.value });
+        render(container);
+        return;
+      }
+
+      // 5b. Apply Filter Toggle
+      const applySegment = e.target.closest('.segment');
+      if (applySegment && applySegment.closest('#filter-apply-toggle')) {
+        State.set({ applyFilter: applySegment.dataset.value === 'true' });
+        render(container);
+        return;
+      }
+    });
+
+    // 6. Filter Controls Wiring (Threshold - Change event)
+    navSection.addEventListener('change', e => {
+      if (e.target.id === 'filter-threshold-input') {
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val)) {
+          State.set({ filterThreshold: val });
+          render(container);
+        }
       }
     });
   }
@@ -408,6 +476,64 @@ const DashboardPage = (() => {
         ${buildMetricCard('Dealer Regime', metrics.regime, '', `regime ${regimeClass}`)}
       `)}
     `;
+  }
+
+  async function renderFilterPage(container) {
+    const st = State.get();
+    const threshold = st.filterThreshold || 80;
+    const trend = st.filterTrend || 'all';
+    const activeSub = st.selectedSubChart || 'filter-overall';
+
+    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading analysis…</div>`;
+
+    if (activeSub === 'filter-strike') {
+      container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🛠️</div>
+                    <h3>Strike Wise Filter</h3>
+                    <p>This feature is currently under development. Stay tuned!</p>
+                </div>`;
+      return;
+    }
+
+    try {
+      // Temporal sync: get expiry and filename from current dashboard selection
+      const idxData = State.getIndexData(st.selectedIndex);
+      const { selectedExpiry: expiry, selectedFile: filename } = idxData;
+      const applyFilter = st.applyFilter !== false;
+
+      const data = await API.getOverallFilter(threshold, trend, expiry, filename, applyFilter);
+      const results = data.results || [];
+
+      container.innerHTML = `
+                <div class="filter-table-wrapper" style="margin-top: 0;">
+                    ${results.length > 0 ? `
+                        <table class="simple-table">
+                            <thead>
+                                <tr>
+                                    <th>Stock Name</th>
+                                    <th style="text-align: right;">Gross Change (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${results.map(r => `
+                                    <tr>
+                                        <td class="stock-name">${r.Stock}</td>
+                                        <td class="stock-change" style="text-align: right;">${r["Change(%)"]}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : `
+                        <div class="empty-results">
+                            <div class="empty-icon" style="font-size: 24px; margin-bottom: 12px; opacity: 0.5;">🔍</div>
+                            <p>No stocks currently meet the filtering criteria (>${threshold}% Gross OI Change).</p>
+                        </div>
+                    `}
+                </div>`;
+    } catch (err) {
+      container.innerHTML = `<div class="alert alert-error">Filter error: ${err.message}</div>`;
+    }
   }
 
   return { render };

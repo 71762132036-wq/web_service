@@ -332,7 +332,9 @@ const App = (() => {
             State.setIndexData(index, {
                 hasData: true,
                 loadedFile: data.filepath,
-                expiry: data.expiry
+                expiry: data.expiry,
+                selectedExpiry: expiry,
+                selectedFile: filename
             });
             Toast.show(`Loaded ${index} ${filename}`, "success", 2000);
             renderDashboard();
