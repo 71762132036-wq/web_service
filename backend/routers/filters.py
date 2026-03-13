@@ -122,3 +122,103 @@ def get_overall_filter(
             
     results.sort(key=lambda x: x["Change(%)"], reverse=True)
     return {"results": results}
+
+
+@router.get("/strike")
+def get_strike_filter(
+    threshold: float = 10.0,
+    expiry: Optional[str] = None,
+    filename: Optional[str] = None
+):
+    """
+    Returns individual strikes across all stocks where |OI Change| / |OI Strike Map| > threshold%.
+    Scans ALL available strikes for maximum visibility.
+    """
+    strike_results = []
+    
+    for name in STOCKS:
+        df = None
+        if filename:
+            df = _get_nearest_df(name, filename, context_expiry=expiry)
+        if df is None:
+            df = store.get_data(name)
+
+        if df is None or df.empty:
+            continue
+
+        try:
+            # Vectorized calculation for efficiency
+            # We want to identify specific strikes where change is dominant
+            
+            # Calculate total absolute change for the entire stock at this timestamp
+            total_abs_chg = (df['call_oi_chg'].abs() + df['put_oi_chg'].abs()).sum()
+            if total_abs_chg == 0:
+                continue
+
+            # 1. Prepare Call data
+            calls = df[df['Call_OI'] > 0].copy()
+            if not calls.empty:
+                calls['chg_pct'] = (calls['call_oi_chg'].abs() / calls['Call_OI']) * 100
+                hot_calls = calls[calls['chg_pct'] > threshold]
+                for _, row in hot_calls.iterrows():
+                    strike_results.append({
+                        "Stock": name,
+                        "Strike": float(row['Strike']),
+                        "Type": "Call",
+                        "OI_Chg_Pct": round(float(row['chg_pct']), 2),
+                        "OI_Chg_Raw": int(row['call_oi_chg']),
+                        "Total_OI": int(row['Call_OI']),
+                        "Influence": round((abs(float(row['call_oi_chg'])) / total_abs_chg) * 100, 1),
+                        "Sentiment": "Writing" if row['call_oi_chg'] > 0 else "Unwinding"
+                    })
+
+            # 2. Prepare Put data
+            puts = df[df['Put_OI'] > 0].copy()
+            if not puts.empty:
+                puts['chg_pct'] = (puts['put_oi_chg'].abs() / puts['Put_OI']) * 100
+                hot_puts = puts[puts['chg_pct'] > threshold]
+                for _, row in hot_puts.iterrows():
+                    strike_results.append({
+                        "Stock": name,
+                        "Strike": float(row['Strike']),
+                        "Type": "Put",
+                        "OI_Chg_Pct": round(float(row['chg_pct']), 2),
+                        "OI_Chg_Raw": int(row['put_oi_chg']),
+                        "Total_OI": int(row['Put_OI']),
+                        "Influence": round((abs(float(row['put_oi_chg'])) / total_abs_chg) * 100, 1),
+                        "Sentiment": "Writing" if row['put_oi_chg'] > 0 else "Unwinding"
+                    })
+
+        except Exception as e:
+            print(f"[ERROR-STRIKE-FILTER] Error processing {name}: {e}")
+            continue
+
+    # Calculate Summary Stats
+    summary = {
+        "total_hot_strikes": len(strike_results),
+        "writing_bias": 0.0,
+        "top_writer": None,
+        "top_unwinder": None,
+    }
+
+    if strike_results:
+        # 1. Writing Bias (What % of hot strikes are writing?)
+        writing_count = sum(1 for x in strike_results if x["Sentiment"] == "Writing")
+        summary["writing_bias"] = round((writing_count / len(strike_results)) * 100, 1)
+
+        # 2. Top Writer (Highest % Chg Writing)
+        writers = [x for x in strike_results if x["Sentiment"] == "Writing"]
+        if writers:
+            summary["top_writer"] = max(writers, key=lambda x: x["OI_Chg_Pct"])
+
+        # 3. Top Unwinder (Highest % Chg Unwinding - based on absolute change)
+        unwinders = [x for x in strike_results if x["Sentiment"] == "Unwinding"]
+        if unwinders:
+            summary["top_unwinder"] = max(unwinders, key=lambda x: x["OI_Chg_Pct"])
+
+    # Sort by最高的 percentage change
+    strike_results.sort(key=lambda x: x["OI_Chg_Pct"], reverse=True)
+    return {
+        "summary": summary,
+        "results": strike_results
+    }

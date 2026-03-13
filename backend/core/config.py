@@ -61,26 +61,31 @@ INDICES: dict[str, dict] = {
 }
 
 # ---------------------------------------------------------------------------
-# Default index for UI initialization
+# Stock definitions — loaded from stocks.csv
 # ---------------------------------------------------------------------------
-DEFAULT_INDEX = "Nifty"
-# ---------------------------------------------------------------------------
-STOCKS_CSV = Path(__file__).resolve().parent.parent.parent / "stocks.csv"
 STOCKS: dict[str, dict] = {}
-if STOCKS_CSV.exists():
-    df = pd.read_csv(STOCKS_CSV)
-    for _, row in df.iterrows():
-        name = row["Name"].strip()
-        key = row["Key"].strip()
-        STOCKS[name] = {
-            "instrument_key": key,
-            "lot_size": 1,  # Assume 1 for stocks, adjust if needed
-            "expiry_type": "monthly_last_tuesday",
-        }
-else:
-    print(f"[BOOTSTRAP] Warning: stocks.csv not found at {STOCKS_CSV}")
+STOCKS_CSV_PATH = Path(__file__).resolve().parent.parent.parent / "stocks.csv"
 
-# ---------------------------------------------------------------------------
+if STOCKS_CSV_PATH.exists():
+    import csv
+    try:
+        with open(STOCKS_CSV_PATH, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                name = row.get("Name")
+                key = row.get("Key")
+                if name and key:
+                    # Sanitize name for use as a key (remove spaces/special chars if needed, but original name is fine for UI)
+                    STOCKS[name] = {
+                        "instrument_key": key,
+                        "lot_size": 1, # Default lot size for now
+                        "expiry_type": "monthly",
+                        "expiry_day": 3, # Thursday for stocks
+                    }
+    except Exception as e:
+        print(f"[ERROR] Failed to load stocks.csv: {e}")
+
+DEFAULT_INDEX = "Nifty"
 
 # ---------------------------------------------------------------------------
 # Display / calculation constants
@@ -92,8 +97,16 @@ CUTOFF_HOUR = 9             # 9 AM — roll to next expiry on expiry day at/afte
 # ---------------------------------------------------------------------------
 # Auto-Fetch Configuration
 # ---------------------------------------------------------------------------
-AUTO_FETCH          = False  # Toggle background fetching
-FETCH_INTERVAL_MINS = 15    # Interval in minutes
+AUTO_FETCH          = False   # Toggle background fetching
+FETCH_INTERVAL_MINS = 1      # Interval in minutes
+
+# Stock collection settings
+FETCH_STOCKS     = True      # Whether to include stocks in the periodic fetcher
+FETCH_ALL_STOCKS = True      # If True, fetch all 180+ stocks from stocks.csv
+STOCKS_TO_FETCH  = ["RELIANCE", "TCS", "HDFCBANK", "INFY"] # Ignored if FETCH_ALL_STOCKS is True
+
+# Market hours override
+BYPASS_MARKET_HOURS = True   # If True, skip the market hours check in fetcher
 
 
 
