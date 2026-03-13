@@ -8,6 +8,10 @@ const DashboardPage = (() => {
   let _lastFlowSummary = null;
   let _lastFilterData = null;
   let _lastFilterContext = null;
+  
+  // High-level data cache to prevent global flickers
+  const _metricsCache = new Map(); // index -> data
+  const _volCache = new Map();     // index -> data
 
   const ANALYSIS_STRUCTURE = {
     'Exposure': {
@@ -206,14 +210,27 @@ const DashboardPage = (() => {
     const index = st.selectedIndex;
     const structure = getStructure();
 
-    // Loading overlay
-    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
+    // 1. Partial Update Logic — if dashboard exists, don't wipe it
+    const existingDashboard = container.querySelector('.dashboard-wrapper');
+    if (!existingDashboard) {
+      container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Synchronizing ${index} Dashboard…</div>`;
+    }
 
     try {
-      const [metrics, volData] = await Promise.all([
-        API.getMetrics(index),
-        API.getVolSurface(index),
-      ]);
+      // 2. Multi-level caching for Metrics & Vol
+      let metrics, volData;
+      
+      if (_metricsCache.has(index) && _volCache.has(index)) {
+        metrics = _metricsCache.get(index);
+        volData = _volCache.get(index);
+      } else {
+        [metrics, volData] = await Promise.all([
+          API.getMetrics(index),
+          API.getVolSurface(index),
+        ]);
+        _metricsCache.set(index, metrics);
+        _volCache.set(index, volData);
+      }
 
       const vs = volData?.vol_surface;
       const regimeClass = metrics.regime?.includes('LONG') ? 'long-gamma' : 'short-gamma';
@@ -453,11 +470,7 @@ const DashboardPage = (() => {
 
   async function renderFilterPage(container) {
     const st = State.get();
-    const threshold = st.filterThreshold || 80;
-    const trend = st.filterTrend || 'all';
     const activeSub = st.selectedSubChart || 'filter-overall';
-
-    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading analysis…</div>`;
 
     if (activeSub === 'filter-strike') {
       container.innerHTML = `
@@ -479,6 +492,8 @@ const DashboardPage = (() => {
       if (_lastFilterData && _lastFilterContext === contextKey) {
         results = [..._lastFilterData];
       } else {
+        // Only show internal loading if we don't have cached data
+        container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Loading analysis…</div>`;
         const data = await API.getOverallFilter(0, 'all', expiry, filename, false);
         _lastFilterData = data.results || [];
         _lastFilterContext = contextKey;

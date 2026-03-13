@@ -1,20 +1,23 @@
-backend/data/*
-backend/logs/*
+# Data and Logs
+backend/data/
+backend/logs/
+*.log
 
-# Secrets — never commit
+# Python
+__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment and Secrets
 .env
 backend/render/.env
 **/.env
-Data_Test
-backend/__pycache__
-backend/core/__pycache__
-backend/logs/fetcher.log
-backend/routers/__pycache__/analysis.cpython-39.pyc
-backend/routers/__pycache__/charts.cpython-39.pyc
-backend/routers/__pycache__/data.cpython-39.pyc
-backend/routers/__pycache__/sync.cpython-39.pyc
-backend/services/__pycache__/fetcher_service.cpython-39.pyc
-backend/services/__pycache__/upstox_service.cpython-39.pyc
-backend/__pycache__/main.cpython-39.pyc
-backend/__pycache__/store.cpython-39.pyc
-backend/core/__pycache__/config.cpython-39.pyc
+
+# Project specific
+Data_Test/
+node_modules/
+.DS_Store
