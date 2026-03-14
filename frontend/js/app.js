@@ -175,14 +175,10 @@ const App = (() => {
         }
 
         function populateIndexOptions() {
-            const type = State.getInstrumentType();
-            const list = State.getInstruments(type);
+            const list = State.getInstruments(State.getInstrumentType());
             if (indexSel) {
                 indexSel.innerHTML = list.map(idx => `<option value="${idx}" ${idx === State.getIndex() ? 'selected' : ''}>${idx}</option>`).join('');
-                // also update selectedIndex if not in list
-                if (!list.includes(State.getIndex()) && list.length) {
-                    State.set({ selectedIndex: list[0] });
-                }
+                if (!list.includes(State.getIndex()) && list.length) State.set({ selectedIndex: list[0] });
             }
         }
 

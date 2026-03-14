@@ -55,51 +55,35 @@ const Charts = (() => {
     }
 
     /**
-     * Fetch a chart from the API and render it.
-     * @param {string} index
-     * @param {string} chartType  - gex | regime | call_put | iv_smile | rr_bf
-     * @param {string} containerId
+     * Generic wrapper to fetch data and render a chart, handling loading and error states.
      */
-    async function fetchAndRender(index, chartType, containerId, mode = 'net') {
+    async function _handleChartFetch(containerId, fetchPromise) {
         showLoading(containerId);
         try {
-            const data = await API.getChart(index, chartType, mode);
+            const data = await fetchPromise();
             render(containerId, data.figure);
             return data;
         } catch (err) {
             const el = document.getElementById(containerId);
-            if (el) el.innerHTML = `<div class="chart-placeholder">
-        <span>${err.message}</span>
-      </div>`;
-        }
-    }
-
-    async function fetchAndRenderCompare(index, chartType, expiry, file1, file2, containerId) {
-        showLoading(containerId);
-        try {
-            const data = await API.getCompareChart(index, chartType, expiry, file1, file2);
-            render(containerId, data.figure);
-        } catch (err) {
-            const el = document.getElementById(containerId);
-            if (el) el.innerHTML = `<div class="chart-placeholder">
-        <span>${err.message}</span>
-      </div>`;
-        }
-    }
-
-    async function fetchAndRenderDirection(index, chartType, expiry, file1, file2, containerId) {
-        showLoading(containerId);
-        try {
-            const data = await API.getDirectionChart(index, chartType, expiry, file1, file2);
-            render(containerId, data.figure);
-            return data; // Return full data for summary info (pressure labels)
-        } catch (err) {
-            const el = document.getElementById(containerId);
-            if (el) el.innerHTML = `<div class="chart-placeholder">
-        <span>${err.message}</span>
-      </div>`;
+            if (el) {
+                el.innerHTML = `<div class="chart-placeholder"><span>${err.message}</span></div>`;
+            }
             return null;
         }
+    }
+
+    // ── Public API ──────────────────────────────────────────
+
+    function fetchAndRender(index, chartType, containerId, mode = 'net') {
+        return _handleChartFetch(containerId, () => API.getChart(index, chartType, mode));
+    }
+
+    function fetchAndRenderCompare(index, chartType, expiry, file1, file2, containerId) {
+        return _handleChartFetch(containerId, () => API.getCompareChart(index, chartType, expiry, file1, file2));
+    }
+
+    function fetchAndRenderDirection(index, chartType, expiry, file1, file2, containerId) {
+        return _handleChartFetch(containerId, () => API.getDirectionChart(index, chartType, expiry, file1, file2));
     }
 
     return { render, showLoading, fetchAndRender, fetchAndRenderCompare, fetchAndRenderDirection };

@@ -83,20 +83,20 @@ const API = {
   getDirectionChart: (index, chartType, expiry, file1, file2) =>
     apiFetch(`/api/charts/direction/${index}/${chartType}?expiry=${expiry}&file1=${file1}&file2=${file2}`),
 
-  /** GET /api/filters/overall?threshold=...&trend=...&expiry=...&filename=...&apply_filter=... */
-  async getOverallFilter(threshold = 80, trend = 'all', expiry = null, filename = null, applyFilter = true) {
-    let url = `/api/filters/overall?threshold=${threshold}&trend=${trend}&apply_filter=${applyFilter}`;
-    if (expiry) url += `&expiry=${expiry}`;
-    if (filename) url += `&filename=${filename}`;
-    return apiFetch(url);
+  /** GET /api/filters/overall */
+  getOverallFilter(threshold = 80, trend = 'all', expiry = null, filename = null, applyFilter = true) {
+    const params = new URLSearchParams({ threshold, trend, apply_filter: applyFilter });
+    if (expiry) params.append('expiry', expiry);
+    if (filename) params.append('filename', filename);
+    return apiFetch(`/api/filters/overall?${params.toString()}`);
   },
 
-  /** GET /api/filters/strike?threshold=...&expiry=...&filename=... */
-  async getStrikeFilter(threshold = 10.0, expiry = null, filename = null) {
-    let url = `/api/filters/strike?threshold=${threshold}`;
-    if (expiry) url += `&expiry=${expiry}`;
-    if (filename) url += `&filename=${filename}`;
-    return apiFetch(url);
+  /** GET /api/filters/strike */
+  getStrikeFilter(threshold = 10.0, expiry = null, filename = null) {
+    const params = new URLSearchParams({ threshold });
+    if (expiry) params.append('expiry', expiry);
+    if (filename) params.append('filename', filename);
+    return apiFetch(`/api/filters/strike?${params.toString()}`);
   },
 
   // ── Export ──────────────────────────────────────────────

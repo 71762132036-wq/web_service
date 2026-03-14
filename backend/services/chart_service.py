@@ -75,139 +75,61 @@ def _bar_width(df: pd.DataFrame) -> float:
 
 
 # ---------------------------------------------------------------------------
-# 1 — Unified Gamma Exposure Chart
+# Core Exposure Engines (DRY)
 # ---------------------------------------------------------------------------
 
-def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Unifies Net GEX and Call/Put GEX into one powerful engine.
-    mode='net':  Shows Net Bar (Call - Put)
-    mode='raw':  Shows Call (Up) and Put (Down) separately
-    """
+def _build_exposure_chart(
+    df: pd.DataFrame, 
+    index_name: str, 
+    mode: str, 
+    total_col: str, 
+    call_col: str, 
+    put_col: str, 
+    abs_col: str, 
+    metric_label: str,
+    y_title: str
+) -> str:
     spot      = df["Spot"].iloc[0]
     flip      = calculate_flip_point(df)
     bw        = _bar_width(df)
-    top_zones = df.nlargest(3, "Abs_GEX")
+    top_zones = df.nlargest(3, abs_col)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     if mode == "net":
-        # +Gamma bars
         fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_GEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Gamma", opacity=0.9,
+            x=df["Strike"].tolist(), y=df[total_col].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name=f"+Dealer {metric_label}", opacity=0.9,
         ), secondary_y=False)
 
-        # -Dealer Gamma bars
         fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_GEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Gamma", opacity=0.9,
+            x=df["Strike"].tolist(), y=df[total_col].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name=f"-Dealer {metric_label}", opacity=0.9,
         ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Gamma Exposure"
-        y_title = "Dealer GEX"
+        chart_title = f"{index_name} — Dealer {metric_label} Exposure"
+        final_y_title = y_title
     else:
-        # Raw Mode: Dealer Call Up / Dealer Put Down
-        call_vals = df["Call_GEX"].abs().tolist()
-        put_vals  = (-df["Put_GEX"].abs()).tolist()
-
+        call_vals = df[call_col].abs().tolist()
+        put_vals  = (-df[put_col].abs()).tolist()
+        
         fig.add_trace(go.Bar(
             x=df["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call GEX ↑", opacity=0.9,
+            width=bw * 0.9, marker_color=C_POS, name=f"Dealer Call {metric_label} ↑", opacity=0.9,
         ), secondary_y=False)
 
         fig.add_trace(go.Bar(
             x=df["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put GEX ↓", opacity=0.9,
+            width=bw * 0.9, marker_color=C_NEG, name=f"Dealer Put {metric_label} ↓", opacity=0.9,
         ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Call vs Put Gamma"
-        y_title = "Dealer GEX"
-
-    # Common Overlays (ABS Heat, Spot, Flip, Zones)
-    fig.add_trace(go.Scatter(
-        x=df["Strike"].tolist(), y=df["Abs_GEX"].tolist(),
-        fill="tozeroy", fillcolor=C_ABS,
-        line=dict(color="rgba(168,85,247,0.4)", width=2),
-        name="Absolute Dealer Gamma Heat", mode="lines",
-    ), secondary_y=True)
-
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    for _, row in top_zones.iterrows():
-        fig.add_vrect(
-            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
-            fillcolor=C_ZONE, layer="below", line_width=0,
-        )
-
-    layout = _base_layout(chart_title)
-    # Granular Strike X-Axis
-    strikes = sorted(df["Strike"].unique())
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Dealer Gamma")
-    layout["yaxis"]["title"] = y_title
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
-
-def build_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Carbon copy of Gamma Exposure chart, but for Delta.
-    """
-    spot      = df["Spot"].iloc[0]
-    flip      = calculate_flip_point(df)
-    bw        = _bar_width(df)
-    top_zones = df.nlargest(3, "Abs_DEX")
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    if mode == "net":
-        # Dealer Delta bars
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_DEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Delta", opacity=0.9,
-        ), secondary_y=False)
-
-        # -Dealer Delta bars
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_DEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Delta", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Delta Exposure"
-        y_title = "Dealer DEX"
-    else:
-        # Raw Mode: Dealer Call Up / Dealer Put Down
-        call_vals = df["Call_DEX"].abs().tolist()
-        put_vals  = (-df["Put_DEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call Delta ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put Delta ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Call vs Put Delta"
-        y_title = "Dealer DEX"
+        chart_title = f"{index_name} — Dealer Call vs Put {metric_label}"
+        final_y_title = y_title
 
     # Heat & Annotations
     fig.add_trace(go.Scatter(
-        x=df["Strike"].tolist(), y=df["Abs_DEX"].tolist(),
+        x=df["Strike"].tolist(), y=df[abs_col].tolist(),
         fill="tozeroy", fillcolor=C_ABS,
         line=dict(color="rgba(168,85,247,0.4)", width=2),
-        name="Absolute Dealer Delta Heat", mode="lines",
+        name=f"Absolute Dealer {metric_label} Heat", mode="lines",
     ), secondary_y=True)
 
     for x, label, color, dash in [
@@ -232,64 +154,65 @@ def build_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "
         layout["xaxis"]["tickangle"] = -45
 
     layout["barmode"] = "overlay"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Dealer Delta")
-    layout["yaxis"]["title"] = "Net Dealer Delta"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title=f"Absolute Dealer {metric_label}")
+    layout["yaxis"]["title"] = final_y_title
     fig.update_layout(**layout)
 
     return fig.to_json()
 
 
-def build_cumulative_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    A 'carbon copy' of the Delta Exposure chart, but replaces the 
-    Absolute Heat overlay with a Cumulative DEX line.
-    """
+def _build_cumulative_exposure_chart(
+    df: pd.DataFrame, 
+    index_name: str, 
+    mode: str, 
+    total_col: str, 
+    call_col: str, 
+    put_col: str, 
+    cum_col: str,
+    metric_label: str
+) -> str:
     spot = df["Spot"].iloc[0]
     flip = calculate_flip_point(df)
     bw   = _bar_width(df)
     
-    # Pre-sort for cumulative calc
     df_sorted = df.sort_values("Strike").copy()
-    df_sorted["Cum_DEX"] = df_sorted["Total_DEX"].cumsum()
+    df_sorted[cum_col] = df_sorted[total_col].cumsum()
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     if mode == "net":
-        # Dealer Delta Bars
         fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_DEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Delta", opacity=0.9,
+            x=df_sorted["Strike"].tolist(), y=df_sorted[total_col].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name=f"+Dealer {metric_label}", opacity=0.9,
         ), secondary_y=False)
 
         fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_DEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Delta", opacity=0.9,
+            x=df_sorted["Strike"].tolist(), y=df_sorted[total_col].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name=f"-Dealer {metric_label}", opacity=0.9,
         ), secondary_y=False)
-        chart_title = f"{index_name} — Cumulative Dealer Delta Profile"
+        chart_title = f"{index_name} — Cumulative Dealer {metric_label} Profile"
     else:
-        # Dealer Delta Bars (Raw)
-        call_vals = df_sorted["Call_DEX"].abs().tolist()
-        put_vals  = (-df_sorted["Put_DEX"].abs()).tolist()
+        call_vals = df_sorted[call_col].abs().tolist()
+        put_vals  = (-df_sorted[put_col].abs()).tolist()
 
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call Delta ↑", opacity=0.9,
+            width=bw * 0.9, marker_color=C_POS, name=f"Dealer Call {metric_label} ↑", opacity=0.9,
         ), secondary_y=False)
 
         fig.add_trace(go.Bar(
             x=df_sorted["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put Delta ↓", opacity=0.9,
+            width=bw * 0.9, marker_color=C_NEG, name=f"Dealer Put {metric_label} ↓", opacity=0.9,
         ), secondary_y=False)
-        chart_title = f"{index_name} — Raw Dealer Cum-Delta View"
+        chart_title = f"{index_name} — Raw Dealer Cum-{metric_label} View"
 
-    # Cumulative Delta Line
     fig.add_trace(go.Scatter(
         x=df_sorted["Strike"].tolist(), 
-        y=df_sorted["Cum_DEX"].tolist(),
+        y=df_sorted[cum_col].tolist(),
         fill="tozeroy",
         fillcolor="rgba(99, 102, 241, 0.1)",
         line=dict(color=C_POS, width=3),
-        name="Cumulative Dealer Delta",
+        name=f"Cumulative Dealer {metric_label}",
         mode="lines",
     ), secondary_y=True)
     
@@ -302,7 +225,6 @@ def build_cumulative_delta_chart(df: pd.DataFrame, index_name: str = "Index", mo
                       annotation_position="top left", annotation_font_size=10)
 
     layout = _base_layout(chart_title)
-    
     strikes = df_sorted["Strike"].unique().tolist()
     if len(strikes) > 1:
         layout["xaxis"]["tickmode"] = "linear"
@@ -310,13 +232,32 @@ def build_cumulative_delta_chart(df: pd.DataFrame, index_name: str = "Index", mo
         layout["xaxis"]["tickangle"] = -45
 
     layout["barmode"] = "overlay"
-    layout["yaxis"]["title"] = "Strike-wise Dealer Delta"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative Dealer Delta", overlaying="y", side="right")
+    layout["yaxis"]["title"] = f"Strike-wise Dealer {metric_label}"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title=f"Cumulative Dealer {metric_label}", overlaying="y", side="right")
     
     fig.update_layout(**layout)
 
     return fig.to_json()
 
+
+
+# ---------------------------------------------------------------------------
+# 1 — Unified Gamma Exposure Chart
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 1 — Unified Exposure Charts (Gamma, Delta, Vanna, Charm)
+# ---------------------------------------------------------------------------
+
+def build_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    return _build_exposure_chart(df, index_name, mode, "Total_GEX", "Call_GEX", "Put_GEX", "Abs_GEX", "Gamma", "Dealer GEX")
+
+def build_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    return _build_exposure_chart(df, index_name, mode, "Total_DEX", "Call_DEX", "Put_DEX", "Abs_DEX", "Delta", "Net Dealer Delta")
+
+def build_cumulative_delta_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
+    return _build_cumulative_exposure_chart(df, index_name, mode, "Total_DEX", "Call_DEX", "Put_DEX", "Cum_DEX", "Delta")
 
 # ---------------------------------------------------------------------------
 # 2 — Dealer Regime Map
@@ -391,85 +332,9 @@ def build_dealer_regime_map(df: pd.DataFrame, index_name: str = "Index") -> str:
 # 3 — Cumulative Gamma GEX
 # ---------------------------------------------------------------------------
 
+
 def build_cumulative_gamma_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    A 'carbon copy' of the Gamma Exposure chart, but replaces the 
-    Absolute Heat overlay with a Cumulative GEX line.
-    """
-    spot = df["Spot"].iloc[0]
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df)
-    
-    # Pre-sort for cumulative calc
-    df_sorted = df.sort_values("Strike").copy()
-    df_sorted["Cum_GEX"] = df_sorted["Total_GEX"].cumsum()
-    
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    if mode == "net":
-        # Dealer Gamma Bars
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Gamma", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_GEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Gamma", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Cumulative Dealer Gamma Profile"
-    else:
-        # Dealer Gamma Bars (Raw)
-        call_vals = df_sorted["Call_GEX"].abs().tolist()
-        put_vals  = (-df_sorted["Put_GEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call GEX ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put GEX ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Raw Dealer Cum-Gamma View"
-
-    # REPLACE Absolute Heat with Cumulative Dealer Gamma Line
-    fig.add_trace(go.Scatter(
-        x=df_sorted["Strike"].tolist(), 
-        y=df_sorted["Cum_GEX"].tolist(),
-        fill="tozeroy",
-        fillcolor="rgba(99, 102, 241, 0.1)",
-        line=dict(color=C_POS, width=3),
-        name="Cumulative Dealer Gamma",
-        mode="lines",
-    ), secondary_y=True)
-    
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    layout = _base_layout(chart_title)
-    
-    # Granular Strike X-Axis
-    strikes = df_sorted["Strike"].unique().tolist()
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis"]["title"] = "Strike-wise Dealer Gamma"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative Dealer Gamma", overlaying="y", side="right")
-    
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
+    return _build_cumulative_exposure_chart(df, index_name, mode, "Total_GEX", "Call_GEX", "Put_GEX", "Cum_GEX", "Gamma")
 
 # ---------------------------------------------------------------------------
 # 4 — IV Smile
@@ -609,319 +474,23 @@ def build_quant_power_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
 # 7 — Vanna Exposure
 # ---------------------------------------------------------------------------
 
+
 def build_vanna_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Build the Dealer Vanna Exposure chart.
-    """
-    spot = df["Spot"].iloc[0]
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df)
-    top_zones = df.nlargest(3, "Abs_VEX")
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    if mode == "net":
-        # Dealer Vanna bars
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_VEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Vanna", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_VEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Vanna", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Vanna Exposure"
-        y_title = "Dealer VEX"
-    else:
-        # Raw Mode: Dealer Call Up / Dealer Put Down
-        call_vals = df["Call_VEX"].abs().tolist()
-        put_vals  = (-df["Put_VEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call VEX ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put VEX ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Call vs Put Vanna"
-        y_title = "Dealer VEX"
-
-    # Heat & Annotations
-    fig.add_trace(go.Scatter(
-        x=df["Strike"].tolist(), y=df["Abs_VEX"].tolist(),
-        fill="tozeroy", fillcolor=C_ABS,
-        line=dict(color="rgba(168,85,247,0.4)", width=2),
-        name="Absolute Dealer Vanna Heat", mode="lines",
-    ), secondary_y=True)
-
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    for _, row in top_zones.iterrows():
-        fig.add_vrect(
-            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
-            fillcolor=C_ZONE, layer="below", line_width=0,
-        )
-
-    layout = _base_layout(chart_title)
-    strikes = sorted(df["Strike"].unique())
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Dealer Vanna")
-    layout["yaxis"]["title"] = y_title
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
+    return _build_exposure_chart(df, index_name, mode, "Total_VEX", "Call_VEX", "Put_VEX", "Abs_VEX", "Vanna", "Dealer VEX")
 
 def build_cumulative_vanna_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Cumulative Vanna Profile (Dealer Perspective).
-    """
-    spot = df["Spot"].iloc[0]
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df)
-    
-    # Pre-sort for cumulative calc
-    df_sorted = df.sort_values("Strike").copy()
-    df_sorted["Cum_VEX"] = df_sorted["Total_VEX"].cumsum()
-    
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    if mode == "net":
-        # Dealer Vanna Bars
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_VEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Vanna", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_VEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Vanna", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Cumulative Dealer Vanna Profile"
-    else:
-        # Dealer Vanna Bars (Raw)
-        call_vals = df_sorted["Call_VEX"].abs().tolist()
-        put_vals  = (-df_sorted["Put_VEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call VEX ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put VEX ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Raw Dealer Cum-Vanna View"
-
-    # Cumulative Vanna Line
-    fig.add_trace(go.Scatter(
-        x=df_sorted["Strike"].tolist(), 
-        y=df_sorted["Cum_VEX"].tolist(),
-        fill="tozeroy",
-        fillcolor="rgba(99, 102, 241, 0.1)",
-        line=dict(color=C_POS, width=3),
-        name="Cumulative Dealer Vanna",
-        mode="lines",
-    ), secondary_y=True)
-    
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    layout = _base_layout(chart_title)
-    strikes = df_sorted["Strike"].unique().tolist()
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis"]["title"] = "Strike-wise Dealer Vanna"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative Dealer Vanna", overlaying="y", side="right")
-    
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
+    return _build_cumulative_exposure_chart(df, index_name, mode, "Total_VEX", "Call_VEX", "Put_VEX", "Cum_VEX", "Vanna")
 
 # ---------------------------------------------------------------------------
 # 8 — Charm Exposure
 # ---------------------------------------------------------------------------
 
+
 def build_charm_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Build the Dealer Charm Exposure chart.
-    """
-    spot = df["Spot"].iloc[0]
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df)
-    top_zones = df.nlargest(3, "Abs_CEX")
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    if mode == "net":
-        # Dealer Charm bars
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_CEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Charm", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=df["Total_CEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Charm", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Charm Exposure"
-        y_title = "Dealer CEX"
-    else:
-        # Raw Mode: Dealer Call Up / Dealer Put Down
-        call_vals = df["Call_CEX"].abs().tolist()
-        put_vals  = (-df["Put_CEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call CEX ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put CEX ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Dealer Call vs Put Charm"
-        y_title = "Dealer CEX"
-
-    # Heat & Annotations
-    fig.add_trace(go.Scatter(
-        x=df["Strike"].tolist(), y=df["Abs_CEX"].tolist(),
-        fill="tozeroy", fillcolor=C_ABS,
-        line=dict(color="rgba(168,85,247,0.4)", width=2),
-        name="Absolute Dealer Charm Heat", mode="lines",
-    ), secondary_y=True)
-
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    for _, row in top_zones.iterrows():
-        fig.add_vrect(
-            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
-            fillcolor=C_ZONE, layer="below", line_width=0,
-        )
-
-    layout = _base_layout(chart_title)
-    strikes = sorted(df["Strike"].unique())
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Dealer Charm")
-    layout["yaxis"]["title"] = y_title
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
+    return _build_exposure_chart(df, index_name, mode, "Total_CEX", "Call_CEX", "Put_CEX", "Abs_CEX", "Charm", "Dealer CEX")
 
 def build_cumulative_charm_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> str:
-    """
-    Cumulative Charm Profile (Dealer Perspective).
-    """
-    spot = df["Spot"].iloc[0]
-    flip = calculate_flip_point(df)
-    bw   = _bar_width(df)
-    
-    # Pre-sort for cumulative calc
-    df_sorted = df.sort_values("Strike").copy()
-    df_sorted["Cum_CEX"] = df_sorted["Total_CEX"].cumsum()
-    
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    if mode == "net":
-        # Dealer Charm Bars
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_CEX"].clip(lower=0).tolist(),
-            width=bw, marker_color=C_POS, name="+Dealer Charm", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=df_sorted["Total_CEX"].clip(upper=0).tolist(),
-            width=bw, marker_color=C_NEG, name="-Dealer Charm", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Cumulative Dealer Charm Profile"
-    else:
-        # Dealer Charm Bars (Raw)
-        call_vals = df_sorted["Call_CEX"].abs().tolist()
-        put_vals  = (-df_sorted["Put_CEX"].abs()).tolist()
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=call_vals,
-            width=bw * 0.9, marker_color=C_POS, name="Dealer Call CEX ↑", opacity=0.9,
-        ), secondary_y=False)
-
-        fig.add_trace(go.Bar(
-            x=df_sorted["Strike"].tolist(), y=put_vals,
-            width=bw * 0.9, marker_color=C_NEG, name="Dealer Put CEX ↓", opacity=0.9,
-        ), secondary_y=False)
-        chart_title = f"{index_name} — Raw Dealer Cum-Charm View"
-
-    # Cumulative Charm Line
-    fig.add_trace(go.Scatter(
-        x=df_sorted["Strike"].tolist(), 
-        y=df_sorted["Cum_CEX"].tolist(),
-        fill="tozeroy",
-        fillcolor="rgba(99, 102, 241, 0.1)",
-        line=dict(color=C_POS, width=3),
-        name="Cumulative Dealer Charm",
-        mode="lines",
-    ), secondary_y=True)
-    
-    for x, label, color, dash in [
-        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
-        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
-    ]:
-        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
-                      annotation_text=label, annotation_font_color=color,
-                      annotation_position="top left", annotation_font_size=10)
-
-    layout = _base_layout(chart_title)
-    strikes = df_sorted["Strike"].unique().tolist()
-    if len(strikes) > 1:
-        layout["xaxis"]["tickmode"] = "linear"
-        layout["xaxis"]["dtick"]    = strikes[1] - strikes[0]
-        layout["xaxis"]["tickangle"] = -45
-
-    layout["barmode"] = "overlay"
-    layout["yaxis"]["title"] = "Strike-wise Dealer Charm"
-    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, title="Cumulative Dealer Charm", overlaying="y", side="right")
-    
-    fig.update_layout(**layout)
-
-    return fig.to_json()
-
+    return _build_cumulative_exposure_chart(df, index_name, mode, "Total_CEX", "Call_CEX", "Put_CEX", "Cum_CEX", "Charm")
 
 def build_iv_cone_chart(df_cone: pd.DataFrame, index_name: str = "Index") -> str:
     """
