@@ -91,6 +91,14 @@ const API = {
     return apiFetch(url);
   },
 
+  /** GET /api/filters/strike?threshold=...&expiry=...&filename=... */
+  async getStrikeFilter(threshold = 10.0, expiry = null, filename = null) {
+    let url = `/api/filters/strike?threshold=${threshold}`;
+    if (expiry) url += `&expiry=${expiry}`;
+    if (filename) url += `&filename=${filename}`;
+    return apiFetch(url);
+  },
+
   // ── Export ──────────────────────────────────────────────
 
   /** GET /api/export/{index} — triggers browser download */
