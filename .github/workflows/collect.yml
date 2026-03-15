@@ -1,17 +1,21 @@
 name: Option Chain Collector
 
 on:
+  # High-priority external trigger (from cron-job.org)
+  repository_dispatch:
+    types: [manual-trigger]
+
+  # Fallback: Every hour, Mon–Fri, 04:00–10:00 UTC
   schedule:
-    # Every hour, Mon–Fri, 04:00–10:00 UTC (then loop inside for 15-min intervals)
     - cron: "0 4-10 * * 1-5"
 
-  # Allow manual trigger from GitHub Actions UI for testing
+  # Manual trigger from UI
   workflow_dispatch:
 
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 50  # Increased to allow ~45-min loop
+    timeout-minutes: 10
 
     defaults:
       run:
@@ -31,19 +35,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run collector loop
+      - name: Run collector
         env:
           SUPABASE_URL:          ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:          ${{ secrets.SUPABASE_KEY }}
           UPSTOX_ACCESS_TOKEN:   ${{ secrets.UPSTOX_ACCESS_TOKEN }}
-          COLLECT_INTERVAL_MINS: "15"
           FILTER_STRIKES_RADIUS: "20"
-        run: |
-          for i in {1..4}; do
-            echo "Starting run $i at $(date)"
-            python cron_job.py
-            if [ $i -lt 4 ]; then
-              echo "Sleeping 15 minutes..."
-              sleep 900
-            fi
-          done
+        run: python cron_job.py

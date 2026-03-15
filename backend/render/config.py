@@ -33,6 +33,7 @@ FILTER_STRIKES_RADIUS: int = int(os.getenv("FILTER_STRIKES_RADIUS", "20"))
 # Market hours (IST) — Mon–Fri only
 MARKET_OPEN_H,  MARKET_OPEN_M  = 9,  30
 MARKET_CLOSE_H, MARKET_CLOSE_M = 15, 30
+CUTOFF_HOUR = 9
 
 # ---------------------------------------------------------------------------
 # Index definitions (mirrors backend/core/config.py)

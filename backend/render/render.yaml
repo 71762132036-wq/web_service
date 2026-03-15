@@ -1,4 +1,4 @@
-# render.yaml — Render IaC for one-click Cron Job deploy (FREE TIER)
+# render.yaml — Render IaC for one-click Cron Job deploy
 # Docs: https://render.com/docs/blueprint-spec
 
 services:
@@ -6,7 +6,7 @@ services:
     name: gc-gamma-collector
     runtime: python
     region: singapore        # IST offset is UTC+5:30; singapore = UTC+8 (close enough)
-    plan: free               # Cron Jobs are FREE on Render
+    plan: starter            # NOTE: Cron Jobs start at ~$4/mo on Render.
     rootDir: backend/render
     buildCommand: pip install -r requirements.txt
     # Every 15 minutes, Mon–Fri, 04:00–10:00 UTC = 09:30–15:30 IST

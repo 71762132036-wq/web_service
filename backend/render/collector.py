@@ -23,21 +23,23 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str:
-    """Return next expiry date (YYYY-MM-DD) based on index rules."""
-    index_config = indices.get(index_name)
-    if not index_config:
-        raise ValueError(f"Unknown index: {index_name}")
-
+    """Return next expiry date (YYYY-MM-DD) based on index/stock rules.
+    
+    Uses IST timezone for consistent rollovers.
+    """
     ist = ZoneInfo("Asia/Kolkata")
     now = datetime.now(ist)
     today = now.date()
+    index_config = indices.get(index_name)
+    if not index_config:
+        raise ValueError(f"Unknown index/stock: {index_name}")
+
     expiry_type = index_config["expiry_type"]
-    expiry_day  = index_config["expiry_day"]
+    expiry_day = index_config.get("expiry_day", 1)
 
     if expiry_type == "weekly":
         days_until = (expiry_day - now.weekday()) % 7
         expiry_date = (now + timedelta(days=days_until)).date()
-
         if expiry_date == today and now.hour >= cutoff_hour:
             expiry_date += timedelta(days=7)
         elif expiry_date < today:
@@ -45,48 +47,37 @@ def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str
 
     elif expiry_type == "monthly":
         year, month = now.year, now.month
-
-        def last_weekday(y: int, m: int, weekday: int):
+        def last_weekday(y: int, m: int, wd: int):
             _, last = calendar.monthrange(y, m)
             d = datetime(y, m, last)
-            while d.weekday() != weekday:
+            while d.weekday() != wd:
                 d -= timedelta(days=1)
             return d.date()
-
         expiry_date = last_weekday(year, month, expiry_day)
-
-        if expiry_date <= today and now.hour >= cutoff_hour:
+        if expiry_date == today and now.hour >= cutoff_hour:
             month += 1
-            if month == 13:
-                month, year = 1, year + 1
+            if month == 13: month, year = 1, year + 1
             expiry_date = last_weekday(year, month, expiry_day)
         elif expiry_date < today:
             month += 1
-            if month == 13:
-                month, year = 1, year + 1
+            if month == 13: month, year = 1, year + 1
             expiry_date = last_weekday(year, month, expiry_day)
 
     elif expiry_type == "monthly_last_tuesday":
         year, month = now.year, now.month
-
         def last_tuesday(y: int, m: int):
             _, last = calendar.monthrange(y, m)
             d = datetime(y, m, last)
-            while d.weekday() != 1:  # Tuesday = 1
-                d -= timedelta(days=1)
+            while d.weekday() != 1: d -= timedelta(days=1)
             return d.date()
-
         expiry_date = last_tuesday(year, month)
-
-        if expiry_date <= today and now.hour >= cutoff_hour:
+        if expiry_date == today and now.hour >= cutoff_hour:
             month += 1
-            if month == 13:
-                month, year = 1, year + 1
+            if month == 13: month, year = 1, year + 1
             expiry_date = last_tuesday(year, month)
         elif expiry_date < today:
             month += 1
-            if month == 13:
-                month, year = 1, year + 1
+            if month == 13: month, year = 1, year + 1
             expiry_date = last_tuesday(year, month)
     else:
         expiry_date = today
@@ -106,10 +97,7 @@ def fetch_option_chain(
     cutoff_hour: int = 9,
     expiry_date: Optional[str] = None,
 ) -> tuple[Optional[pd.DataFrame], Optional[str]]:
-    """
-    Fetch option chain from Upstox API.
-    Returns (DataFrame, None) on success, (None, error_message) on failure.
-    """
+    """Fetch option chain with robust fallback."""
     index_config = indices.get(index_name)
     if not index_config:
         return None, f"Unknown index: {index_name}"
@@ -117,44 +105,73 @@ def fetch_option_chain(
     if expiry_date is None:
         expiry_date = get_next_expiry(index_name, indices, cutoff_hour)
 
-    params = {
-        "instrument_key": index_config["instrument_key"],
-        "expiry_date":    expiry_date,
-    }
+    params = {"instrument_key": index_config["instrument_key"], "expiry_date": expiry_date}
     headers = {
-        "Content-Type":  "application/json",
-        "Accept":        "application/json",
-        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}"
     }
 
     try:
         resp = requests.get(api_url, params=params, headers=headers, timeout=15)
         resp.raise_for_status()
         raw = resp.json()
-
         option_data = raw.get("data", [])
 
-        # Expiry-day fallback: retry with +7 days for weekly index
-        if not option_data and index_config.get("expiry_type") == "weekly":
-            fallback = (
-                datetime.strptime(expiry_date, "%Y-%m-%d") + timedelta(days=7)
-            ).strftime("%Y-%m-%d")
-            logger.info("[EXPIRY FALLBACK] No data for %s, retrying %s", expiry_date, fallback)
-            params["expiry_date"] = fallback
-            resp2 = requests.get(api_url, params=params, headers=headers, timeout=15)
-            resp2.raise_for_status()
-            option_data = resp2.json().get("data", [])
-            if not option_data:
-                return None, f"No data for {expiry_date} or {fallback}"
-            expiry_date = fallback
+        # Robust Fallback Logic
+        if not option_data:
+            expiry_type = index_config.get("expiry_type", "")
+            fallbacks = []
+            _orig = datetime.strptime(expiry_date, "%Y-%m-%d").date()
+
+            if expiry_type == "weekly":
+                fallbacks = [(_orig - timedelta(days=7)).strftime("%Y-%m-%d"), (_orig + timedelta(days=7)).strftime("%Y-%m-%d")]
+            elif expiry_type in ["monthly", "monthly_last_tuesday"]:
+                # Try prev/next month
+                # (Simplified ports from upstox_service.py for the remote env)
+                def get_m_y(m, y, delta):
+                    nm = m + delta
+                    if nm < 1: return 12, y - 1
+                    if nm > 12: return 1, y + 1
+                    return nm, y
+                pm, py = get_m_y(_orig.month, _orig.year, -1)
+                nm, ny = get_m_y(_orig.month, _orig.year, 1)
+                
+                if expiry_type == "monthly_last_tuesday":
+                    def last_t(y, m):
+                        _, l = calendar.monthrange(y, m)
+                        d = datetime(y, m, l)
+                        while d.weekday() != 1: d -= timedelta(days=1)
+                        return d.date().strftime("%Y-%m-%d")
+                    fallbacks = [last_t(py, pm), last_t(ny, nm)]
+                else:
+                    def last_w(y, m, wd):
+                        _, l = calendar.monthrange(y, m)
+                        d = datetime(y, m, l)
+                        while d.weekday() != wd: d -= timedelta(days=1)
+                        return d.date().strftime("%Y-%m-%d")
+                    e_day = index_config.get("expiry_day", 4)
+                    fallbacks = [last_w(py, pm, e_day), last_w(ny, nm, e_day)]
+
+            for fb in fallbacks:
+                if fb == expiry_date: continue
+                logger.info("[EXPIRY FALLBACK] Trying %s...", fb)
+                params["expiry_date"] = fb
+                try:
+                    r2 = requests.get(api_url, params=params, headers=headers, timeout=15)
+                    r2.raise_for_status()
+                    option_data = r2.json().get("data", [])
+                    if option_data:
+                        expiry_date = fb
+                        break
+                except: continue
 
         if not option_data:
-            return None, "No data received from API"
+            return None, f"No data for {index_name} on {expiry_date}"
 
         records = []
         for item in option_data:
-            co = item["call_options"]
-            po = item["put_options"]
+            co, po = item["call_options"], item["put_options"]
             records.append({
                 "Strike":       item.get("strike_price"),
                 "Gamma":        co["option_greeks"].get("gamma"),
@@ -175,6 +192,10 @@ def fetch_option_chain(
                 "call_pop":     co["option_greeks"].get("pop"),
                 "call_vol":     co["market_data"].get("volume"),
                 "call_close":   co["market_data"].get("close"),
+                "call_bid_price": co["market_data"].get("bid_price"),
+                "call_bid_qty":   co["market_data"].get("bid_qty"),
+                "call_ask_price": co["market_data"].get("ask_price"),
+                "call_ask_qty":   co["market_data"].get("ask_qty"),
                 "call_prev_oi": co["market_data"].get("prev_oi"),
                 "call_oi_chg":  (co["market_data"].get("oi") or 0) - (co["market_data"].get("prev_oi") or 0),
                 "put_ltp":      po["market_data"].get("ltp"),
@@ -189,17 +210,17 @@ def fetch_option_chain(
                 "put_pop":      po["option_greeks"].get("pop"),
                 "put_vol":      po["market_data"].get("volume"),
                 "put_close":    po["market_data"].get("close"),
+                "put_bid_price": po["market_data"].get("bid_price"),
+                "put_bid_qty":   po["market_data"].get("bid_qty"),
+                "put_ask_price": po["market_data"].get("ask_price"),
+                "put_ask_qty":   po["market_data"].get("ask_qty"),
                 "put_prev_oi":  po["market_data"].get("prev_oi"),
                 "put_oi_chg":   (po["market_data"].get("oi") or 0) - (po["market_data"].get("prev_oi") or 0),
             })
 
         df = pd.DataFrame(records).sort_values("Strike").reset_index(drop=True)
         return df, None
-
-    except requests.exceptions.RequestException as exc:
-        return None, f"API Error: {exc}"
-    except Exception as exc:
-        return None, f"Processing Error: {exc}"
+    except Exception as exc: return None, f"Error: {exc}"
 
 
 # ---------------------------------------------------------------------------
@@ -207,76 +228,50 @@ def fetch_option_chain(
 # ---------------------------------------------------------------------------
 
 def filter_near_strikes(df: pd.DataFrame, radius: int = 20) -> pd.DataFrame:
-    """Keep only ±radius strikes around the ATM strike.
-
-    The spot price can vary slightly between rows; use the median value so
-    that both live fetch and cron-collected data use the same centre.
-    """
+    """Keep ±radius strikes around the MEDIAN spot."""
     ltp = float(df["Spot"].median())
     strikes = sorted(df["Strike"].unique())
     closest = min(strikes, key=lambda x: abs(x - ltp))
     idx = strikes.index(closest)
-    low  = max(idx - radius, 0)
-    high = min(idx + radius + 1, len(strikes))
-    selected = strikes[low:high]
-    return df[df["Strike"].isin(selected)].reset_index(drop=True)
+    low, high = max(idx - radius, 0), min(idx + radius + 1, len(strikes))
+    return df[df["Strike"].isin(strikes[low:high])].reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
 # Market hours check
 # ---------------------------------------------------------------------------
 
-def is_market_hours(
-    open_h: int = 9, open_m: int = 30,
-    close_h: int = 15, close_m: int = 30,
-) -> bool:
-    """Returns True only Mon–Fri, 09:30–15:30 IST (timezone-aware)."""
-    # Always use IST (Asia/Kolkata), regardless of system timezone
+def is_market_hours(open_h: int = 9, open_m: int = 30, close_h: int = 15, close_m: int = 30) -> bool:
+    """True Mon–Fri, 09:30–15:30 IST."""
     ist = ZoneInfo("Asia/Kolkata")
     now = datetime.now(ist)
-    
-    if now.weekday() >= 5:  # Saturday=5, Sunday=6
-        return False
-    
-    market_open  = now.replace(hour=open_h,  minute=open_m,  second=0, microsecond=0)
-    market_close = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
-    return market_open <= now <= market_close
+    if now.weekday() >= 5: return False
+    m_open  = now.replace(hour=open_h,  minute=open_m,  second=0, microsecond=0)
+    m_close = now.replace(hour=close_h, minute=close_m, second=0, microsecond=0)
+    return m_open <= now <= m_close
 
 
 # ---------------------------------------------------------------------------
-# Full collection run (called by scheduler)
+# Full collection run
 # ---------------------------------------------------------------------------
 
 def collect_all(token: str, api_url: str, indices: dict, stocks: dict, radius: int, cutoff: int) -> list[dict]:
-    """
-    Fetch all indices and stocks, filter strikes, return list of snapshot dicts ready for DB insert.
-    Returns: [{"index_name": ..., "expiry_date": ..., "data": [...rows...]}, ...]
-    """
+    """Fetch all, sanitize, return list of snapshots."""
     import numpy as np
     results = []
     all_instruments = {**indices, **stocks}
     for instrument_name in all_instruments:
         df, err = fetch_option_chain(instrument_name, token, api_url, all_instruments, cutoff)
-        if err:
-            logger.warning("[COLLECT] %s failed: %s", instrument_name, err)
+        if err or df is None or df.empty:
+            logger.warning("[COLLECT] %s skip: %s", instrument_name, err)
             continue
-
         df_filtered = filter_near_strikes(df, radius)
-        if df_filtered.empty:
-            logger.warning("[COLLECT] %s filtered to 0 rows. Skipping.", instrument_name)
-            continue
-            
         expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
-
-        # Robustly replace NaN/Inf and convert to list of dicts for JSON serialization
         df_cleaned = df_filtered.replace([np.inf, -np.inf], np.nan)
-        clean_rows = json.loads(df_cleaned.to_json(orient="records", date_format="iso"))
-        
         results.append({
             "index_name":  instrument_name,
             "expiry_date": expiry_date,
-            "data":        clean_rows,
+            "data":        json.loads(df_cleaned.to_json(orient="records", date_format="iso")),
         })
-        logger.info("[COLLECT] %s → %d rows (expiry %s)", instrument_name, len(df_filtered), expiry_date)
-
+        logger.info("[COLLECT] %s → %d rows", instrument_name, len(df_filtered))
     return results
