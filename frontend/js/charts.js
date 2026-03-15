@@ -18,16 +18,15 @@ const Charts = (() => {
      * @param {string} containerId  - DOM element id
      * @param {string} figureJson   - Plotly JSON string (from backend)
      */
-    function render(containerId, figureJson) {
+    function render(containerId, figure) {
         const el = document.getElementById(containerId);
         if (!el) return;
 
-        // Force clear any CSS spinners or placeholder HTML
-        // before asking Plotly to take over the container.
-        el.innerHTML = "";
-
         try {
-            const figure = JSON.parse(figureJson);
+            // Remove any legacy placeholders/spinners if they exist
+            const placeholder = el.querySelector('.chart-placeholder');
+            if (placeholder) placeholder.remove();
+
             Plotly.react(el, figure.data, figure.layout, RESPONSIVE_CONFIG);
         } catch (err) {
             el.innerHTML = `<div class="chart-placeholder">
@@ -37,35 +36,40 @@ const Charts = (() => {
     }
 
     /**
-     * Show a loading spinner inside a chart container.
+     * Show a loading state. We now use a class-based approach 
+     * to avoid clearing the innerHTML and killing the Plotly instance.
      */
     function showLoading(containerId) {
         const el = document.getElementById(containerId);
         if (!el) return;
 
-        // CRITICAL FIX: If the element was already a Plotly chart, we must purge it
-        // before overwriting its innerHTML with our loading spinner. 
-        // Otherwise, Plotly.react will get confused and fail to clear our spinner.
-        try { Plotly.purge(el); } catch (e) { }
-
-        el.innerHTML = `<div class="chart-placeholder">
-      <div class="spin"></div>
-      <span>Loading chart…</span>
-    </div>`;
+        // If the element is empty, add a placeholder
+        if (!el.innerHTML || el.innerHTML.trim() === "") {
+            el.innerHTML = `<div class="chart-placeholder">
+                <div class="spin"></div>
+                <span>Loading chart…</span>
+            </div>`;
+        } else {
+            // If it already has a chart, we can just add a subtle 
+            // loading overlay or opacity effect if desired.
+            el.style.opacity = "0.6";
+        }
     }
 
     /**
-     * Generic wrapper to fetch data and render a chart, handling loading and error states.
+     * Generic wrapper to fetch data and render a chart.
      */
     async function _handleChartFetch(containerId, fetchPromise) {
         showLoading(containerId);
+        const el = document.getElementById(containerId);
         try {
             const data = await fetchPromise();
+            if (el) el.style.opacity = "1";
             render(containerId, data.figure);
             return data;
         } catch (err) {
-            const el = document.getElementById(containerId);
             if (el) {
+                el.style.opacity = "1";
                 el.innerHTML = `<div class="chart-placeholder"><span>${err.message}</span></div>`;
             }
             return null;

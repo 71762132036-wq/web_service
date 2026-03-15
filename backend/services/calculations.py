@@ -30,93 +30,104 @@ def calculate_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
 
 def calculate_vanna_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
     """
-    Dealer Vanna Exposure (VEX) calculation.
+    Dealer Vanna Exposure (VEX) calculation using vectorized operations.
     VEX = - (Vanna * OI * lot_size * spot * 0.01)
     """
-    from scipy.stats import norm
-    import numpy as np
-
     df = df.copy()
     spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
-    
-    # We need to calculate Vanna per strike for both calls and puts if not present.
-    # Reusing the BS logic. 
     r = 0.05
     today = pd.Timestamp("today").normalize()
 
-    def get_vanna(K, sigma, option_type, expiry_str):
-        try:
-            T = (pd.to_datetime(expiry_str, format="%Y-%m-%d") - today).days / 365.0
-            if T <= 0 or sigma <= 0 or pd.isna(sigma): return 0.0
-            sigma = sigma / 100.0
-            d1 = (np.log(spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
-            d2 = d1 - sigma*np.sqrt(T)
-            vanna = -norm.pdf(d1) * d2 / sigma
-            return vanna
-        except: return 0.0
+    # Vectorized Time to Expiry (T)
+    T_days = (pd.to_datetime(df["expiry"], format="%Y-%m-%d") - today).dt.days
+    T = np.maximum(T_days / 365.0, 1.0 / 365.0)
 
-    # Calculate Vanna for Calls and Puts
-    df["call_vanna"] = df.apply(lambda row: get_vanna(row["Strike"], row["call_iv"], "call", row["expiry"]), axis=1)
-    df["put_vanna"] = df.apply(lambda row: get_vanna(row["Strike"], row["put_iv"], "put", row["expiry"]), axis=1)
+    K = df["Strike"]
+
+    # --- Call Vanna ---
+    sigma_call = df["call_iv"] / 100.0
+    valid_c = (sigma_call > 0) & ~sigma_call.isna()
+    d1_c = np.zeros(len(df))
+    d2_c = np.zeros(len(df))
+    vanna_c = np.zeros(len(df))
+    
+    d1_c[valid_c] = (np.log(spot / K[valid_c]) + (r + 0.5 * sigma_call[valid_c]**2) * T[valid_c]) / (sigma_call[valid_c] * np.sqrt(T[valid_c]))
+    d2_c[valid_c] = d1_c[valid_c] - sigma_call[valid_c] * np.sqrt(T[valid_c])
+    vanna_c[valid_c] = -norm.pdf(d1_c[valid_c]) * d2_c[valid_c] / sigma_call[valid_c]
+    df["call_vanna"] = vanna_c
+
+    # --- Put Vanna ---
+    sigma_put = df["put_iv"] / 100.0
+    valid_p = (sigma_put > 0) & ~sigma_put.isna()
+    d1_p = np.zeros(len(df))
+    d2_p = np.zeros(len(df))
+    vanna_p = np.zeros(len(df))
+    
+    d1_p[valid_p] = (np.log(spot / K[valid_p]) + (r + 0.5 * sigma_put[valid_p]**2) * T[valid_p]) / (sigma_put[valid_p] * np.sqrt(T[valid_p]))
+    d2_p[valid_p] = d1_p[valid_p] - sigma_put[valid_p] * np.sqrt(T[valid_p])
+    vanna_p[valid_p] = -norm.pdf(d1_p[valid_p]) * d2_p[valid_p] / sigma_put[valid_p]
+    df["put_vanna"] = vanna_p
 
     multiplier = lot_size * spot * 0.01
     
-    # Dealer perspective: Short Call is -Vanna * Sign(Call), but Vanna of call is usually pos
-    # So Dealer Call VEX is negative if Vanna is positive.
     df["Call_VEX"] = -df["call_vanna"] * df["Call_OI"] * multiplier
-    df["Put_VEX"] = -df["put_vanna"] * df["Put_OI"] * multiplier
+    df["Put_VEX"]  = -df["put_vanna"] * df["Put_OI"] * multiplier
     
     df["Total_VEX"] = df["Call_VEX"] + df["Put_VEX"]
-    df["Abs_VEX"] = df["Total_VEX"].abs()
+    df["Abs_VEX"]   = df["Total_VEX"].abs()
     return df
 
 
 def calculate_charm_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
     """
-    Dealer Charm Exposure (CEX) calculation.
-    Adapted from user-provided logic.
+    Dealer Charm Exposure (CEX) calculation using vectorized operations.
     Dealer_CEX = - (Charm * OI * lot_size * spot * sign)
     """
-    from scipy.stats import norm
     import numpy as np
+    from scipy.stats import norm
 
     df = df.copy()
     spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
     r = 0.05
     today = pd.Timestamp("today").normalize()
 
-    def bs_charm(K, sigma, expiry_str):
-        try:
-            # T calculation per user: max(days/365, 1/365)
-            T_days = (pd.to_datetime(expiry_str, format="%Y-%m-%d") - today).days
-            T = max(T_days / 365.0, 1.0 / 365.0)
-            
-            if sigma <= 0 or pd.isna(sigma): return 0.0
-            sigma = sigma / 100.0
-            
-            d1 = (np.log(spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
-            d2 = d1 - sigma*np.sqrt(T)
-            pdf_d1 = norm.pdf(d1)
-            
-            # User formula: charm = -pdf_d1 * ((r/(sigma*sqrt(T))) - (d2/(2*T)))
-            charm = -pdf_d1 * ( (r / (sigma * np.sqrt(T))) - (d2 / (2.0 * T)) )
-            return charm
-        except: return 0.0
+    # Vectorized Time to Expiry (T)
+    T_days = (pd.to_datetime(df["expiry"], format="%Y-%m-%d") - today).dt.days
+    T = np.maximum(T_days / 365.0, 1.0 / 365.0)
 
-    # Calculate individual charm
-    df["call_charm"] = df.apply(lambda row: bs_charm(row["Strike"], row["call_iv"], row["expiry"]), axis=1)
-    df["put_charm"] = df.apply(lambda row: bs_charm(row["Strike"], row["put_iv"], row["expiry"]), axis=1)
+    K = df["Strike"]
 
-    # Scaling logic per user (multiplied by -1 for Dealer Perspective)
-    # df['cex'] = charm * OI * lot_size * spot * (1 if call else -1)
-    # Dealer flip -> Dealer_CEX = - (cex)
+    # --- Call Charm ---
+    sigma_call = df["call_iv"] / 100.0
+    valid_c = (sigma_call > 0) & ~sigma_call.isna()
+    d1_c = np.zeros(len(df))
+    d2_c = np.zeros(len(df))
+    charm_c = np.zeros(len(df))
+    
+    d1_c[valid_c] = (np.log(spot / K[valid_c]) + (r + 0.5 * sigma_call[valid_c]**2) * T[valid_c]) / (sigma_call[valid_c] * np.sqrt(T[valid_c]))
+    d2_c[valid_c] = d1_c[valid_c] - sigma_call[valid_c] * np.sqrt(T[valid_c])
+    charm_c[valid_c] = -norm.pdf(d1_c[valid_c]) * ((r / (sigma_call[valid_c] * np.sqrt(T[valid_c]))) - (d2_c[valid_c] / (2.0 * T[valid_c])))
+    df["call_charm"] = charm_c
+
+    # --- Put Charm ---
+    sigma_put = df["put_iv"] / 100.0
+    valid_p = (sigma_put > 0) & ~sigma_put.isna()
+    d1_p = np.zeros(len(df))
+    d2_p = np.zeros(len(df))
+    charm_p = np.zeros(len(df))
+    
+    d1_p[valid_p] = (np.log(spot / K[valid_p]) + (r + 0.5 * sigma_put[valid_p]**2) * T[valid_p]) / (sigma_put[valid_p] * np.sqrt(T[valid_p]))
+    d2_p[valid_p] = d1_p[valid_p] - sigma_put[valid_p] * np.sqrt(T[valid_p])
+    charm_p[valid_p] = -norm.pdf(d1_p[valid_p]) * ((r / (sigma_put[valid_p] * np.sqrt(T[valid_p]))) - (d2_p[valid_p] / (2.0 * T[valid_p])))
+    df["put_charm"] = charm_p
+
     multiplier = lot_size * spot
     
     df["Call_CEX"] = -(df["call_charm"] * df["Call_OI"] * multiplier * 1.0)
-    df["Put_CEX"] = -(df["put_charm"] * df["Put_OI"] * multiplier * -1.0)
+    df["Put_CEX"]  = -(df["put_charm"] * df["Put_OI"] * multiplier * -1.0)
     
     df["Total_CEX"] = df["Call_CEX"] + df["Put_CEX"]
-    df["Abs_CEX"] = df["Total_CEX"].abs()
+    df["Abs_CEX"]   = df["Total_CEX"].abs()
     return df
 
 
@@ -315,31 +326,47 @@ def calculate_quant_power(
 
     chain_df = pd.concat([calls, puts], ignore_index=True)
 
-    def bs_greeks(S, K, T, r, sigma, option_type):
-        if T <= 0 or sigma <= 0 or pd.isna(sigma):
-            return 0.0, 0.0, 0.0
-        d1 = (np.log(S/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
-        d2 = d1 - sigma*np.sqrt(T)
-        pdf_d1 = norm.pdf(d1)
-        gamma  = pdf_d1 / (S * sigma * np.sqrt(T))
-        vanna  = -pdf_d1 * d2 / sigma
-        delta  = norm.cdf(d1) if option_type == 'call' else norm.cdf(d1) - 1
-        return delta, gamma, vanna
+    # Vectorized BS Greeks
+    T = np.maximum(chain_df['expiry_days'].values / 365.0, 1.0 / 365.0)
+    K = chain_df['strike'].values
+    sigma = chain_df['iv'].values
+    opt_type = chain_df['option_type'].str.lower().values
 
-    # Fill Vanna using BS
-    greeks = chain_df.apply(lambda r: bs_greeks(
-        spot, r['strike'], r['expiry_days']/365.0,
-        0.05, r['iv'], r['option_type']
-    ), axis=1)
+    valid = (sigma > 0) & ~np.isnan(sigma)
     
-    # We always override Vanna. 
-    # If delta/gamma from exchange are NaN, we'll override those too.
-    _, _, vanna = zip(*greeks)
-    chain_df['vanna'] = vanna
+    d1 = np.zeros(len(chain_df))
+    d2 = np.zeros(len(chain_df))
+    pdf_d1 = np.zeros(len(chain_df))
     
-    for i, col in [(0, 'delta'), (1, 'gamma')]:
-        calc_arr = [g[i] for g in greeks]
-        chain_df[col] = chain_df[col].fillna(pd.Series(calc_arr))
+    d1[valid] = (np.log(spot / K[valid]) + (r + 0.5 * sigma[valid]**2) * T[valid]) / (sigma[valid] * np.sqrt(T[valid]))
+    d2[valid] = d1[valid] - sigma[valid] * np.sqrt(T[valid])
+    pdf_d1[valid] = norm.pdf(d1[valid])
+    
+    calc_gamma = np.zeros(len(chain_df))
+    calc_vanna = np.zeros(len(chain_df))
+    calc_delta = np.zeros(len(chain_df))
+    
+    calc_gamma[valid] = pdf_d1[valid] / (spot * sigma[valid] * np.sqrt(T[valid]))
+    calc_vanna[valid] = -pdf_d1[valid] * d2[valid] / sigma[valid]
+    
+    # Delta logic: norm.cdf(d1) for calls, norm.cdf(d1) - 1 for puts
+    cdf_d1 = np.zeros(len(chain_df))
+    cdf_d1[valid] = norm.cdf(d1[valid])
+    calc_delta[valid] = np.where(opt_type[valid] == 'call', cdf_d1[valid], cdf_d1[valid] - 1)
+
+    # We always override Vanna
+    chain_df['vanna'] = calc_vanna
+    
+    # Set Gamma/Delta fallbacks if column is missing/zero/NaN
+    if "gamma" not in chain_df.columns or (chain_df["gamma"] == 0).all():
+        chain_df['gamma'] = calc_gamma
+    else:
+        chain_df['gamma'] = chain_df['gamma'].fillna(pd.Series(calc_gamma))
+
+    if "delta" not in chain_df.columns or (chain_df["delta"] == 0).all():
+        chain_df['delta'] = calc_delta
+    else:
+        chain_df['delta'] = chain_df['delta'].fillna(pd.Series(calc_delta))
 
     # Add missing/null protection for greek columns used below
     chain_df = chain_df.fillna(0)
@@ -426,93 +453,86 @@ def calculate_premium_flow(df: pd.DataFrame) -> pd.DataFrame:
 
 def calculate_vtl(df: pd.DataFrame, spot: float, r: float = 0.05) -> dict:
     """
-    Finds the price level where BOTH Dealer GEX AND Vanna flows
-    reverse simultaneously — the true volatility ignition point.
+    Vectorized Volatility Ignition point (VTL) calculation.
+    Finds the price where GEX + Vanna flips.
     """
-    from scipy.stats import norm
-    import numpy as np
-
     # 1. Normalize data
-    # Filter rows with valid IV and OI
-    df = df.dropna(subset=['call_iv', 'put_iv', 'Call_OI', 'Put_OI'])
-    
-    # We need a stable time-to-maturity (T). 
-    # If using historical data, 'expiry' - 'today' might be negative.
-    # We use at least 1 day (1/365) to avoid NaNs in Greeks.
+    df = df.dropna(subset=['call_iv', 'put_iv', 'Call_OI', 'Put_OI']).copy()
     today = pd.Timestamp("today").normalize()
     
-    calls = pd.DataFrame({
-        'strike': df['Strike'],
-        'T': (pd.to_datetime(df['expiry']) - today).dt.days.clip(lower=1) / 365.0,
-        'sigma': df['call_iv'] / 100.0,
-        'oi': df['Call_OI'],
-        'sign': 1
-    })
-    puts = pd.DataFrame({
-        'strike': df['Strike'],
-        'T': (pd.to_datetime(df['expiry']) - today).dt.days.clip(lower=1) / 365.0,
-        'sigma': df['put_iv'] / 100.0,
-        'oi': df['Put_OI'],
-        'sign': -1
-    })
-    long_df = pd.concat([calls, puts], ignore_index=True)
-    long_df = long_df[long_df['sigma'] > 0] # Filter out zero vol
+    strikes = df['Strike'].values
+    T = np.maximum((pd.to_datetime(df['expiry']) - today).dt.days.values, 1.0) / 365.0
     
-    # 2. Simulate price range around spot (+/- 5%)
-    # Use 50 points instead of fixed 5 rupee steps for better chart resolution
+    iv_c = df['call_iv'].values / 100.0
+    iv_p = df['put_iv'].values / 100.0
+    oi_c = df['Call_OI'].values
+    oi_p = df['Put_OI'].values
+    
+    # Prices to test (+/- 5%)
     test_prices = np.linspace(spot * 0.95, spot * 1.05, 50)
-    results = []
     
-    for test_spot in test_prices:
-        total_gex = 0.0
-        total_vex = 0.0
-        
-        for _, row in long_df.iterrows():
-            T     = row['T']
-            sigma = row['sigma']
-            K     = row['strike']
-            oi    = row['oi']
-            sign  = row['sign']
-            
-            # Black-Scholes Greeks
-            d1 = (np.log(test_spot/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
-            d2 = d1 - sigma * np.sqrt(T)
-            
-            gamma = norm.pdf(d1) / (test_spot * sigma * np.sqrt(T))
-            vanna = -norm.pdf(d1) * d2 / sigma
-            
-            # Scaled exposure logic provided by user
-            # multiplier = 100 * test_spot^2 * 0.01 = test_spot^2
-            total_gex += gamma * oi * test_spot**2 * sign
-            total_vex += vanna * oi * test_spot * sign
-        
+    # We use broadcasting to calculate greeks for all test prices at once
+    # S shape: (50, 1), K/T/IV shape: (1, N_strikes)
+    S = test_prices.reshape(-1, 1)
+    K = strikes.reshape(1, -1)
+    T_mat = T.reshape(1, -1)
+    IV_c_mat = iv_c.reshape(1, -1)
+    IV_p_mat = iv_p.reshape(1, -1)
+    
+    # --- Call Greeks ---
+    sqrtT = np.sqrt(T_mat)
+    d1_c = (np.log(S/K) + (r + 0.5*IV_c_mat**2)*T_mat) / (IV_c_mat*sqrtT)
+    d2_c = d1_c - IV_c_mat*sqrtT
+    pdf_d1_c = norm.pdf(d1_c)
+    
+    gamma_c = pdf_d1_c / (S * IV_c_mat * sqrtT)
+    vanna_c = -pdf_d1_c * d2_c / IV_c_mat
+    
+    # --- Put Greeks ---
+    d1_p = (np.log(S/K) + (r + 0.5*IV_p_mat**2)*T_mat) / (IV_p_mat*sqrtT)
+    d2_p = d1_p - IV_p_mat*sqrtT
+    pdf_d1_p = norm.pdf(d1_p)
+    
+    gamma_p = pdf_d1_p / (S * IV_p_mat * sqrtT)
+    vanna_p = -pdf_d1_p * d2_p / IV_p_mat
+    
+    # Exposures
+    # Sign: Call +1, Put -1
+    # total_gex = sum(gamma * oi * S^2 * sign)
+    # total_vex = sum(vanna * oi * S * sign)
+    
+    gex_c = (gamma_c * oi_c.reshape(1, -1) * S**2).sum(axis=1) # (50,)
+    gex_p = (gamma_p * oi_p.reshape(1, -1) * S**2 * -1).sum(axis=1)
+    
+    vex_c = (vanna_c * oi_c.reshape(1, -1) * S).sum(axis=1)
+    vex_p = (vanna_p * oi_p.reshape(1, -1) * S * -1).sum(axis=1)
+    
+    net_gex = gex_c + gex_p
+    net_vex = vex_c + vex_p
+    combined = net_gex + net_vex
+    
+    results = []
+    for i in range(len(test_prices)):
         results.append({
-            'price'    : float(test_spot),
-            'net_gex'  : float(total_gex),
-            'net_vex'  : float(total_vex),
-            'combined' : float(total_gex + total_vex)
+            'price': float(test_prices[i]),
+            'net_gex': float(net_gex[i]),
+            'net_vex': float(net_vex[i]),
+            'combined': float(combined[i])
         })
     
     results_df = pd.DataFrame(results)
-    
-    # 3. Find VTL (Combined zero crossing)
     sign_change = np.where(np.diff(np.sign(results_df['combined'])))[0]
     
     if len(sign_change) > 0:
         idx = sign_change[0]
         r0, r1 = results_df.iloc[idx], results_df.iloc[idx+1]
-        vtl = r0['price'] + (r1['price'] - r0['price']) * (
-            -r0['combined'] / (r1['combined'] - r0['combined'])
-        )
+        vtl = r0['price'] + (r1['price'] - r0['price']) * (-r0['combined'] / (r1['combined'] - r0['combined']))
     else:
-        # Fallback to closest to zero
         vtl = float(results_df.loc[results_df['combined'].abs().idxmin(), 'price'])
     
-    distance_pct = (spot - vtl) / spot * 100
-    
     return {
-        'vtl'          : round(float(vtl), 2),
-        'distance_pct' : round(float(distance_pct), 3),
-        'direction'    : 'above' if spot > vtl else 'below',
-        'sim_data'     : results
+        'vtl': round(float(vtl), 2),
+        'distance_pct': round(float((spot - vtl) / spot * 100), 3),
+        'direction': 'above' if spot > vtl else 'below',
+        'sim_data': results
     }

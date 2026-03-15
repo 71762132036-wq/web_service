@@ -15,6 +15,8 @@ from services.calculations import (
     get_power_zones,
 )
 
+from typing import Union, Dict, Any
+
 # ---------------------------------------------------------------------------
 # Colour palette (Premium Terminal Theme)
 # ---------------------------------------------------------------------------
@@ -158,7 +160,7 @@ def _build_exposure_chart(
     layout["yaxis"]["title"] = final_y_title
     fig.update_layout(**layout)
 
-    return fig.to_json()
+    return fig.to_dict()
 
 
 def _build_cumulative_exposure_chart(
@@ -237,7 +239,7 @@ def _build_cumulative_exposure_chart(
     
     fig.update_layout(**layout)
 
-    return fig.to_json()
+    return fig.to_dict()
 
 
 
@@ -325,7 +327,7 @@ def build_dealer_regime_map(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["yaxis"]["title"] = "Dealer GEX"
     fig.update_layout(**layout)
 
-    return fig.to_json()
+    return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +372,7 @@ def build_iv_smile(df: pd.DataFrame) -> str:
     layout["xaxis"]["title"] = "Strike Price"
     fig.update_layout(**layout)
 
-    return fig.to_json()
+    return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -398,8 +400,7 @@ def build_rr_bf(vol_surface: dict) -> str:
     layout["yaxis"]["title"] = "Vol %"
     layout["showlegend"] = False
     fig.update_layout(**layout)
-
-    return fig.to_json()
+    return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -467,7 +468,7 @@ def build_quant_power_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["yaxis"]["title"] = "Blended GEX+Vex Exposure"
     fig.update_layout(**layout)
     
-    return fig.to_json()
+    return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -540,10 +541,10 @@ def build_iv_cone_chart(df_cone: pd.DataFrame, index_name: str = "Index") -> str
 
     layout = _base_layout(f"{index_name} — IV Cone (Expected Price Ranges)")
     layout["xaxis"]["title"] = "Days from Today"
-    layout["yaxis"]["title"] = "Price Level"
+    layout["yaxis"]["title"] = "Dealer Net OI (Lacs)"
     fig.update_layout(**layout)
 
-    return fig.to_json()
+    return fig.to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +588,7 @@ def build_standard_oi_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["bargap"] = 0.35
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_oi_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     """
@@ -639,7 +640,7 @@ def build_oi_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["bargap"] = 0.25
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_oi_change_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     """
@@ -690,7 +691,7 @@ def build_oi_change_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     layout["bargap"] = 0.35
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_premium_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
     """
@@ -732,7 +733,7 @@ def build_premium_flow_chart(df: pd.DataFrame, index_name: str = "Index") -> str
     layout["bargap"] = 0.35
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_compare_oi_change_chart(df1: pd.DataFrame, df2: pd.DataFrame, index_name: str = "Index") -> str:
     """
@@ -782,7 +783,7 @@ def build_compare_oi_change_chart(df1: pd.DataFrame, df2: pd.DataFrame, index_na
     layout["bargap"] = 0.35
     layout["bargroupgap"] = 0.05
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_flow_intensity_chart(flow_data: dict, index_name: str = "Index") -> str:
     """
@@ -819,7 +820,7 @@ def build_flow_intensity_chart(flow_data: dict, index_name: str = "Index") -> st
     layout["barmode"] = "group"
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_strike_pressure_chart(merged_detail: list, index_name: str = "Index") -> str:
     """
@@ -866,7 +867,7 @@ def build_strike_pressure_chart(merged_detail: list, index_name: str = "Index") 
     layout["yaxis"]["range"] = [-1.1, 1.1]
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()
 
 def build_vtl_chart(vtl_data: dict, spot: float, index_name: str = "Index") -> str:
     """
@@ -915,4 +916,4 @@ def build_vtl_chart(vtl_data: dict, spot: float, index_name: str = "Index") -> s
     layout["xaxis"]["range"] = [df['price'].min(), df['price'].max()]
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     fig.update_layout(**layout)
-    return fig.to_json()
+    return fig.to_dict()

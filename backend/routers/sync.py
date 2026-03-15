@@ -142,9 +142,9 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             # convert to IST for human‑readable filename
             ist = timezone(timedelta(hours=5, minutes=30))
             local_ts = utc_ts.astimezone(ist)
-            filename = local_ts.strftime("%d_%H%M%S") + ".csv"
+            filename = local_ts.strftime("%d_%H%M%S") + ".parquet"
         except Exception:
-            filename = datetime.now().strftime("%d_%H%M%S") + ".csv"
+            filename = datetime.now().strftime("%d_%H%M%S") + ".parquet"
 
         folder = Path(DATA_DIR) / index_name / expiry_date
         folder.mkdir(parents=True, exist_ok=True)
@@ -165,7 +165,7 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             df = calculate_gex(df, INDICES[index_name]["lot_size"])
             df = _reorder_df(df)  # place any new columns in canonical position (end)
 
-        df.to_csv(filepath, index=False)
+        df.to_parquet(filepath, engine="pyarrow", index=False)
         logger.info("[SYNC] Saved: %s", filepath)
 
         # Update in-memory store so dashboard reflects sync immediately

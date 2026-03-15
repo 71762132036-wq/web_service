@@ -18,7 +18,7 @@ def _get_nearest_df(name: str, target_filename: str, context_expiry: Optional[st
     
     # 1. Parse target time (Format: DD_HHMMSS)
     try:
-        target_dt = datetime.strptime(target_filename.replace(".csv", ""), "%d_%H%M%S")
+        target_dt = datetime.strptime(target_filename.replace(".parquet", ""), "%d_%H%M%S")
     except Exception:
         return None
 
@@ -34,7 +34,7 @@ def _get_nearest_df(name: str, target_filename: str, context_expiry: Optional[st
         for fname in files_dict[exp_name]:
             try:
                 # Parse file time
-                file_dt = datetime.strptime(fname.replace(".csv", ""), "%d_%H%M%S")
+                file_dt = datetime.strptime(fname.replace(".parquet", ""), "%d_%H%M%S")
                 diff = abs((target_dt - file_dt).total_seconds())
                 
                 if diff < min_diff:

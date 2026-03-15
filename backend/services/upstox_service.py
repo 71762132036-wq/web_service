@@ -308,7 +308,7 @@ def filter_near_strikes(df: pd.DataFrame, filter_radius: int = 20) -> pd.DataFra
 # ---------------------------------------------------------------------------
 
 def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None, timestamp_str: Optional[str] = None) -> str:
-    """Save DataFrame → data/<INDEX>/<EXPIRY>/<TIMESTAMP>.csv"""
+    """Save DataFrame → data/<INDEX>/<EXPIRY>/<TIMESTAMP>.parquet"""
     try:
         if data_dir is None:
             data_dir = DATA_DIR
@@ -329,8 +329,8 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None,
         else:
             timestamp = datetime.now().strftime("%d_%H%M%S")
             
-        filepath = folder / f"{timestamp}.csv"
-        df.to_csv(filepath, index=False)
+        filepath = folder / f"{timestamp}.parquet"
+        df.to_parquet(filepath, engine="pyarrow", index=False)
         
         return str(filepath)
     
@@ -341,9 +341,9 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None,
 
 
 def load_data_file(filepath: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
-    """Load a CSV file into a DataFrame."""
+    """Load a Parquet file into a DataFrame."""
     try:
-        df = pd.read_csv(filepath)
+        df = pd.read_parquet(filepath, engine="pyarrow")
         return df, None
     except Exception as exc:  # noqa: BLE001
         return None, f"Error loading file: {exc}"
@@ -364,7 +364,7 @@ def get_available_files(index_name: str, data_dir: Optional[str] = None) -> dict
     if index_path.exists():
         for expiry_folder in index_path.iterdir():
             if expiry_folder.is_dir():
-                csv_files = sorted(expiry_folder.glob("*.csv"), reverse=True)
+                csv_files = sorted(expiry_folder.glob("*.parquet"), reverse=True)
                 if csv_files:
                     files_dict[expiry_folder.name] = [f.name for f in csv_files]
 
@@ -374,7 +374,7 @@ def get_available_files(index_name: str, data_dir: Optional[str] = None) -> dict
             if expiry_folder.is_dir() and expiry_folder.name not in files_dict:
                 try:
                     datetime.strptime(expiry_folder.name, "%Y-%m-%d")
-                    csv_files = sorted(expiry_folder.glob("*.csv"), reverse=True)
+                    csv_files = sorted(expiry_folder.glob("*.parquet"), reverse=True)
                     if csv_files:
                         files_dict[expiry_folder.name] = [f.name for f in csv_files]
                 except ValueError:
