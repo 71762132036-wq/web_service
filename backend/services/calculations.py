@@ -154,22 +154,36 @@ def calculate_delta_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFra
 
 def calculate_flip_point(df: pd.DataFrame) -> float:
     """
-    Find the strike price where cumulative GEX crosses zero (flip point).
+    Find the strike price where Total GEX crosses zero (Zero Gamma / Flip Point).
+    Standard: Call GEX is Negative, Put GEX is Positive.
+    Uses linear interpolation for sub-strike precision.
     """
     df = df.copy()
     if "Total_GEX" not in df.columns:
-        # Auto-calculate if missing (for legacy snapshots)
         df = calculate_gex(df)
         
-    # Group by Strike (sums Call/Put GEX) and Sort
+    # Group by Strike and Sort
     by_strike = df.groupby("Strike")["Total_GEX"].sum().sort_index()
+    strikes = by_strike.index.values
+    gex_vals = by_strike.values
     
-    # Cumulative sum
-    cum_gex = by_strike.cumsum()
-    
-    # The flip point is the strike where cumulative GEX is closest to 0
-    flip_strike = cum_gex.abs().idxmin()
-    return float(flip_strike)
+    # 1. Look for sign change (crossing zero)
+    # We find where sign flips from negative (Calls dominate) to positive (Puts dominate)
+    # or vice versa.
+    for i in range(len(gex_vals) - 1):
+        g1, g2 = gex_vals[i], gex_vals[i+1]
+        s1, s2 = strikes[i], strikes[i+1]
+        
+        # Check for zero crossing
+        if (g1 <= 0 and g2 >= 0) or (g1 >= 0 and g2 <= 0):
+            if abs(g2 - g1) < 1e-9: return float(s1)
+            # Linear interpolation: find s where g = 0
+            # formula: s = s1 + (0 - g1) * (s2 - s1) / (g2 - g1)
+            flip_p = s1 - g1 * (s2 - s1) / (g2 - g1)
+            return float(flip_p)
+            
+    # 2. Fallback: If no crossing found, return the strike closest to zero
+    return float(by_strike.abs().idxmin())
 
 
 def get_atm_strike(df: pd.DataFrame) -> float:
@@ -506,11 +520,12 @@ def calculate_vtl(df: pd.DataFrame, spot: float, r: float = 0.05) -> dict:
     # total_gex = sum(gamma * oi * S^2 * sign)
     # total_vex = sum(vanna * oi * S * sign)
     
-    gex_c = (gamma_c * oi_c.reshape(1, -1) * S**2).sum(axis=1) # (50,)
-    gex_p = (gamma_p * oi_p.reshape(1, -1) * S**2 * -1).sum(axis=1)
+    # Standardize Signs: Call=-1, Put=+1
+    gex_c = (gamma_c * oi_c.reshape(1, -1) * S**2 * -1).sum(axis=1) # (50,)
+    gex_p = (gamma_p * oi_p.reshape(1, -1) * S**2).sum(axis=1)
     
-    vex_c = (vanna_c * oi_c.reshape(1, -1) * S).sum(axis=1)
-    vex_p = (vanna_p * oi_p.reshape(1, -1) * S * -1).sum(axis=1)
+    vex_c = (vanna_c * oi_c.reshape(1, -1) * S * -1).sum(axis=1)
+    vex_p = (vanna_p * oi_p.reshape(1, -1) * S).sum(axis=1)
     
     net_gex = gex_c + gex_p
     net_vex = vex_c + vex_p
