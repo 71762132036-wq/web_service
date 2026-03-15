@@ -6,6 +6,7 @@ Routes:
   GET /api/data-table/{index}
 """
 
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 
 import store
@@ -18,7 +19,9 @@ from services.calculations import (
     get_dealer_regime,
     get_gamma_cage,
     get_power_zones,
+    calculate_realized_vol,
 )
+from services.historical_service import get_level_migration, get_historical_prices
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -138,4 +141,48 @@ def get_stats(index: str):
         "expiry":      str(df["expiry"].iloc[0]) if "expiry" in df.columns else "",
         "spot":        float(df["Spot"].iloc[0]) if "Spot" in df.columns else 0,
         "columns":     list(df.columns),
+    }
+
+# ---------------------------------------------------------------------------
+# Advanced Analytics Suite
+# ---------------------------------------------------------------------------
+
+@router.get("/migration/{index}")
+def get_migration(index: str, expiry: Optional[str] = None):
+    """Return historical trajectory of key levels."""
+    # If no expiry provided, use the one from the active store
+    df = _require_data(index)
+    if not expiry and "expiry" in df.columns:
+        expiry = str(df["expiry"].iloc[0])
+    
+    if not expiry:
+        raise HTTPException(status_code=400, detail="Expiry date required for migration analysis")
+
+    data = get_level_migration(index, expiry)
+    if "error" in data:
+        raise HTTPException(status_code=404, detail=data["error"])
+    
+    return data
+
+@router.get("/vol-spread/{index}")
+def get_vol_spread(index: str):
+    """Return Realized vs Implied Volatility spread."""
+    df = _require_data(index)
+    spot = df["Spot"].iloc[0]
+    expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+    
+    # 1. Get Implied Vol (ATM)
+    vs = calculate_vol_surface(df)
+    iv = vs["ATM_IV"]
+    
+    # 2. Get Realized Vol (Historical Series)
+    prices = get_historical_prices(index, expiry) if expiry else []
+    rv = calculate_realized_vol(prices)
+    
+    return {
+        "index": index,
+        "iv": round(iv, 2),
+        "rv": round(rv, 2),
+        "spread": round(iv - rv, 2),
+        "sentiment": "Oversold Vol" if iv < rv else "Overpriced Vol (Premium Harvesting)"
     }

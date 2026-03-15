@@ -34,12 +34,18 @@ from services.chart_service import (
     build_flow_intensity_chart,
     build_strike_pressure_chart,
     build_vtl_chart,
+    build_migration_chart,
+    build_vol_spread_chart,
+    build_ignition_heatmap,
+    build_momentum_chart,
 )
+from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum
+from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -219,11 +225,51 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             }
         elif chart_type == "quant_power":
             json_str = build_quant_power_chart(df, index)
+        elif chart_type == "migration":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            mig_data = get_level_migration(index, expiry)
+            json_str = build_migration_chart(mig_data, index)
+        elif chart_type == "vol_spread":
+            spot = df["Spot"].iloc[0]
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            vs = calculate_vol_surface(df)
+            prices = get_historical_prices(index, expiry) if expiry else []
+            rv = calculate_realized_vol(prices)
+            vol_data = {
+                "iv": round(vs["ATM_IV"], 2),
+                "rv": round(rv, 2),
+                "spread": round(vs["ATM_IV"] - rv, 2),
+                "sentiment": "Oversold Vol" if vs["ATM_IV"] < rv else "Overpriced Vol (Premium Harvesting)"
+            }
+            json_str = build_vol_spread_chart(vol_data, index)
+        elif chart_type == "ignition":
+            spot = df["Spot"].iloc[0]
+            grid_data = calculate_greek_sensitivity_grid(df, spot)
+            json_str = build_ignition_heatmap(grid_data, index)
+        elif chart_type == "momentum":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            mom_data = get_flow_momentum(index, expiry)
+            json_str = build_momentum_chart(mom_data, index)
 
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Chart error: {exc}") from exc
 
-    # Return as a plain string; the frontend will JSON.parse() it
+    import json
+    # Explicitly serialize the figure to JSON on the backend to avoid 
+    # FastAPI's encoder potentially failing on complex Plotly dicts.
+    if isinstance(json_str, dict):
+        # We can use Plotly's JSON encoder if it was a Figure, 
+        # but here we already have a dict or string.
+        # But wait, json_str might have been from fig.to_dict().
+        # Let's just use standard json.dumps for the dict form.
+        def npy_encoder(obj):
+            if isinstance(obj, (np.integer, np.floating)): return float(obj)
+            if isinstance(obj, np.ndarray): return obj.tolist()
+            return obj
+        json_str = json.dumps(json_str, default=npy_encoder)
+
     return {"index": index, "chart_type": chart_type, "figure": json_str}
 
 

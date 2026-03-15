@@ -6,6 +6,7 @@ Ported from streamlit_app/modules/calculations.py
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from typing import List, Dict, Any, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -154,8 +155,12 @@ def calculate_delta_exposure(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFra
 def calculate_flip_point(df: pd.DataFrame) -> float:
     """
     Find the strike price where cumulative GEX crosses zero (flip point).
-    Matches Step 2 & 3: Group by strike -> Cumsum -> Find Zero Crossing.
     """
+    df = df.copy()
+    if "Total_GEX" not in df.columns:
+        # Auto-calculate if missing (for legacy snapshots)
+        df = calculate_gex(df)
+        
     # Group by Strike (sums Call/Put GEX) and Sort
     by_strike = df.groupby("Strike")["Total_GEX"].sum().sort_index()
     
@@ -475,9 +480,9 @@ def calculate_vtl(df: pd.DataFrame, spot: float, r: float = 0.05) -> dict:
     # S shape: (50, 1), K/T/IV shape: (1, N_strikes)
     S = test_prices.reshape(-1, 1)
     K = strikes.reshape(1, -1)
-    T_mat = T.reshape(1, -1)
-    IV_c_mat = iv_c.reshape(1, -1)
-    IV_p_mat = iv_p.reshape(1, -1)
+    T_mat = np.maximum(T.reshape(1, -1), 1e-5) # Protect against 0 time
+    IV_c_mat = np.maximum(iv_c.reshape(1, -1), 0.001) # Protect against 0 IV
+    IV_p_mat = np.maximum(iv_p.reshape(1, -1), 0.001)
     
     # --- Call Greeks ---
     sqrtT = np.sqrt(T_mat)
@@ -535,4 +540,70 @@ def calculate_vtl(df: pd.DataFrame, spot: float, r: float = 0.05) -> dict:
         'distance_pct': round(float((spot - vtl) / spot * 100), 3),
         'direction': 'above' if spot > vtl else 'below',
         'sim_data': results
+    }
+
+def calculate_realized_vol(prices: List[float], annualize_factor: float = 252 * 50) -> float:
+    """
+    Computes annualized realized volatility from a series of spot prices.
+    Assumes snapshots are distinct price points.
+    """
+    if len(prices) < 2:
+        return 0.0
+    
+    # Calculate log returns
+    log_returns = np.diff(np.log(np.array(prices) + 1e-6))
+    if len(log_returns) == 0:
+        return 0.0
+        
+    rv = np.std(log_returns) * np.sqrt(annualize_factor)
+    if np.isnan(rv):
+        return 0.0
+    return float(rv * 100) # Percentage
+
+def calculate_greek_sensitivity_grid(df: pd.DataFrame, spot: float, range_pct: float = 0.05, steps: int = 21) -> Dict[str, Any]:
+    """
+    Generates a matrix of GEX mass across Price vs Strikes.
+    This helps identify 'Ignition Zones' where price movement triggers 
+    maximum hedging delta.
+    """
+    # 1. Price simulation range
+    price_range = np.linspace(spot * (1 - range_pct), spot * (1 + range_pct), steps)
+    
+    # 2. Filter for strikes near spot for cleaner grid
+    strike_df = df[(df['Strike'] > spot * 0.9) & (df['Strike'] < spot * 1.1)].copy()
+    strikes = strike_df['Strike'].values
+    
+    lot_size = df['lot_size'].iloc[0] if 'lot_size' in df.columns else 75
+    
+    # 3. Build Heatmap Z-matrix
+    # Dimensions: [Price Step] x [Strike]
+    z_gex = []
+    
+    # Pre-calculate common parts for speed
+    T_val = np.maximum(df['T'].iloc[0] if 'T' in df.columns else 0.01, 1e-5)
+    r = 0.05
+    sqrtT = np.sqrt(T_val)
+    
+    # Clip IVs to avoid div-by-zero
+    c_iv = np.maximum(strike_df['call_iv'].values / 100.0, 0.001)
+    p_iv = np.maximum(strike_df['put_iv'].values / 100.0, 0.001)
+    
+    for s_test in price_range:
+        # Re-calc Gamma at s_test for each strike
+        # Call GEX
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T_val) / (c_iv * sqrtT)
+        gamma_c = norm.pdf(d1_c) / (s_test * c_iv * sqrtT)
+        gex_c = (strike_df['call_oi'].values * lot_size * 0.1 * s_test * 0.01 * gamma_c)
+        
+        # Put GEX
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T_val) / (p_iv * sqrtT)
+        gamma_p = norm.pdf(d1_p) / (s_test * p_iv * sqrtT)
+        gex_p = -(strike_df['put_oi'].values * lot_size * 0.1 * s_test * 0.01 * gamma_p)
+        
+        z_gex.append((gex_c + gex_p).tolist())
+
+    return {
+        "prices": price_range.tolist(),
+        "strikes": strikes.tolist(),
+        "z": z_gex # Z[price_idx][strike_idx]
     }

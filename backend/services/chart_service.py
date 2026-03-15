@@ -881,21 +881,21 @@ def build_vtl_chart(vtl_data: dict, spot: float, index_name: str = "Index") -> s
     
     # Net GEX
     fig.add_trace(go.Scatter(
-        x=df['price'], y=df['net_gex'], name="Dealer GEX",
+        x=df['price'].tolist(), y=df['net_gex'].tolist(), name="Dealer GEX",
         line=dict(color="#6366F1", width=1.5, dash='dot'),
         mode='lines'
     ))
     
     # Net Vanna
     fig.add_trace(go.Scatter(
-        x=df['price'], y=df['net_vex'], name="Dealer Vanna",
+        x=df['price'].tolist(), y=df['net_vex'].tolist(), name="Dealer Vanna",
         line=dict(color="#F43F5E", width=1.5, dash='dot'),
         mode='lines'
     ))
     
     # Combined (The Trigger)
     fig.add_trace(go.Scatter(
-        x=df['price'], y=df['combined'], name="Combined (Ignition)",
+        x=df['price'].tolist(), y=df['combined'].tolist(), name="Combined (Ignition)",
         line=dict(color="#F59E0B", width=3),
         mode='lines',
         fill='tozeroy', fillcolor='rgba(245, 158, 11, 0.05)'
@@ -916,4 +916,143 @@ def build_vtl_chart(vtl_data: dict, spot: float, index_name: str = "Index") -> s
     layout["xaxis"]["range"] = [df['price'].min(), df['price'].max()]
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     fig.update_layout(**layout)
+    return fig.to_dict()
+
+def build_migration_chart(migration_data: dict, index_name: str = "Index") -> str:
+    """
+    Visualizes the 'Gamma Waltz' — movement of Spot vs Flip vs QP.
+    """
+    if "error" in migration_data:
+        return json.dumps({"error": migration_data["error"]})
+
+    history = migration_data.get("history", [])
+    if not history:
+        return json.dumps({"error": "No historical snapshots found for this expiry."})
+
+    df = pd.DataFrame(history)
+    fig = go.Figure()
+
+    # Mapping for clean display
+    metrics = [
+        ("spot", "Spot Price", C_SPOT, "solid", 3),
+        ("flip", "Flip Point", C_FLIP, "dash", 1.5),
+        ("qp",   "Quant Power", "#E879F9", "dot", 1.5),
+        ("vtl",  "VTL Ignition", "#F59E0B", "dashdot", 1.5),
+    ]
+
+    for col, label, color, dash, width in metrics:
+        if col in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df["time"].tolist(), y=df[col].tolist(),
+                name=label,
+                line=dict(color=color, width=width, dash=dash),
+                mode='lines+markers',
+                marker=dict(size=4)
+            ))
+
+    layout = _base_layout(f"{index_name} — Level Migration (The Gamma Waltz)")
+    layout["yaxis"]["title"] = "Price / Strike Level"
+    layout["xaxis"]["title"] = "Timestamp (Snapshots)"
+    layout["hovermode"] = "x unified"
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+def build_vol_spread_chart(vol_data: dict, index_name: str = "Index") -> str:
+    """
+    Comparison of Realized vs Implied Volatility.
+    """
+    iv = vol_data["iv"]
+    rv = vol_data["rv"]
+    spread = vol_data["spread"]
+    
+    fig = go.Figure()
+    
+    # Bar comparison
+    fig.add_trace(go.Bar(
+        x=["Implied Vol (IV)", "Realized Vol (RV)"],
+        y=[iv, rv],
+        marker_color=[C_POS, "#10B981"], # Indigo for IV, Green for RV
+        text=[f"{iv}%", f"{rv}%"],
+        textposition='outside',
+        width=0.4
+    ))
+    
+    # Indicator for spread
+    fig.add_annotation(
+        x=0.5, y=max(iv, rv) * 1.1,
+        text=f"SPREAD: {spread:+.2f}%<br><b>{vol_data['sentiment']}</b>",
+        showarrow=False,
+        font=dict(size=14, color=FONT_CLR),
+        bgcolor="rgba(0,0,0,0.5)",
+        bordercolor=C_POS if spread > 0 else C_NEG,
+        borderwidth=1
+    )
+
+    layout = _base_layout(f"{index_name} — Volatility Mispricing Spread")
+    layout["yaxis"]["title"] = "Annualized Vol (%)"
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+def build_ignition_heatmap(grid_data: dict, index_name: str = "Index") -> str:
+    """
+    Visualizes the Greek Sensitivity Matrix as a Heatmap.
+    """
+    z = grid_data.get("z", [])
+    if not z:
+        return "{}"
+
+    fig = go.Figure(data=go.Heatmap(
+        z=z,
+        x=grid_data["strikes"],
+        y=grid_data["prices"],
+        colorscale='RdBu',
+        reversescale=True,
+        zmid=0,
+        colorbar=dict(title="GEX Mass", thickness=15),
+        hovertemplate="Price: %{y}<br>Strike: %{x}<br>Mass: %{z:,.0f}<extra></extra>"
+    ))
+
+    layout = _base_layout(f"{index_name} — Ignition Heatmap (Gamma Sensitivity)")
+    layout["xaxis"]["title"] = "Strikes"
+    layout["yaxis"]["title"] = "Price Shift (Simulation)"
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+def build_momentum_chart(mom_data: dict, index_name: str = "Index") -> str:
+    """
+    Visualizes the velocity of Greek shifts.
+    """
+    history = mom_data.get("momentum", [])
+    if not history: return "{}"
+    
+    df = pd.DataFrame(history)
+    fig = go.Figure()
+    
+    # GEX Velocity (Bar)
+    fig.add_trace(go.Bar(
+        x=df["time"].tolist(), y=df["gex_velocity"].tolist(),
+        name="GEX Velocity",
+        marker_color=df["gex_velocity"].apply(lambda v: C_POS if v > 0 else C_NEG).tolist(),
+        opacity=0.6,
+        yaxis="y"
+    ))
+    
+    # GEX Total (Line)
+    fig.add_trace(go.Scatter(
+        x=df["time"].tolist(), y=df["gex_total"].tolist(),
+        name="Net GEX",
+        line=dict(color=C_POS, width=3),
+        yaxis="y2"
+    ))
+
+    layout = _base_layout(f"{index_name} — Institutional Flow Momentum (GEX Flux)")
+    layout["yaxis"] = dict(title="Velocity (Change)", side="left")
+    layout["yaxis2"] = dict(title="Total Net GEX", side="right", overlaying="y", showgrid=False)
+    layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    fig.update_layout(**layout)
+    
     return fig.to_dict()
