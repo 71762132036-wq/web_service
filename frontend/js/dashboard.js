@@ -79,6 +79,20 @@ const DashboardPage = (() => {
         { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
         { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
       ]
+    },
+    'Advanced': {
+      'Migration Pulse': [
+        { key: 'migration', label: 'Gamma Waltz', id: 'chart-migration' },
+      ],
+      'Vol Mispricing': [
+        { key: 'vol_spread', label: 'IV vs RV', id: 'chart-vol-spread' },
+      ],
+      'Ignition Zone': [
+        { key: 'ignition', label: 'Sensitivity Heatmap', id: 'chart-ignition' },
+      ],
+      'Institutional Flow': [
+        { key: 'momentum', label: 'Flow Momentum', id: 'chart-momentum' },
+      ]
     }
   };
 
@@ -296,7 +310,7 @@ const DashboardPage = (() => {
 
       // Always update dynamic parts
       _updateNavState(container, structure);
-      _updateMetricsState(container, metrics, regimeClass);
+      _updateMetricsState(container, metrics, regimeClass, vs);
       _updateSurfaceState(container, vs);
 
       // Save tracking state
@@ -331,7 +345,7 @@ const DashboardPage = (() => {
           if (file1 && file2) {
             const res = await Charts.fetchAndRenderDirection(index, chart.key, expiry, file1, file2, chart.id);
             _lastFlowSummary = res?.summary || null;
-            _renderMetricsOnly(container, metrics, regimeClass);
+            _renderMetricsOnly(container, metrics, regimeClass, vs);
           } else {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files in Compare mode</span></div>';
@@ -356,7 +370,8 @@ const DashboardPage = (() => {
           const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
           const res = await Charts.fetchAndRender(index, chart.key, chart.id, mode);
           _lastFlowSummary = res?.summary || null;
-          _renderMetricsOnly(container, metrics, regimeClass);
+          
+          _renderMetricsOnly(container, metrics, regimeClass, vs);
         }
         _loadedCharts.add(chart.id);
       }
@@ -443,7 +458,7 @@ const DashboardPage = (() => {
     }
   }
 
-  function _updateMetricsState(container, metrics, regimeClass) {
+  function _updateMetricsState(container, metrics, regimeClass, vs) {
     const grid = container.querySelector('.metrics-grid');
     if (!grid) return;
     const st = State.get();
@@ -473,6 +488,22 @@ const DashboardPage = (() => {
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
         { label: 'Quant Power', value: metrics.quant_power.toLocaleString(), sub: 'Blended Zero Level' },
       ];
+    } else if (st.selectedCategory === 'Migration Pulse') {
+      cards = [
+        { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+        { label: 'Flip Point', value: metrics.flip_point.toLocaleString(), sub: 'Gamma Neutral Level' },
+        { label: 'Quant Power', value: metrics.quant_power.toLocaleString(), sub: 'Blended Zero Level' },
+        { label: 'Level Bias', value: metrics.spot > metrics.flip_point ? 'BULLISH' : 'BEARISH', classes: `regime ${metrics.spot > metrics.flip_point ? 'long-gamma' : 'short-gamma'}` },
+      ];
+    } else if (st.selectedCategory === 'Vol Mispricing') {
+       // We'll fetch the vol spread data separately or use a placeholder until first chart load
+       // For now, let's keep it consistent
+       cards = [
+        { label: 'Implied Vol (IV)', value: `${vs?.ATM_IV.toFixed(2)}%`, sub: 'Current Market Price' },
+        { label: 'Realized Vol (RV)', value: 'Pending...', sub: 'Historical Movement', id: 'rv-metric-val' },
+        { label: 'Vol Spread', value: '...', sub: 'IV - RV', id: 'spread-metric-val' },
+        { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+      ];
     } else {
       cards = [
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
@@ -501,8 +532,8 @@ const DashboardPage = (() => {
     }
   }
 
-  function _renderMetricsOnly(container, metrics, regimeClass) {
-    _updateMetricsState(container, metrics, regimeClass);
+  function _renderMetricsOnly(container, metrics, regimeClass, vs) {
+    _updateMetricsState(container, metrics, regimeClass, vs);
   }
 
   return { render };

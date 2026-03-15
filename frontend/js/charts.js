@@ -22,13 +22,23 @@ const Charts = (() => {
         const el = document.getElementById(containerId);
         if (!el) return;
 
+        if (typeof figure === 'string') {
+            try { figure = JSON.parse(figure); } catch (e) { console.error("Parse fail", e); return; }
+        }
+
         try {
             // Remove any legacy placeholders/spinners if they exist
             const placeholder = el.querySelector('.chart-placeholder');
             if (placeholder) placeholder.remove();
 
+            if (figure && figure.error) {
+                el.innerHTML = `<div class="chart-placeholder"><span>${figure.error}</span></div>`;
+                return;
+            }
+
             Plotly.react(el, figure.data, figure.layout, RESPONSIVE_CONFIG);
         } catch (err) {
+            console.error("Plotly Error:", err, figure);
             el.innerHTML = `<div class="chart-placeholder">
         <span>Chart render error: ${err.message}</span>
       </div>`;

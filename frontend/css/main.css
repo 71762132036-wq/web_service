@@ -616,6 +616,32 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* Advanced Pulse Styles */
+.bucket-btn[data-bucket="Advanced"] {
+  position: relative;
+  border: 1px solid rgba(232, 121, 249, 0.2);
+}
+
+.bucket-btn[data-bucket="Advanced"].active {
+  background: rgba(232, 121, 249, 0.15);
+  border-color: rgba(232, 121, 249, 0.5);
+  box-shadow: 0 0 15px rgba(232, 121, 249, 0.1);
+  color: #E879F9;
+}
+
+.bucket-btn[data-bucket="Advanced"]::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 4px;
+  height: 4px;
+  background: #E879F9;
+  border-radius: 50%;
+  box-shadow: 0 0 5px #E879F9;
+  animation: pulse-dot 2s infinite;
+}
+
 .active-chart-panel {
   width: 100%;
 }
