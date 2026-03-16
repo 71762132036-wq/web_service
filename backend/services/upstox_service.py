@@ -7,6 +7,7 @@ from __future__ import annotations
 import calendar
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional, Tuple, List, Union
 
@@ -327,7 +328,8 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None,
         if timestamp_str:
             timestamp = timestamp_str
         else:
-            timestamp = datetime.now().strftime("%d_%H%M%S")
+            ist = ZoneInfo("Asia/Kolkata")
+            timestamp = datetime.now(ist).strftime("%d_%H%M%S")
             
         filepath = folder / f"{timestamp}.parquet"
         df.to_parquet(filepath, engine="pyarrow", index=False)

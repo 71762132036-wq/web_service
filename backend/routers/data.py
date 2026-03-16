@@ -9,8 +9,10 @@ Routes:
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -72,6 +74,13 @@ def fetch_data(body: FetchRequest):
     all_instruments = {**INDICES, **STOCKS}
     target_indices = body.indices or list(all_instruments.keys())
     print(f"[DEBUG-FETCH] Target indices/stocks: {target_indices}")
+
+    # Generate a single IST timestamp for this entire batch so every instrument
+    # saved in one "Fetch Live" click gets the same timestamp (matching auto-fetcher).
+    ist = ZoneInfo("Asia/Kolkata")
+    batch_timestamp = datetime.now(ist).strftime("%d_%H%M%S")
+    print(f"[DEBUG-FETCH] Batch timestamp (IST): {batch_timestamp}")
+
     results = []
 
     for index_name in target_indices:
@@ -105,8 +114,8 @@ def fetch_data(body: FetchRequest):
             df_filtered = calculate_gex(df_filtered, lot_size)
             print(f"[DEBUG-FETCH] Calculated GEX for {len(df_filtered)} strikes")
 
-            print(f"[DEBUG-FETCH] Calling save_data with data_dir={DATA_DIR}")
-            filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR)
+            print(f"[DEBUG-FETCH] Calling save_data with data_dir={DATA_DIR}, timestamp={batch_timestamp}")
+            filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR, timestamp_str=batch_timestamp)
             print(f"[DEBUG-FETCH] save_data returned: {filepath}")
 
             print(f"[DEBUG-FETCH] Setting data in store...")
