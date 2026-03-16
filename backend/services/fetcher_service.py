@@ -55,6 +55,10 @@ def is_market_hours() -> bool:
     Returns True only during NSE trading hours: Mon–Fri, 09:30–15:30 IST.
     Uses explicit timezone to work consistently across all environments.
     """
+    TEST_MODE = True   # ← set False to restore real market-hours check
+    if TEST_MODE:
+        return True
+
     ist = ZoneInfo("Asia/Kolkata")
     now = datetime.now(ist)
     

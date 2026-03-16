@@ -61,47 +61,47 @@ def insert_snapshots(client: Client, snapshots: list[dict]) -> int:
     Each snapshot: {"index_name": str, "expiry_date": str, "data": list[dict]}
     Returns number of rows inserted.
 
-    NOTE: timestamps are stored in UTC to keep the database timezone-agnostic.
-    Previous implementation saved IST, which caused the sync logic to miscompute
-    local timestamps and led to mismatched filenames/duplicates.
+    Timestamps are stored in IST so that the local sync router can use
+    captured_at directly as the filename without any UTC→IST conversion.
     """
     if not snapshots:
         return 0
-    from datetime import datetime, timezone
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
 
-    # use UTC for consistency (ISO format includes 'Z')
-    now_utc = datetime.now(timezone.utc).isoformat()
+    # Store IST so filenames on the local machine always match the clock
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist).isoformat()
 
     rows = [
         {
             "index_name":  s["index_name"],
             "expiry_date": s["expiry_date"],
             "data":        s["data"],
-            "captured_at": now_utc,
-            "synced":      False,
+            "captured_at": now_ist,
         }
         for s in snapshots
     ]
     try:
         res = client.table("option_snapshots").insert(rows).execute()
         count = len(res.data) if res.data else 0
-        logger.info("Inserted %d snapshot rows", count)
+        logger.info("Inserted %d snapshot rows (captured_at IST: %s)", count, now_ist)
         return count
     except Exception as exc:
         logger.error("insert_snapshots failed: %s", exc)
         return 0
 
 
-def get_unsynced(client: Client, since: Optional[str] = None) -> list[dict]:
+def get_pending(client: Client, since: Optional[str] = None) -> list[dict]:
     """
-    Return all unsynced snapshots.
+    Return all pending (not-yet-synced) snapshots.
+    Rows are deleted after sync, so this simply fetches everything present.
     Optional `since`: ISO-8601 timestamp — only return rows captured after this time.
     """
     try:
         query = (
             client.table("option_snapshots")
             .select("id, index_name, expiry_date, captured_at, data")
-            .eq("synced", False)
             .order("captured_at", desc=False)
         )
         if since:
@@ -109,18 +109,18 @@ def get_unsynced(client: Client, since: Optional[str] = None) -> list[dict]:
         res = query.execute()
         return res.data or []
     except Exception as exc:
-        logger.error("get_unsynced failed: %s", exc)
+        logger.error("get_pending failed: %s", exc)
         return []
 
 
-def mark_synced(client: Client, ids: list[int]) -> bool:
-    """Mark the given snapshot IDs as synced=True."""
+def delete_rows(client: Client, ids: list[int]) -> bool:
+    """Hard-delete synced snapshot rows to keep the table lean."""
     if not ids:
         return True
     try:
-        client.table("option_snapshots").update({"synced": True}).in_("id", ids).execute()
-        logger.info("Marked %d rows as synced", len(ids))
+        client.table("option_snapshots").delete().in_("id", ids).execute()
+        logger.info("Deleted %d synced rows", len(ids))
         return True
     except Exception as exc:
-        logger.error("mark_synced failed: %s", exc)
+        logger.error("delete_rows failed: %s", exc)
         return False

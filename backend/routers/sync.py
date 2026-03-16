@@ -87,64 +87,94 @@ class SyncRequest(BaseModel):
     since: Optional[str] = None   # ISO-8601: only sync rows after this timestamp
 
 
+def _plog(msg: str) -> None:
+    """Print a timestamped progress line to the terminal (visible in uvicorn output)."""
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%H:%M:%S")
+    # print(f"[SYNC {now}] {msg}", flush=True)
+
+
 @router.post("/sync")
 def sync_from_supabase(body: SyncRequest = SyncRequest()):
     """
     Pull unsynced snapshots from Supabase and save as local CSVs.
     """
-    client = _get_supabase()
+    _plog("▶ Sync started")
 
-    # 1. Fetch unsynced rows
+    # 1. Connect & query Supabase
+    _plog("Connecting to Supabase…")
     try:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        query = (
-            client.table("option_snapshots")
-            .select("id, index_name, expiry_date, captured_at, data")
-            .eq("synced", False)
-            .gte("expiry_date", today_str)
-            .order("captured_at", desc=False)
-        )
-        if body.since:
-            query = query.gte("captured_at", body.since)
-        result = query.execute()
-        snapshots = result.data or []
+        client = _get_supabase()
     except Exception as exc:
+        _plog(f"✗ Connection failed: {exc}")
+        raise
+
+    _plog("Querying pending snapshots (paginated)…")
+    try:
+        from zoneinfo import ZoneInfo
+        today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+
+        PAGE_SIZE = 500          # well below Supabase's 1000-row cap
+        snapshots: list = []
+        offset = 0
+
+        while True:
+            base_query = (
+                client.table("option_snapshots")
+                .select("id, index_name, expiry_date, captured_at, data")
+                .gte("expiry_date", today_str)
+                .order("captured_at", desc=False)
+            )
+            if body.since:
+                base_query = base_query.gte("captured_at", body.since)
+
+            page = base_query.range(offset, offset + PAGE_SIZE - 1).execute()
+            rows = page.data or []
+            snapshots.extend(rows)
+            _plog(f"  Page fetched: {len(rows)} row(s)  (total so far: {len(snapshots)})")
+
+            if len(rows) < PAGE_SIZE:
+                break   # last page — no more rows
+            offset += PAGE_SIZE
+
+    except Exception as exc:
+        _plog(f"✗ Supabase query failed: {exc}")
         raise HTTPException(status_code=502, detail=f"Supabase query failed: {exc}")
 
+    _plog(f"Found {len(snapshots)} pending snapshot(s) in total")
+
     if not snapshots:
+        _plog("Nothing to sync — all up to date")
         return {"synced": 0, "skipped": 0, "message": "No new data in Supabase."}
 
     # 2. Save each snapshot to disk
     synced_ids  = []
     saved_count = 0
     skip_count  = 0
+    total       = len(snapshots)
 
-    for snap in snapshots:
+    for i, snap in enumerate(snapshots, start=1):
         snap_id     = snap["id"]
         index_name  = snap["index_name"]
         expiry_date = snap["expiry_date"]
         rows        = snap["data"]
         captured_at = snap.get("captured_at", "")
 
+        _plog(f"[{i}/{total}] {index_name} | captured_at={captured_at}")
+
         if not rows:
+            _plog(f"  → Empty payload, skipping")
             synced_ids.append(snap_id)
             skip_count += 1
             continue
 
-        # Build filename from captured_at timestamp (stored in UTC now)
+        # Build filename from captured_at (stored as IST — no conversion needed)
         try:
-            from datetime import timedelta, timezone
-            # preserve any offset info from ISO string
-            utc_ts = datetime.fromisoformat(captured_at)
-            if utc_ts.tzinfo is None:
-                # assume UTC if naive
-                utc_ts = utc_ts.replace(tzinfo=timezone.utc)
-            # convert to IST for human‑readable filename
-            ist = timezone(timedelta(hours=5, minutes=30))
-            local_ts = utc_ts.astimezone(ist)
-            filename = local_ts.strftime("%d_%H%M%S") + ".parquet"
+            ts = datetime.fromisoformat(captured_at)
+            filename = ts.strftime("%d_%H%M%S") + ".parquet"
         except Exception:
-            filename = datetime.now().strftime("%d_%H%M%S") + ".parquet"
+            from zoneinfo import ZoneInfo
+            filename = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d_%H%M%S") + ".parquet"
 
         folder = Path(DATA_DIR) / index_name / expiry_date
         folder.mkdir(parents=True, exist_ok=True)
@@ -152,20 +182,21 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
 
         # Deduplicate — skip if file already exists
         if filepath.exists():
+            _plog(f"  → Already exists, skipping: {filename}")
             logger.info("[SYNC] Skip (exists): %s", filepath)
             synced_ids.append(snap_id)
             skip_count += 1
             continue
 
-        # Convert to DataFrame and force canonical column order before saving.
+        # Convert to DataFrame and force canonical column order before saving
         df = pd.DataFrame(rows)
         df = _reorder_df(df)
-        # Add GEX if missing (calculate_gex may add new columns at the end)
         if "Total_GEX" not in df.columns and index_name in INDICES:
             df = calculate_gex(df, INDICES[index_name]["lot_size"])
-            df = _reorder_df(df)  # place any new columns in canonical position (end)
+            df = _reorder_df(df)
 
         df.to_parquet(filepath, engine="pyarrow", index=False)
+        _plog(f"  → Saved: {filename}  ({len(df)} strikes)")
         logger.info("[SYNC] Saved: %s", filepath)
 
         # Update in-memory store so dashboard reflects sync immediately
@@ -174,13 +205,18 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
         synced_ids.append(snap_id)
         saved_count += 1
 
-    # 3. Mark all processed rows as synced in Supabase
+    # 3. Delete all processed rows from Supabase to keep the table lean
     if synced_ids:
+        _plog(f"Deleting {len(synced_ids)} row(s) from Supabase…")
         try:
-            client.table("option_snapshots").update({"synced": True}).in_("id", synced_ids).execute()
-            logger.info("[SYNC] Marked %d row(s) as synced.", len(synced_ids))
+            client.table("option_snapshots").delete().in_("id", synced_ids).execute()
+            _plog(f"✓ Deleted {len(synced_ids)} row(s)")
+            logger.info("[SYNC] Deleted %d row(s) from Supabase.", len(synced_ids))
         except Exception as exc:
-            logger.warning("[SYNC] Failed to mark rows as synced: %s", exc)
+            _plog(f"⚠ Failed to delete rows: {exc}")
+            logger.warning("[SYNC] Failed to delete rows: %s", exc)
+
+    _plog(f"■ Sync complete — saved={saved_count}, skipped={skip_count}, total={total}")
 
     return {
         "synced":  saved_count,
