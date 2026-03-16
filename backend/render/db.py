@@ -71,7 +71,11 @@ def insert_snapshots(client: Client, snapshots: list[dict]) -> int:
 
     # Store IST so filenames on the local machine always match the clock
     ist = ZoneInfo("Asia/Kolkata")
-    now_ist = datetime.now(ist).isoformat()
+    now = datetime.now(ist)
+    # Round down to the nearest 15-minute interval
+    rounded_minute = (now.minute // 15) * 15
+    now_rounded = now.replace(minute=rounded_minute, second=0, microsecond=0)
+    now_ist = now_rounded.isoformat()
 
     rows = [
         {

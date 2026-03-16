@@ -178,10 +178,16 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=_tz.utc)   # treat naive as UTC
             ts_ist = ts.astimezone(_ZI("Asia/Kolkata"))
+            # Round down to the nearest 15-minute interval
+            rounded_minute = (ts_ist.minute // 15) * 15
+            ts_ist = ts_ist.replace(minute=rounded_minute, second=0, microsecond=0)
             filename = ts_ist.strftime("%d_%H%M%S") + ".parquet"
         except Exception:
             from zoneinfo import ZoneInfo
-            filename = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d_%H%M%S") + ".parquet"
+            now = datetime.now(ZoneInfo("Asia/Kolkata"))
+            rounded_minute = (now.minute // 15) * 15
+            now = now.replace(minute=rounded_minute, second=0, microsecond=0)
+            filename = now.strftime("%d_%H%M%S") + ".parquet"
 
         folder = Path(DATA_DIR) / index_name / expiry_date
         folder.mkdir(parents=True, exist_ok=True)
