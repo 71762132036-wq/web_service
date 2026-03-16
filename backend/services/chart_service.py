@@ -6,6 +6,7 @@ Returns JSON strings that the frontend renders with Plotly.js.
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 
 from services.calculations import (
     calculate_flip_point,
@@ -15,7 +16,7 @@ from services.calculations import (
     get_power_zones,
 )
 
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, List
 
 # ---------------------------------------------------------------------------
 # Colour palette (Premium Terminal Theme)
@@ -1053,6 +1054,426 @@ def build_momentum_chart(mom_data: dict, index_name: str = "Index") -> str:
     layout["yaxis"] = dict(title="Velocity (Change)", side="left")
     layout["yaxis2"] = dict(title="Total Net GEX", side="right", overlaying="y", showgrid=False)
     layout["legend"] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_dealer_reflexivity_chart(reflexivity_data: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Visualizes the Dealer Reflexivity Curve (Hedging Pressure vs Price Move).
+    """
+    profile = reflexivity_data.get("profile", [])
+    if not profile: return "{}"
+    
+    fig = go.Figure()
+    
+    x_vals = [f["pct"] for f in profile]
+    y_vals = [f["flow"] for f in profile]
+    
+    # Area Fill for impact
+    fig.add_trace(go.Scatter(
+        x=x_vals, y=y_vals,
+        fill="tozeroy",
+        fillcolor="rgba(99, 102, 241, 0.1)",
+        line=dict(color=C_POS, width=3),
+        mode="lines+markers",
+        name="Hedging Pressure ($)",
+        marker=dict(size=8, color=C_POS, symbol="diamond"),
+        hovertemplate="Price Shift: %{x}%<br>Dealer Flow: %{y:,.0f} Cr<extra></extra>"
+    ))
+    
+    # Zero Line
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.3)", line_width=1)
+    
+    layout = _base_layout(f"{index_name} — Dealer Hedging Reflexivity Curve")
+    layout["xaxis"]["title"] = "% Price Move from Spot"
+    layout["yaxis"]["title"] = "Dealer Flow Requirement (Stabilizing < 0 > Accelerating)"
+    layout["xaxis"]["tickformat"] = ".1f"
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_liquidity_depth_chart(liquidity_data: List[Dict[str, Any]], index_name: str = "Index") -> str:
+    """
+    Visualizes Market Depth and Spreads across strikes (Liquidity Voids).
+    """
+    if not liquidity_data: return "{}"
+    
+    df = pd.DataFrame(liquidity_data)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Depth (Bars)
+    fig.add_trace(go.Bar(
+        x=df["strike"].tolist(), y=df["depth"].tolist(),
+        marker_color="rgba(16, 185, 129, 0.6)",
+        name="Market Depth (Bid+Ask Qty)",
+        opacity=0.8
+    ), secondary_y=False)
+    
+    # Spread (Line)
+    fig.add_trace(go.Scatter(
+        x=df["strike"].tolist(), y=df["spread"].tolist(),
+        mode="lines",
+        name="Avg Bid-Ask Spread",
+        line=dict(color=C_NEG, width=2),
+        yaxis="y2"
+    ), secondary_y=True)
+    
+    layout = _base_layout(f"{index_name} — Liquidity Depth & Void Profiler")
+    layout["xaxis"]["title"] = "Strike"
+    layout["yaxis"]["title"] = "Total Quantity (Liquidity)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Avg Spread", side="right", overlaying="y")
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_stickiness_chart(df: pd.DataFrame, index_name: str = "Index") -> str:
+    """
+    Visualizes GEX Stickiness (Mass/Volume Ratio) at each strike.
+    """
+    if "stickiness" not in df.columns:
+        return "{}"
+        
+    spot = df["Spot"].iloc[0]
+    fig = go.Figure()
+    
+    # Stickiness Bars
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["stickiness"].tolist(),
+        marker_color="#FCD34D", # Gold
+        name="GEX Stickiness Ratio",
+        opacity=0.8,
+        hovertemplate="Strike: %{x}<br>Stickiness: %{y:.2f}<extra></extra>"
+    ))
+    
+    fig.add_vline(x=spot, line_color=C_SPOT, line_dash="dash", line_width=2)
+    
+    layout = _base_layout(f"{index_name} — GEX Stickiness (Dealer Conviction)")
+    layout["xaxis"]["title"] = "Strike"
+    layout["yaxis"]["title"] = "Stickiness Ratio (GEX / Volume)"
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_delta_apex_chart(apex_data: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Visualizes the Delta Neutral Equilibrium (Apex).
+    Plots Net Dealer Delta and Net Dealer GEX across a price range.
+    The point where Delta = 0 is the 'Delta Magnet'.
+    """
+    prices = apex_data.get("prices", [])
+    deltas = apex_data.get("deltas", [])
+    gex = apex_data.get("gex", [])
+    apex_price = apex_data.get("apex_price", 0)
+    current_spot = apex_data.get("current_spot", 0)
+    
+    if not prices: return "{}"
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Dealer Net Delta (Line)
+    fig.add_trace(go.Scatter(
+        x=prices, y=deltas,
+        mode="lines",
+        name="Net Dealer Delta (Magnet Influence)",
+        line=dict(color="#FCD34D", width=4), # Gold Line
+        fill="tozeroy",
+        fillcolor="rgba(252, 211, 77, 0.05)"
+    ), secondary_y=False)
+    
+    # Net Dealer GEX (Line)
+    fig.add_trace(go.Scatter(
+        x=prices, y=gex,
+        mode="lines",
+        name="Net Dealer GEX (Stability)",
+        line=dict(color=C_POS, width=2, dash='dot'),
+        yaxis="y2"
+    ), secondary_y=True)
+    
+    # Apex Vertical Line (Delta Magnet)
+    fig.add_vline(x=apex_price, line_color="#E879F9", line_dash="dash", line_width=3,
+                  annotation_text=f"DELTA APEX: {apex_price:.0f}", 
+                  annotation_position="top left",
+                  annotation_font_color="#E879F9")
+    
+    # Spot Vertical Line
+    fig.add_vline(x=current_spot, line_color=C_SPOT, line_dash="solid", line_width=2,
+                  annotation_text=f"SPOT: {current_spot:.0f}", 
+                  annotation_position="bottom right",
+                  annotation_font_color=C_SPOT)
+    
+    # Zero line for Delta
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.4)", line_width=1, secondary_y=False)
+    
+    layout = _base_layout(f"{index_name} — Delta Neutral Equilibrium (Apex Search)")
+    layout["xaxis"]["title"] = "Price Shift Simulation"
+    layout["yaxis"]["title"] = "Net Dealer Delta ($ Risk)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Simulated GEX Mass", side="right", overlaying="y")
+    
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_gamma_profile_chart(conc_data: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Visualizes the Gamma Distribution Profile (Sharpness/Concentration).
+    Shows how GEX is distributed across strikes.
+    """
+    profile = conc_data.get("profile", [])
+    if not profile: return "{}"
+    
+    df = pd.DataFrame(profile)
+    fig = go.Figure()
+    
+    # Area Fill for Distribution
+    fig.add_trace(go.Scatter(
+        x=df["Strike"].tolist(), y=df["Abs_GEX"].tolist(),
+        mode="lines",
+        line=dict(color=C_POS, width=3),
+        fill="tozeroy",
+        fillcolor="rgba(99, 102, 241, 0.2)",
+        name="Gamma Intensity Profile",
+        hovertemplate="Strike: %{x}<br>Abs GEX: %{y:.2f}<extra></extra>"
+    ))
+    
+    # Highlight the Peaks (Concentration)
+    peak_strike = df.loc[df["Abs_GEX"].idxmax(), "Strike"]
+    peak_val = df["Abs_GEX"].max()
+    
+    fig.add_trace(go.Scatter(
+        x=[peak_strike], y=[peak_val],
+        mode="markers",
+        marker=dict(color=C_NEG, size=12, symbol="star"),
+        name="Primary Gamma Peak"
+    ))
+    
+    index_score = conc_data.get("concentration_index", 0)
+    risk_label = "SHARP / EXPLOSIVE" if conc_data.get("is_sharp") else "WIDE / LINEAR"
+    
+    layout = _base_layout(f"{index_name} — Gamma Profile ({risk_label})")
+    layout["xaxis"]["title"] = "Strike"
+    layout["yaxis"]["title"] = "Gamma Exposure Intensity"
+    
+    # Add index annotation
+    fig.add_annotation(
+        text=f"Concentration Index: {index_score:.1f}<br>Top Strike: {conc_data.get('top_pct', 0):.1f}%",
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=14, color="#FCD34D")
+    )
+    
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_gamma_density_chart(density_data: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Visualizes the aggregate 'Gamma Bell Curve' (Density Map).
+    Plots simulated total net GEX across a price range.
+    """
+    prices = density_data.get("prices", [])
+    total_gex = density_data.get("total_gex", [])
+    current_spot = density_data.get("current_spot", 0)
+    
+    if not prices: return "{}"
+    
+    fig = go.Figure()
+    
+    # Gamma Density (Bell Curve)
+    fig.add_trace(go.Scatter(
+        x=prices, y=total_gex,
+        mode="lines",
+        line=dict(color=C_POS, width=4), # High visibility indigo
+        fill="tozeroy",
+        fillcolor="rgba(99, 102, 241, 0.15)",
+        name="Net Dealer Exposure (GEX Density)",
+        hovertemplate="Price: %{x:.0f}<br>Net GEX: %{y:.2f}<extra></extra>"
+    ))
+    
+    # Fill based on regime
+    # We add a horizontal line at 0 for context
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.4)", line_width=1)
+    
+    # Spot Marker
+    fig.add_vline(x=current_spot, line_color=C_SPOT, line_dash="solid", line_width=2,
+                  annotation_text=f"SPOT: {current_spot:.0f}", 
+                  annotation_position="bottom right")
+    
+    # Gamma Peak Marker
+    max_idx = np.argmax(np.abs(total_gex))
+    peak_price = prices[max_idx]
+    peak_val = total_gex[max_idx]
+    
+    fig.add_trace(go.Scatter(
+        x=[peak_price], y=[peak_val],
+        mode="markers",
+        marker=dict(color="#FCD34D", size=10, symbol="diamond"),
+        name="Gamma High Tide"
+    ))
+    
+    layout = _base_layout(f"{index_name} — Gamma Exposure Density (The Bell Curve)")
+    layout["xaxis"]["title"] = "Price Shift Simulation"
+    layout["yaxis"]["title"] = "Aggregate Dealer GEX ($ Exposure)"
+    
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_cumulative_shield_chart(df: pd.DataFrame, shield_metrics: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Visualizes the 'Gamma Shield' — highly analytical view of the cumulative GEX curve.
+    Highlights Breadth, Depth, and Intensity.
+    """
+    if df.empty: return "{}"
+    
+    # Sort and calc cumulative
+    df_sorted = df.copy().sort_values("Strike")
+    if 'Total_GEX' not in df_sorted.columns:
+        from services.calculations import calculate_gex
+        df_sorted = calculate_gex(df_sorted)
+        
+    by_strike = df_sorted.groupby("Strike")["Total_GEX"].sum().sort_index()
+    strikes = by_strike.index.values
+    cum_gex = np.cumsum(by_strike.values)
+    spot = df["Spot"].iloc[0]
+    
+    fig = go.Figure()
+    
+    # The Shield Curve
+    fig.add_trace(go.Scatter(
+        x=strikes, y=cum_gex,
+        mode="lines",
+        line=dict(color="#38BDF8", width=4), # Sky Blue
+        fill="tozeroy",
+        fillcolor="rgba(56, 189, 248, 0.1)",
+        name="Cumulative Gamma Shield"
+    ))
+    
+    # Highlight Peak (Depth)
+    peak_strike = shield_metrics.get("peak_strike", 0)
+    peak_val = shield_metrics.get("shield_depth", 0)
+    
+    fig.add_trace(go.Scatter(
+        x=[peak_strike], y=[peak_val],
+        mode="markers+text",
+        marker=dict(color="#FCD34D", size=12, symbol="star-diamond"),
+        text=[f"Peak Shield: {peak_val/1e12:.1f}T"],
+        textposition="top center",
+        name="Shield Apex"
+    ))
+    
+    # Highlight Breadth Zone
+    depth = shield_metrics.get("shield_depth", 0)
+    threshold = abs(depth) * 0.5
+    # Find zone boundaries
+    in_zone = np.where(np.abs(cum_gex) >= threshold)[0]
+    if len(in_zone) > 0:
+        z_start, z_end = strikes[in_zone[0]], strikes[in_zone[-1]]
+        fig.add_vrect(
+            x0=z_start, x1=z_end,
+            fillcolor="rgba(252, 211, 77, 0.05)",
+            layer="below", line_width=0,
+            annotation_text="SHIELD BREADTH",
+            annotation_position="top left"
+        )
+        
+    # Spot Line
+    fig.add_vline(x=spot, line_color=C_SPOT, line_width=2, line_dash="solid")
+    
+    layout = _base_layout(f"{index_name} — Cumulative Gamma Shield Analytics")
+    layout["xaxis"]["title"] = "Strike"
+    layout["yaxis"]["title"] = "Cumulative Dealer Gamma ($ Exposure)"
+    
+    # Slope Intensity Indicator
+    slope = shield_metrics.get("slope_intensity", 0)
+    intensity = "High" if abs(slope) > 1e10 else "Moderate" # Empirical
+    fig.add_annotation(
+        text=f"Shield Depth: {peak_val/1e12:.2f}T<br>Risk Intensity: {intensity}<br>Breadth: {shield_metrics.get('breadth_pct', 0):.1f}%",
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        bgcolor="rgba(0,0,0,0.6)",
+        font=dict(size=14, color="#38BDF8")
+    )
+    
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_cum_steepness_chart(steepness: Dict[str, Any], index_name: str = "Index") -> str:
+    """
+    Dual-panel chart:
+    - Top: Cumulative GEX curve with tangent annotation at spot.
+    - Bottom: Gradient (slope) at every strike — shows where the curve is steepest.
+    """
+    strikes    = steepness.get("strikes", [])
+    cum_gex    = steepness.get("cum_gex", [])
+    all_slopes = steepness.get("all_slopes", [])
+    spot       = steepness.get("current_spot", 0)
+    regime     = steepness.get("regime", "")
+    slope_lbl  = steepness.get("slope_label", "")
+    norm_pct   = steepness.get("norm_slope_pct", 0)
+    
+    if not strikes:
+        return "{}"
+    
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.6, 0.4],
+        subplot_titles=["Cumulative GEX", "Slope (Gradient at each Strike)"],
+        vertical_spacing=0.10,
+    )
+    
+    # ─── Panel 1: Cum GEX ─────────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=strikes, y=cum_gex,
+        mode="lines",
+        line=dict(color="#818CF8", width=3),
+        fill="tozeroy",
+        fillcolor="rgba(129,140,248,0.12)",
+        name="Cum GEX",
+        hovertemplate="Strike: %{x}<br>Cum GEX: %{y:.2e}<extra></extra>",
+    ), row=1, col=1)
+    
+    fig.add_vline(x=spot, line_color=C_SPOT, line_width=2,
+                  annotation_text=f"SPOT: {spot:.0f}", annotation_position="top right")
+    
+    # ─── Panel 2: Gradient ────────────────────────────────────────────────
+    slope_colors = ["#F87171" if s < 0 else "#34D399" for s in all_slopes]
+    
+    fig.add_trace(go.Bar(
+        x=strikes, y=all_slopes,
+        marker_color=slope_colors,
+        name="Local Slope",
+        hovertemplate="Strike: %{x}<br>Slope: %{y:.2e}<extra></extra>",
+    ), row=2, col=1)
+    
+    fig.add_vline(x=spot, line_color=C_SPOT, line_width=2, row=2, col=1)
+    
+    # ─── Annotation ───────────────────────────────────────────────────────
+    fig.add_annotation(
+        text=f"Slope @ Spot: {slope_lbl}<br>Intensity: {norm_pct:.0f}%  |  Regime: <b>{regime}</b>",
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        bgcolor="rgba(0,0,0,0.65)",
+        font=dict(size=13, color="#FCD34D"),
+    )
+    
+    layout = _base_layout(f"{index_name} — Cumulative GEX Steepness Analysis")
+    layout.update(showlegend=False)
+    
     fig.update_layout(**layout)
     
     return fig.to_dict()

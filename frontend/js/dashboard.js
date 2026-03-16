@@ -93,6 +93,26 @@ const DashboardPage = (() => {
       'Institutional Flow': [
         { key: 'momentum', label: 'Flow Momentum', id: 'chart-momentum' },
       ]
+    },
+    'God Tier': {
+      'Dealer Reflexivity': [
+        { key: 'reflexivity', label: 'Hedge Curve', id: 'chart-reflexivity' },
+      ],
+      'Liquidity Profile': [
+        { key: 'liquidity', label: 'Voids & Depth', id: 'chart-liquidity' },
+      ],
+      'Stickiness': [
+        { key: 'stickiness', label: 'Level Heat', id: 'chart-stickiness' },
+      ],
+      'Delta Magnet': [
+        { key: 'apex', label: 'Neutral Apex', id: 'chart-apex' },
+      ],
+      'Gamma Sharpness': [
+        { key: 'gamma_profile', label: 'Gamma Profile', id: 'chart-gamma_profile' },
+      ],
+      'Curve Steepness': [
+        { key: 'cum_steepness', label: 'GEX Slope', id: 'chart-cum_steepness' },
+      ]
     }
   };
 
@@ -513,6 +533,35 @@ const DashboardPage = (() => {
       ];
     }
 
+    // EXTRA: If God Tier is selected, we want to add specific Apex info
+    if (st.selectedBucket === 'God Tier' && metrics.apex) {
+      cards = [
+        { label: 'Delta Magnet', value: metrics.apex.price.toLocaleString(undefined, {maximumFractionDigits:0}), sub: 'Neutral Apex Point', classes: 'flow-status' },
+        { label: 'Apex Distance', value: `${metrics.apex.distance_pct.toFixed(2)}%`, sub: metrics.apex.distance_pct > 0 ? 'Spot < Apex' : 'Spot > Apex', classes: `flow-status ${Math.abs(metrics.apex.distance_pct) < 1 ? 'bullish' : 'bearish'}` },
+        { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+        { label: 'Quant Power', value: metrics.quant_power.toLocaleString(), sub: 'Blended Zero Level' },
+      ];
+
+      if (metrics.concentration) {
+        cards.push({ 
+          label: 'Gamma Sharpness', 
+          value: metrics.concentration.index.toFixed(1), 
+          sub: metrics.concentration.is_sharp ? 'SHARP / EXPLOSIVE' : 'WIDE / LINEAR',
+          classes: `flow-status ${metrics.concentration.is_sharp ? 'bearish' : 'bullish'}`
+        });
+      }
+
+      if (metrics.steepness) {
+        const s = metrics.steepness;
+        cards.push({ 
+          label: 'Curve Steepness', 
+          value: s.slope_label, 
+          sub: s.regime,
+          classes: `flow-status ${s.regime === 'High Sensitivity' ? 'bearish' : (s.regime === 'Stable Grip' ? 'bullish' : 'neutral')}`
+        });
+      }
+    }
+    
     grid.innerHTML = cards.map(c => buildMetricCard(c.label, c.value, c.sub, c.classes)).join('');
   }
 

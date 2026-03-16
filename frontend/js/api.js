@@ -110,4 +110,7 @@ const API = {
     a.click();
     a.remove();
   },
+
+  /** GET /api/god-tier-metrics/{index} */
+  getGodTierMetrics: (index) => apiFetch(`/api/god-tier-metrics/${index}`),
 };

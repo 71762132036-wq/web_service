@@ -20,6 +20,13 @@ from services.calculations import (
     get_gamma_cage,
     get_power_zones,
     calculate_realized_vol,
+    calculate_dealer_reflexivity,
+    calculate_liquidity_profile,
+    calculate_gex_stickiness,
+    calculate_delta_neutral_apex,
+    calculate_gamma_concentration,
+    calculate_gamma_density_profile,
+    calculate_cum_gex_steepness,
 )
 from services.historical_service import get_level_migration, get_historical_prices
 
@@ -185,4 +192,51 @@ def get_vol_spread(index: str):
         "rv": round(rv, 2),
         "spread": round(iv - rv, 2),
         "sentiment": "Oversold Vol" if iv < rv else "Overpriced Vol (Premium Harvesting)"
+    }
+
+@router.get("/god-tier-metrics/{index}")
+def get_god_tier_metrics(index: str):
+    """Return Dealer Reflexivity, Liquidity Profile, and GEX Stickiness."""
+    df = _require_data(index)
+    spot = float(df["Spot"].iloc[0])
+    
+    # 1. Dealer Reflexivity
+    # Check lot size
+    lot_size = 75
+    if index in INDICES:
+        lot_size = INDICES[index]["lot_size"]
+    elif index in STOCKS:
+        lot_size = STOCKS[index].get("lot_size", 1)
+        
+    reflexivity = calculate_dealer_reflexivity(df, spot, lot_size=lot_size)
+    
+    # 2. Liquidity Profile
+    liquidity = calculate_liquidity_profile(df)
+    
+    # 3. GEX Stickiness (Top 10 levels)
+    sticky_df = calculate_gex_stickiness(df)
+    top_sticky = sticky_df.sort_values("stickiness", ascending=False).head(10)[["Strike", "stickiness", "total_vol"]].to_dict(orient="records")
+    
+    # 4. Delta Apex (Equilibrium)
+    apex = calculate_delta_neutral_apex(df, spot, lot_size=lot_size)
+    
+    # 5. Gamma Concentration (Sharpness)
+    conc = calculate_gamma_concentration(df)
+    
+    return {
+        "index": index,
+        "reflexivity": reflexivity,
+        "liquidity": liquidity,
+        "stickiness": top_sticky,
+        "apex": {
+            "price": apex["apex_price"],
+            "distance_pct": apex["distance_to_apex_pct"]
+        },
+        "concentration": {
+            "index": conc.get("concentration_index", 0),
+            "top_pct": conc.get("top_strike_pct", 0),
+            "is_sharp": conc.get("is_sharp", False)
+        },
+        "density": calculate_gamma_density_profile(df, spot, lot_size=lot_size),
+        "steepness": calculate_cum_gex_steepness(df, spot),
     }

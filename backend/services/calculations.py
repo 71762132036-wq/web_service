@@ -6,6 +6,7 @@ Ported from streamlit_app/modules/calculations.py
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from scipy.optimize import brentq
 from typing import List, Dict, Any, Optional
 
 
@@ -621,4 +622,428 @@ def calculate_greek_sensitivity_grid(df: pd.DataFrame, spot: float, range_pct: f
         "prices": price_range.tolist(),
         "strikes": strikes.tolist(),
         "z": z_gex # Z[price_idx][strike_idx]
+    }
+
+
+def calculate_dealer_reflexivity(df: pd.DataFrame, spot: float, lot_size: int = 75) -> Dict[str, Any]:
+    """
+    Predicts institutional flow requirements (reflexivity).
+    Computes 'Hedging Pressure' ($) dealers must execute per 0.5% price move.
+    Positive Flow = Dealer Selling (Supportive), Negative Flow = Dealer Buying (Resistance)
+    """
+    # Sim range: ±2% in 0.5% steps
+    steps_pct = np.array([-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]) / 100.0
+    price_steps = spot * (1 + steps_pct)
+    
+    r = 0.05
+    T = np.maximum(df['T'].iloc[0] if 'T' in df.columns else 0.01, 1e-5)
+    sqrtT = np.sqrt(T)
+    
+    strikes = df['Strike'].values
+    c_iv = np.maximum(df['call_iv'].values / 100.0, 0.001)
+    p_iv = np.maximum(df['put_iv'].values / 100.0, 0.001)
+    c_oi = df['Call_OI'].values
+    p_oi = df['Put_OI'].values
+    
+    # Calculate GEX (gamma exposure) at each simulated price
+    # We want the CHANGE in Delta (which is Gamma * S)
+    flow_profile = []
+    
+    for i, s_test in enumerate(price_steps):
+        # Call Gamma
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T) / (c_iv * sqrtT)
+        gamma_c = norm.pdf(d1_c) / (s_test * c_iv * sqrtT)
+        
+        # Put Gamma
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T) / (p_iv * sqrtT)
+        gamma_p = norm.pdf(d1_p) / (s_test * p_iv * sqrtT)
+        
+        # Total Dealer Delta Shift (approximate hedging duty)
+        # Higher price -> Call Delta Increases (Dealer sells), Put Delta Decreases (Dealer buys)
+        # Sign convention: Call = -1 (Dealer short), Put = +1 (Dealer long)
+        # Flow = sum(Gamma * Spot * lot_size * Sign)
+        
+        gex_val = ((-gamma_c * c_oi) + (gamma_p * p_oi)).sum() * lot_size * (s_test**2) * 0.01
+        
+        flow_profile.append({
+            "pct": float(steps_pct[i] * 100),
+            "price": float(s_test),
+            "flow": float(gex_val)
+        })
+        
+    return {
+        "spot": spot,
+        "profile": flow_profile,
+        "reflexivity_score": float(np.mean([abs(f['flow']) for f in flow_profile]))
+    }
+
+
+def calculate_liquidity_profile(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """
+    Identifies Liquidity Voids and Pinning Strength using bid/ask depth.
+    Requires 'call_bid_qty', 'call_ask_qty', etc.
+    """
+    # 1. Filter for near-money strikes
+    spot = df['Spot'].iloc[0] if 'Spot' in df.columns else 0
+    if spot == 0: return []
+    
+    mask = (df['Strike'] > spot * 0.95) & (df['Strike'] < spot * 1.05)
+    ldf = df[mask].copy()
+    
+    profile = []
+    for _, row in ldf.iterrows():
+        # Bid/Ask quantities for liquidating/hedging
+        # Sum of Call and Put liquidity at that strike
+        call_depth = (row.get('call_bid_qty', 0) + row.get('call_ask_qty', 0))
+        put_depth = (row.get('put_bid_qty', 0) + row.get('put_ask_qty', 0))
+        total_depth = call_depth + put_depth
+        
+        # Spread calculation (normalized)
+        call_spread = row.get('call_ask_price', 0) - row.get('call_bid_price', 0)
+        put_spread = row.get('put_ask_price', 0) - row.get('put_bid_price', 0)
+        avg_spread = (call_spread + put_spread) / 2 if (call_spread > 0 and put_spread > 0) else 0
+        
+        profile.append({
+            "strike": float(row['Strike']),
+            "depth": float(total_depth),
+            "spread": float(avg_spread),
+            "void_risk": "High" if total_depth < 100 else "Low" # Arbitrary threshold for demo
+        })
+    
+    return profile
+
+
+def calculate_gex_stickiness(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ratio of GEX mass to session volume.
+    High Stickiness = Level hard to break.
+    """
+    df = df.copy()
+    # Total Volume at Strike
+    df['total_vol'] = df.get('Call_Volume', 0) + df.get('Put_Volume', 0)
+    # Total GEX mass (Absolute)
+    df['total_gex_mass'] = (df.get('Call_GEX', 0).abs() + df.get('Put_GEX', 0).abs())
+    
+    # Ratio Calculation (Mass / Volume)
+    # High volume relative to GEX = Level is being "traded through" (Not sticky)
+    # High GEX relative to volume = High dealer conviction (Sticky)
+    df['stickiness'] = df['total_gex_mass'] / (df['total_vol'] + 1) # Avoid div by zero
+    
+    return df
+
+
+def calculate_delta_neutral_apex(df: pd.DataFrame, spot: float, lot_size: int = 75) -> Dict[str, Any]:
+    """
+    Identifies the price point where Dealer Net Delta is zero (Equilibrium).
+    Uses high-precision root-finding (Brent's method) for actual equilibrium estimation.
+    """
+    if df.empty or spot <= 0:
+        return {
+            "prices": [], "deltas": [], "gex": [],
+            "apex_price": spot, "current_spot": spot, "distance_to_apex_pct": 0
+        }
+
+    df = df.copy()
+    r = 0.05
+    
+    # Robust T calculation
+    if 'T' in df.columns:
+        T_val = df['T'].iloc[0]
+    else:
+        # Fallback to calculating T from expiry
+        today = pd.Timestamp("today").normalize()
+        expiry_date = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+        T_days = (expiry_date - today).days
+        T_val = max(T_days / 365.0, 1.0 / 365.0)
+    
+    T = T_val
+    sqrtT = np.sqrt(T)
+    
+    strikes = df['Strike'].values
+    c_iv = np.maximum(df['call_iv'].values / 100.0, 0.001)
+    p_iv = np.maximum(df['put_iv'].values / 100.0, 0.001)
+    c_oi = df['Call_OI'].values
+    p_oi = df['Put_OI'].values
+
+    def get_net_delta(s_test):
+        # Call Delta
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T) / (c_iv * sqrtT)
+        delta_c = norm.cdf(d1_c)
+        # Put Delta
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T) / (p_iv * sqrtT)
+        delta_p = norm.cdf(d1_p) - 1
+        # Net Dealer Delta (Short options)
+        return -((c_oi * delta_c).sum() + (p_oi * delta_p).sum()) * lot_size
+
+    # 1. Broad Search for sign change boundaries
+    steps_pct = np.linspace(-0.10, 0.10, 40) # Wider search ±10%
+    price_steps = spot * (1 + steps_pct)
+    deltas_broad = [get_net_delta(s) for s in price_steps]
+    
+    apex_price = spot
+    found_root = False
+    
+    for i in range(len(deltas_broad) - 1):
+        if np.sign(deltas_broad[i]) != np.sign(deltas_broad[i+1]):
+            # 2. Precise Root Finding using Brent's Method
+            try:
+                apex_price = brentq(get_net_delta, price_steps[i], price_steps[i+1])
+                found_root = True
+                break
+            except ValueError:
+                continue
+    
+    if not found_root:
+        apex_price = price_steps[np.argmin(np.abs(deltas_broad))]
+
+    # 3. Generate high-res profile for charting (±3% around spot)
+    chart_steps_pct = np.linspace(-0.03, 0.03, 60)
+    chart_prices = spot * (1 + chart_steps_pct)
+    chart_deltas = []
+    chart_gex = []
+    
+    for s_test in chart_prices:
+        # Re-calc for chart
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T) / (c_iv * sqrtT)
+        delta_c = norm.cdf(d1_c)
+        gamma_c = norm.pdf(d1_c) / (s_test * c_iv * sqrtT)
+        
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T) / (p_iv * sqrtT)
+        delta_p = norm.cdf(d1_p) - 1
+        gamma_p = norm.pdf(d1_p) / (s_test * p_iv * sqrtT)
+        
+        net_delta = -((c_oi * delta_c).sum() + (p_oi * delta_p).sum()) * lot_size
+        multiplier = lot_size * (s_test ** 2) * 0.01
+        net_gex = ((-gamma_c * c_oi) + (gamma_p * p_oi)).sum() * multiplier
+        
+        chart_deltas.append(net_delta)
+        chart_gex.append(net_gex)
+        
+    return {
+        "prices": chart_prices.tolist(),
+        "deltas": chart_deltas,
+        "gex": chart_gex,
+        "apex_price": float(apex_price),
+        "current_spot": float(spot),
+        "distance_to_apex_pct": float((apex_price / spot - 1) * 100)
+    }
+
+
+def calculate_gamma_concentration(df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Measures the 'Sharpness' (Kurtosis/Concentration) of the Gamma distribution.
+    Identifies institutional risk concentration.
+    """
+    if df.empty: return {}
+    
+    df = df.copy()
+    if 'Abs_GEX' not in df.columns:
+        # Mini calculation if GEX columns missing
+        spot = df["Spot"].iloc[0] if "Spot" in df.columns else 1.0
+        multiplier = 75 * (spot ** 2) * 0.01 # Fallback lot size
+        df["Call_GEX"] = -df["call_gamma"] * df["Call_OI"] * multiplier
+        df["Put_GEX"] = df["put_gamma"] * df["Put_OI"] * multiplier
+        df["Abs_GEX"] = (df["Call_GEX"] + df["Put_GEX"]).abs()
+
+    # Filter to near-money strikes for a meaningful concentration metric (±5%)
+    spot = df["Spot"].iloc[0]
+    ldf = df[(df["Strike"] > spot * 0.95) & (df["Strike"] < spot * 1.05)].sort_values("Strike")
+    
+    if ldf.empty: return {}
+    
+    total_gex = ldf["Abs_GEX"].sum()
+    if total_gex == 0: return {"concentration_index": 0, "profile": []}
+    
+    # 1. Concentration Ratio (Top Strike % of Total)
+    top_strike_pct = (ldf["Abs_GEX"].max() / total_gex) * 100
+    
+    # 2. Kurtosis-like metric (Concentration Index)
+    # We use a weighted standard deviation where higher value = wider (less concentrated)
+    strikes = ldf["Strike"].values
+    weights = ldf["Abs_GEX"].values / total_gex
+    mean_strike = np.sum(strikes * weights)
+    std_strike = np.sqrt(np.sum(weights * (strikes - mean_strike)**2))
+    
+    # Concentration Index (Higher = Sharper)
+    # Normalized by ATM strike to keep it consistent across underlying prices
+    # Index = 100 * (ATM_Strike / (Spread * 10)) - roughly
+    conc_index = (spot / (std_strike + 1e-9)) / 5.0 # Empirical scaling
+    
+    profile = ldf[["Strike", "Abs_GEX"]].to_dict(orient="records")
+    
+    return {
+        "concentration_index": float(conc_index),
+        "top_strike_pct": float(top_strike_pct),
+        "is_sharp": bool(conc_index > 15), # Empirical threshold
+        "profile": profile,
+        "std_dev_strikes": float(std_strike)
+    }
+
+
+def calculate_gamma_density_profile(df: pd.DataFrame, spot: float, lot_size: int = 75) -> Dict[str, Any]:
+    """
+    Generates an aggregate 'Gamma Bell Curve' (Density Map).
+    Simulates total dealer GEX across a price range.
+    """
+    if df.empty or spot <= 0: return {"prices": [], "gex": []}
+
+    # Range: ±5% in 80 steps for a smooth curve
+    steps_pct = np.linspace(-0.05, 0.05, 80)
+    price_steps = spot * (1 + steps_pct)
+    
+    r = 0.05
+    # Robust T calculation
+    if 'T' in df.columns:
+        T = df['T'].iloc[0]
+    else:
+        today = pd.Timestamp("today").normalize()
+        expiry_date = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+        T_days = (expiry_date - today).days
+        T = max(T_days / 365.0, 1.0 / 365.0)
+    
+    sqrtT = np.sqrt(T)
+    strikes = df['Strike'].values
+    c_iv = np.maximum(df['call_iv'].values / 100.0, 0.001)
+    p_iv = np.maximum(df['put_iv'].values / 100.0, 0.001)
+    c_oi = df['Call_OI'].values
+    p_oi = df['Put_OI'].values
+    
+    density_profile = []
+    
+    for s_test in price_steps:
+        # Call Gamma
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T) / (c_iv * sqrtT)
+        gamma_c = norm.pdf(d1_c) / (s_test * c_iv * sqrtT)
+        
+        # Put Gamma
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T) / (p_iv * sqrtT)
+        gamma_p = norm.pdf(d1_p) / (s_test * p_iv * sqrtT)
+        
+        # Total GEX (Standard convention: Calls -, Puts +)
+        # Exposure = Sum(Gamma * S^2 * 0.01 * contracts)
+        multiplier = lot_size * (s_test ** 2) * 0.01
+        total_gex = ((-gamma_c * c_oi) + (gamma_p * p_oi)).sum() * multiplier
+        
+        density_profile.append(float(total_gex))
+        
+    return {
+        "prices": price_steps.tolist(),
+        "total_gex": density_profile,
+        "current_spot": float(spot)
+    }
+
+
+def calculate_cum_gex_steepness(df: pd.DataFrame, spot: float) -> Dict[str, Any]:
+    """
+    Measures the steepness (gradient) of the Cumulative GEX curve at the spot price.
+    Higher slope = market is more sensitive to each point of price move.
+    """
+    if df.empty or spot <= 0: 
+        return {}
+
+    df = df.copy().sort_values("Strike")
+    if 'Total_GEX' not in df.columns:
+        df = calculate_gex(df)
+    
+    # Aggregate identically to the cum_gex chart
+    by_strike = df.groupby("Strike")["Total_GEX"].sum().sort_index()
+    strikes = by_strike.index.values
+    cum_gex = np.cumsum(by_strike.values)
+    
+    # 1. Spot index
+    spot_idx = int(np.argmin(np.abs(strikes - spot)))
+    
+    # 2. Central diff slope at spot (using adjacent strikes for accuracy)
+    left_idx  = max(0, spot_idx - 2)
+    right_idx = min(len(cum_gex) - 1, spot_idx + 2)
+    
+    delta_gex    = cum_gex[right_idx] - cum_gex[left_idx]
+    delta_strike = strikes[right_idx]    - strikes[left_idx]
+    slope = delta_gex / delta_strike if delta_strike != 0 else 0
+    
+    # 3. Global max slope for normalization
+    all_slopes = np.gradient(cum_gex, strikes)
+    max_slope  = np.max(np.abs(all_slopes))
+    norm_slope_pct = (abs(slope) / max_slope * 100) if max_slope != 0 else 0
+    
+    # 4. Regime label
+    if norm_slope_pct >= 70:
+        regime = "High Sensitivity"
+    elif norm_slope_pct >= 35:
+        regime = "Moderate Grip"
+    else:
+        regime = "Stable Grip"
+    
+    # Human-readable slope label (GEX units are large; use /100pts)
+    gex_per_100pts = slope * 100
+    slope_label = f"{gex_per_100pts/1e12:.1f}T / 100pts"
+    
+    return {
+        "slope_at_spot":   float(slope),
+        "norm_slope_pct":  float(norm_slope_pct),
+        "slope_label":     slope_label,
+        "regime":          regime,
+        "all_slopes":      all_slopes.tolist(),
+        "strikes":         strikes.tolist(),
+        "cum_gex":         cum_gex.tolist(),
+        "current_spot":    float(spot),
+    }
+
+
+def measure_cumulative_curve_metrics(df: pd.DataFrame, spot: float) -> Dict[str, Any]:
+    """
+    Quantifies the 'Gamma Shield' from the Cumulative GEX Profile.
+    Measures Depth (Peak), Slope (Intensity), and Breadth (Stability).
+    """
+    if df.empty or spot <= 0: return {}
+    
+    df = df.copy().sort_values("Strike")
+    if 'Total_GEX' not in df.columns:
+        df = calculate_gex(df)
+        
+    # Aggregate by strike
+    by_strike = df.groupby("Strike")["Total_GEX"].sum().sort_index()
+    strikes = by_strike.index.values
+    gex_vals = by_strike.values
+    cum_gex = np.cumsum(gex_vals)
+    
+    # 1. Shield Depth (Absolute Peak)
+    peak_idx = np.argmax(np.abs(cum_gex))
+    shield_depth = cum_gex[peak_idx]
+    peak_strike = strikes[peak_idx]
+    
+    # 2. Apex Slope (Risk Intensity at Spot)
+    # Finding 2 points near spot for slope calculation
+    spot_idx = np.argmin(np.abs(strikes - spot))
+    if 0 < spot_idx < len(cum_gex) - 1:
+        # Change in Cum GEX per Strike Unit
+        slope = (cum_gex[spot_idx+1] - cum_gex[spot_idx-1]) / (strikes[spot_idx+1] - strikes[spot_idx-1])
+    else:
+        slope = 0
+        
+    # 3. Shield Breadth (Range > 50% of peak)
+    threshold = abs(shield_depth) * 0.5
+    in_zone = np.where(np.abs(cum_gex) >= threshold)[0]
+    if len(in_zone) > 0:
+        breadth_strikes = strikes[in_zone]
+        breadth_pts = float(breadth_strikes[-1] - breadth_strikes[0])
+        breadth_pct = (breadth_pts / spot) * 100
+    else:
+        breadth_pts = 0
+        breadth_pct = 0
+        
+    # 4. Sentiment/Regime based on Curve Side
+    # If Spot is to the left of peak in positive gamma, market is "shielded"
+    rel_pos = "Near Center"
+    if spot < peak_strike - 50: rel_pos = "Left Wing"
+    elif spot > peak_strike + 50: rel_pos = "Right Wing"
+
+    return {
+        "shield_depth": float(shield_depth),
+        "peak_strike": float(peak_strike),
+        "slope_intensity": float(slope),
+        "breadth_points": float(breadth_pts),
+        "breadth_pct": float(breadth_pct),
+        "relative_position": rel_pos,
+        "is_supportive": bool(shield_depth > 0)
     }

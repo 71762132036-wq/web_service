@@ -69,3 +69,5 @@ FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
+# Debug expiry issue for stocks, fix timestamp in git - supabase

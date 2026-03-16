@@ -35,9 +35,14 @@ from services.chart_service import (
     build_strike_pressure_chart,
     build_vtl_chart,
     build_migration_chart,
-    build_vol_spread_chart,
     build_ignition_heatmap,
     build_momentum_chart,
+    build_dealer_reflexivity_chart,
+    build_liquidity_depth_chart,
+    build_delta_apex_chart,
+    build_gamma_profile_chart,
+    build_gamma_density_chart,
+    build_cum_steepness_chart,
 )
 from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum
 from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
@@ -45,7 +50,7 @@ from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -252,6 +257,49 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
             mom_data = get_flow_momentum(index, expiry)
             json_str = build_momentum_chart(mom_data, index)
+        elif chart_type == "reflexivity":
+            spot = df["Spot"].iloc[0]
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            from services.calculations import calculate_dealer_reflexivity
+            reflex_data = calculate_dealer_reflexivity(df, spot, lot_size=lot_size)
+            json_str = build_dealer_reflexivity_chart(reflex_data, index)
+        elif chart_type == "liquidity":
+            from services.calculations import calculate_liquidity_profile
+            liq_data = calculate_liquidity_profile(df)
+            json_str = build_liquidity_depth_chart(liq_data, index)
+        elif chart_type == "stickiness":
+            from services.calculations import calculate_gex_stickiness
+            sticky_df = calculate_gex_stickiness(df)
+            from services.chart_service import build_stickiness_chart
+            json_str = build_stickiness_chart(sticky_df, index)
+        elif chart_type == "apex":
+            spot = df["Spot"].iloc[0]
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            from services.calculations import calculate_delta_neutral_apex
+            apex_data = calculate_delta_neutral_apex(df, spot, lot_size=lot_size)
+            from services.chart_service import build_delta_apex_chart
+            json_str = build_delta_apex_chart(apex_data, index)
+        elif chart_type == "gamma_profile":
+            from services.calculations import calculate_gamma_concentration
+            conc_data = calculate_gamma_concentration(df)
+            from services.chart_service import build_gamma_profile_chart
+            json_str = build_gamma_profile_chart(conc_data, index)
+        elif chart_type == "gamma_density":
+            spot = df["Spot"].iloc[0]
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            from services.calculations import calculate_gamma_density_profile
+            density_data = calculate_gamma_density_profile(df, spot, lot_size=lot_size)
+            from services.chart_service import build_gamma_density_chart
+            json_str = build_gamma_density_chart(density_data, index)
+        elif chart_type == "cum_steepness":
+            spot = df["Spot"].iloc[0]
+            from services.calculations import calculate_cum_gex_steepness
+            steepness = calculate_cum_gex_steepness(df, spot)
+            from services.chart_service import build_cum_steepness_chart
+            json_str = build_cum_steepness_chart(steepness, index)
 
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Chart error: {exc}") from exc
