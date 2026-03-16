@@ -256,23 +256,50 @@ def is_market_hours(open_h: int = 9, open_m: int = 30, close_h: int = 15, close_
 # Full collection run
 # ---------------------------------------------------------------------------
 
-def collect_all(token: str, api_url: str, indices: dict, stocks: dict, radius: int, cutoff: int) -> list[dict]:
-    """Fetch all, sanitize, return list of snapshots."""
+FETCH_CONCURRENCY = 5   # number of instruments fetched in parallel
+
+def _fetch_one(instrument_name: str, token: str, api_url: str,
+               all_instruments: dict, radius: int, cutoff: int) -> dict | None:
+    """Fetch and process a single instrument. Returns snapshot dict or None on error."""
     import numpy as np
-    results = []
+    df, err = fetch_option_chain(instrument_name, token, api_url, all_instruments, cutoff)
+    if err or df is None or df.empty:
+        logger.warning("[COLLECT] %s skip: %s", instrument_name, err)
+        return None
+    df_filtered = filter_near_strikes(df, radius)
+    expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
+    df_cleaned  = df_filtered.replace([np.inf, -np.inf], np.nan)
+    logger.info("[COLLECT] %s → %d rows", instrument_name, len(df_filtered))
+    return {
+        "index_name":  instrument_name,
+        "expiry_date": expiry_date,
+        "data":        json.loads(df_cleaned.to_json(orient="records", date_format="iso")),
+    }
+
+
+def collect_all(token: str, api_url: str, indices: dict, stocks: dict, radius: int, cutoff: int) -> list[dict]:
+    """Fetch all instruments concurrently (up to FETCH_CONCURRENCY at a time)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     all_instruments = {**indices, **stocks}
-    for instrument_name in all_instruments:
-        df, err = fetch_option_chain(instrument_name, token, api_url, all_instruments, cutoff)
-        if err or df is None or df.empty:
-            logger.warning("[COLLECT] %s skip: %s", instrument_name, err)
-            continue
-        df_filtered = filter_near_strikes(df, radius)
-        expiry_date = df_filtered["expiry"].iloc[0] if "expiry" in df_filtered.columns else "unknown"
-        df_cleaned = df_filtered.replace([np.inf, -np.inf], np.nan)
-        results.append({
-            "index_name":  instrument_name,
-            "expiry_date": expiry_date,
-            "data":        json.loads(df_cleaned.to_json(orient="records", date_format="iso")),
-        })
-        logger.info("[COLLECT] %s → %d rows", instrument_name, len(df_filtered))
+    logger.info("[COLLECT] Fetching %d instrument(s) with concurrency=%d",
+                len(all_instruments), FETCH_CONCURRENCY)
+
+    results = []
+    with ThreadPoolExecutor(max_workers=FETCH_CONCURRENCY) as pool:
+        futures = {
+            pool.submit(_fetch_one, name, token, api_url, all_instruments, radius, cutoff): name
+            for name in all_instruments
+        }
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                snap = future.result()
+                if snap:
+                    results.append(snap)
+            except Exception as exc:
+                logger.error("[COLLECT] %s raised: %s", name, exc)
+
+    logger.info("[COLLECT] Collected %d/%d snapshot(s)", len(results), len(all_instruments))
     return results
+

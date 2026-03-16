@@ -168,10 +168,17 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             skip_count += 1
             continue
 
-        # Build filename from captured_at (stored as IST — no conversion needed)
+        # Build filename from captured_at.
+        # Supabase REST API always returns timestamptz as UTC regardless of the
+        # timezone-aware value inserted — so we must always convert to IST here.
         try:
+            from datetime import timezone as _tz
+            from zoneinfo import ZoneInfo as _ZI
             ts = datetime.fromisoformat(captured_at)
-            filename = ts.strftime("%d_%H%M%S") + ".parquet"
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=_tz.utc)   # treat naive as UTC
+            ts_ist = ts.astimezone(_ZI("Asia/Kolkata"))
+            filename = ts_ist.strftime("%d_%H%M%S") + ".parquet"
         except Exception:
             from zoneinfo import ZoneInfo
             filename = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d_%H%M%S") + ".parquet"

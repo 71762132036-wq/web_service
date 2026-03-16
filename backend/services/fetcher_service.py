@@ -107,38 +107,41 @@ async def run_auto_fetcher():
             elif not is_internet_available():
                 logger.warning("Connection to api.upstox.com failed. Skipping this fetch cycle.")
             else:
-                # 2. Batch-Locking: Generate a single timestamp for this entire fetch cycle
-                # Format: DD_HHMMSS (matching the expected filename format)
+                # Generate a single shared timestamp for this whole cycle
                 cycle_timestamp = datetime.now(ist).strftime("%d_%H%M%S")
-                logger.info(f"Starting synchronized fetch cycle with timestamp: {cycle_timestamp}")
+                logger.info(f"Starting concurrent fetch cycle with timestamp: {cycle_timestamp}")
 
                 all_instruments = {**INDICES, **STOCKS}
-                for instrument_name in all_instruments.keys():
-                    logger.info(f"Auto-fetching data for {instrument_name}...")
-                    
-                    df, err = fetch_option_chain_data(instrument_name, indices=all_instruments)
-                    if err:
-                        logger.error(f"Failed to fetch {instrument_name}: {err}")
-                        continue
-                    
-                    if df is not None and not df.empty:
-                        # APPLY FILTERING HERE
+                loop = asyncio.get_event_loop()
+                sem  = asyncio.Semaphore(5)   # max 5 parallel HTTP calls
+
+                async def fetch_and_save(instrument_name: str):
+                    async with sem:
+                        # Run the blocking HTTP call in a thread
+                        df, err = await loop.run_in_executor(
+                            None, lambda: fetch_option_chain_data(instrument_name, indices=all_instruments)
+                        )
+                        if err:
+                            logger.error(f"Failed to fetch {instrument_name}: {err}")
+                            return
+                        if df is None or df.empty:
+                            logger.warning(f"No data received for {instrument_name}")
+                            return
+
                         df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
-                        
-                        # Pass cycle_timestamp to save_data to enforce batch synchronicity
-                        path = save_data(df_filtered, instrument_name, data_dir=DATA_DIR, timestamp_str=cycle_timestamp)
-                        logger.info(f"Successfully saved {instrument_name} data (batch-locked: {cycle_timestamp}) to {path}")
-                        
-                        # Auto-load into store so dashboard metrics/charts update automatically
+                        path = save_data(df_filtered, instrument_name,
+                                         data_dir=DATA_DIR, timestamp_str=cycle_timestamp)
+                        logger.info(f"Saved {instrument_name} (batch: {cycle_timestamp}) → {path}")
+
                         import store
                         from services.calculations import calculate_gex
-                        
-                        lot_size = all_instruments[instrument_name]["lot_size"]
+                        lot_size    = all_instruments[instrument_name]["lot_size"]
                         df_with_gex = calculate_gex(df_filtered, lot_size)
                         store.set_data(instrument_name, df_with_gex, path)
-                        logger.info(f"Updated in-memory store for {instrument_name}")
-                    else:
-                        logger.warning(f"No data received for {instrument_name}")
+                        logger.info(f"Store updated for {instrument_name}")
+
+                await asyncio.gather(*(fetch_and_save(name) for name in all_instruments))
+                logger.info("All instruments fetched concurrently.")
 
             logger.info(f"Fetch cycle complete. Waiting for next aligned slot.")
 
