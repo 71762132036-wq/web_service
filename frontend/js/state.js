@@ -57,7 +57,17 @@ const State = (() => {
 
     function getIndexData(index) {
         const target = index || _state.selectedIndex;
-        return _state.indexData[target] || { hasData: false, loadedFile: '', expiry: '' };
+        const defaults = { 
+            hasData: false, 
+            loadedFile: '', 
+            expiry: '', 
+            selectedExpiry: '', 
+            selectedDate: '', 
+            selectedFile: '', 
+            selectedDate2: '', 
+            selectedFile2: '' 
+        };
+        return { ...defaults, ...(_state.indexData[target] || {}) };
     }
 
     function setIndexData(index, data) {

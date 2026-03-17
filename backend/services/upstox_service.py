@@ -140,14 +140,52 @@ def fetch_option_chain_data(
     }
 
     try:
+        # 1. Try explicit expiry first
         response = requests.get(API_URL, params=params, headers=headers, timeout=15)
         response.raise_for_status()
         data = response.json()
-
         option_data = data.get("data", [])
+
         if not option_data:
-            # Fallback: API returned empty data for this expiry.
-            # Try earlier expiries (stocks often have limited expiry availability).
+            # 2. Fallback A: Auto-discovery (Nearest Expiry)
+            # Sometimes the calculated expiry is slightly off (e.g. holidays), 
+            # so try fetching without an explicit expiry to let Upstox decide.
+            print(f"[EXPIRY FALLBACK] No data for {expiry_date}, trying auto-discovery (no expiry_date param)...")
+            params_auto = {"instrument_key": index_config["instrument_key"]}
+            try:
+                resp_auto = requests.get(API_URL, params=params_auto, headers=headers, timeout=15)
+                resp_auto.raise_for_status()
+                auto_data = resp_auto.json().get("data", [])
+                if auto_data:
+                    option_data = auto_data
+                    expiry_date = auto_data[0].get("expiry", expiry_date) # Update with what we found
+                    print(f"[EXPIRY FALLBACK] Success via auto-discovery: {expiry_date}")
+            except Exception: pass
+
+        if not option_data:
+            # 3. Fallback B: Holiday Resilience (+/- 1 day)
+            from datetime import datetime as _dt
+            _orig = _dt.strptime(expiry_date, "%Y-%m-%d").date()
+            holiday_candidates = [
+                (_orig - timedelta(days=1)).strftime("%Y-%m-%d"),
+                (_orig + timedelta(days=1)).strftime("%Y-%m-%d")
+            ]
+            for hc in holiday_candidates:
+                print(f"[EXPIRY FALLBACK] Trying holiday candidate: {hc}")
+                params["expiry_date"] = hc
+                try:
+                    resp_h = requests.get(API_URL, params=params, headers=headers, timeout=15)
+                    resp_h.raise_for_status()
+                    h_data = resp_h.json().get("data", [])
+                    if h_data:
+                        option_data = h_data
+                        expiry_date = hc
+                        print(f"[EXPIRY FALLBACK] Success via holiday shift: {hc}")
+                        break
+                except Exception: continue
+
+        if not option_data:
+            # 4. Fallback C: Existing week/month shifts (Deep fallbacks)
             index_config = indices.get(index_name, {})
             expiry_type = index_config.get("expiry_type", "")
             fallback_dates = []
@@ -202,11 +240,11 @@ def fetch_option_chain_data(
                 
                 fallback_dates = [prev_expiry, next_expiry]
             
-            # Try fallback expiries
+            # Try deep fallback expiries
             for fallback_date in fallback_dates:
                 if fallback_date == expiry_date:
                     continue
-                print(f"[EXPIRY FALLBACK] No data for {expiry_date}, trying {fallback_date}")
+                print(f"[EXPIRY FALLBACK] Trying deep candidate: {fallback_date}")
                 params["expiry_date"] = fallback_date
                 try:
                     response2 = requests.get(API_URL, params=params, headers=headers, timeout=15)

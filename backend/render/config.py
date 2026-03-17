@@ -32,8 +32,8 @@ FILTER_STRIKES_RADIUS: int = int(os.getenv("FILTER_STRIKES_RADIUS", "20"))
 
 # Market hours (IST) — Mon–Fri only
 MARKET_OPEN_H,  MARKET_OPEN_M  = 9,  30
-MARKET_CLOSE_H, MARKET_CLOSE_M = 15, 30
-CUTOFF_HOUR = 9
+MARKET_CLOSE_H, MARKET_CLOSE_M = 15, 38
+CUTOFF_HOUR = 16
 
 # ---------------------------------------------------------------------------
 # Index definitions (mirrors backend/core/config.py)
@@ -72,7 +72,8 @@ if STOCKS_CSV.exists():
         STOCKS[name] = {
             "instrument_key": key,
             "lot_size": 1,  # Assume 1 for stocks, adjust if needed
-            "expiry_type": "monthly_last_tuesday",
+            "expiry_type": "monthly",
+            "expiry_day": 3, # Thursday for stocks
         }
 else:
     print(f"[BOOTSTRAP] Warning: stocks.csv not found at {STOCKS_CSV}")

@@ -92,7 +92,7 @@ DEFAULT_INDEX = "Nifty"
 # ---------------------------------------------------------------------------
 GAMMA_CAGE_WIDTH = 4        # number of strikes around ATM
 FILTER_STRIKES_RADIUS = 20 # ±N strikes around closest strike
-CUTOFF_HOUR = 9             # 9 AM — roll to next expiry on expiry day at/after market open
+CUTOFF_HOUR = 16             # 4 PM — roll to next expiry on expiry day AFTER market close
 
 # ---------------------------------------------------------------------------
 # Auto-Fetch Configuration

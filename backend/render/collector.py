@@ -120,6 +120,42 @@ def fetch_option_chain(
 
         # Robust Fallback Logic
         if not option_data:
+            # 1. Fallback A: Auto-discovery (Nearest Expiry)
+            logger.info("[EXPIRY FALLBACK] No data for %s, trying auto-discovery...", expiry_date)
+            p_auto = {"instrument_key": index_config["instrument_key"]}
+            try:
+                r_auto = requests.get(api_url, params=p_auto, headers=headers, timeout=15)
+                r_auto.raise_for_status()
+                auto_data = r_auto.json().get("data", [])
+                if auto_data:
+                    option_data = auto_data
+                    expiry_date = auto_data[0].get("expiry", expiry_date)
+                    logger.info("[EXPIRY FALLBACK] Success via auto-discovery: %s", expiry_date)
+            except: pass
+
+        if not option_data:
+            # 2. Fallback B: Holiday Resilience (+/- 1 day)
+            _orig = datetime.strptime(expiry_date, "%Y-%m-%d").date()
+            holiday_candidates = [
+                (_orig - timedelta(days=1)).strftime("%Y-%m-%d"),
+                (_orig + timedelta(days=1)).strftime("%Y-%m-%d")
+            ]
+            for hc in holiday_candidates:
+                logger.info("[EXPIRY FALLBACK] Trying holiday candidate: %s", hc)
+                params["expiry_date"] = hc
+                try:
+                    resp_h = requests.get(api_url, params=params, headers=headers, timeout=15)
+                    resp_h.raise_for_status()
+                    h_data = resp_h.json().get("data", [])
+                    if h_data:
+                        option_data = h_data
+                        expiry_date = hc
+                        logger.info("[EXPIRY FALLBACK] Success via holiday shift: %s", hc)
+                        break
+                except: continue
+
+        if not option_data:
+            # 3. Fallback C: Existing deep fallbacks (week/month shifts)
             expiry_type = index_config.get("expiry_type", "")
             fallbacks = []
             _orig = datetime.strptime(expiry_date, "%Y-%m-%d").date()
@@ -128,7 +164,6 @@ def fetch_option_chain(
                 fallbacks = [(_orig - timedelta(days=7)).strftime("%Y-%m-%d"), (_orig + timedelta(days=7)).strftime("%Y-%m-%d")]
             elif expiry_type in ["monthly", "monthly_last_tuesday"]:
                 # Try prev/next month
-                # (Simplified ports from upstox_service.py for the remote env)
                 def get_m_y(m, y, delta):
                     nm = m + delta
                     if nm < 1: return 12, y - 1
@@ -146,6 +181,7 @@ def fetch_option_chain(
                     fallbacks = [last_t(py, pm), last_t(ny, nm)]
                 else:
                     def last_w(y, m, wd):
+                        import calendar
                         _, l = calendar.monthrange(y, m)
                         d = datetime(y, m, l)
                         while d.weekday() != wd: d -= timedelta(days=1)
@@ -155,7 +191,7 @@ def fetch_option_chain(
 
             for fb in fallbacks:
                 if fb == expiry_date: continue
-                logger.info("[EXPIRY FALLBACK] Trying %s...", fb)
+                logger.info("[EXPIRY FALLBACK] Trying deep candidate: %s...", fb)
                 params["expiry_date"] = fb
                 try:
                     r2 = requests.get(api_url, params=params, headers=headers, timeout=15)
@@ -163,6 +199,7 @@ def fetch_option_chain(
                     option_data = r2.json().get("data", [])
                     if option_data:
                         expiry_date = fb
+                        logger.info("[EXPIRY FALLBACK] Success with %s", fb)
                         break
                 except: continue
 
