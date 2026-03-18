@@ -15,6 +15,8 @@ from services.calculations import (
     calculate_flip_point,
     calculate_vol_surface,
     calculate_quant_power,
+    calculate_gex,
+    calculate_delta_exposure,
     get_atm_strike,
     get_dealer_regime,
     get_gamma_cage,
@@ -84,6 +86,8 @@ def get_metrics(index: str):
         "vacuum_size": len(vacuum),
         "power_zones": power_zones,
         "filepath":    store.get_filepath(index),
+        "cum_gex":     float(df["Total_GEX"].sum()) if "Total_GEX" in df.columns else 0.0,
+        "cum_dex":     float(calculate_delta_exposure(df).Total_DEX.sum()) if "Spot" in df.columns else 0.0,
     }
 
 

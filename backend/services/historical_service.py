@@ -190,3 +190,73 @@ def get_flow_momentum(index_name: str, expiry_date: str, n_files: int = 150) -> 
         "index": index_name,
         "momentum": momentum_data
     }
+
+def get_systemic_pulse(index_name: str, expiry_date: str, n_files: int = 150, filter_day: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Collects a 4-line time-series for systemic market regime analysis:
+    - Spot Price
+    - ATM IV (Volatility)
+    - Net Dealer GEX (Cumulative Gamma)
+    - Net Dealer DEX (Cumulative Delta)
+    
+    If filter_day is provided (e.g. "19"), only files from that day are included.
+    """
+    from services.calculations import calculate_vol_surface, calculate_gex, calculate_delta_exposure
+    
+    data_path = Path(DATA_DIR) / index_name / expiry_date
+    if not data_path.exists():
+        data_path = Path(DATA_DIR) / expiry_date
+        if not data_path.exists():
+            return {"error": "No historical data found for systemic pulse."}
+
+    all_files = list(data_path.glob("*.parquet"))
+    
+    if filter_day:
+        # filter_day is like "19", files are "19_103000.parquet"
+        day_str = f"{filter_day}_"
+        all_files = [f for f in all_files if f.name.startswith(day_str)]
+
+    files = _sort_parquet_files(all_files, expiry_date)
+    files = files[:n_files]
+    files.reverse()
+
+    pulse_data = []
+    all_instruments = {**INDICES, **STOCKS}
+    instr_config = all_instruments.get(index_name, {})
+    lot_size = instr_config.get("lot_size", 75)
+
+    for f in files:
+        df, error = load_data_file(str(f))
+        if error or df is None or df.empty: continue
+        
+        try:
+            spot = float(df["Spot"].iloc[0])
+            
+            # 1. Total GEX
+            df_gex = calculate_gex(df, lot_size=lot_size)
+            total_gex = df_gex["Total_GEX"].sum()
+            
+            # 2. Total DEX
+            df_dex = calculate_delta_exposure(df, lot_size=lot_size)
+            total_dex = df_dex["Total_DEX"].sum()
+            
+            # 3. ATM IV
+            vs = calculate_vol_surface(df)
+            iv = vs["ATM_IV"]
+            
+            pulse_data.append({
+                "time": f.stem,
+                "spot": spot,
+                "iv": float(iv),
+                "cum_gamma": float(total_gex),
+                "cum_delta": float(total_dex)
+            })
+        except Exception as e:
+            print(f"[PULSE] Skip file {f.name} error: {e}")
+            continue
+
+    return {
+        "index": index_name,
+        "expiry": expiry_date,
+        "pulse": pulse_data
+    }

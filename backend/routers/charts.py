@@ -7,11 +7,29 @@ chart_type options:
 """
 
 from fastapi import APIRouter, HTTPException
+import numpy as np
+from pathlib import Path
 
+import json
 import store
 from core.config import INDICES, STOCKS, DATA_DIR
 from services.upstox_service import load_data_file
-from services.calculations import calculate_vol_surface, calculate_delta_exposure, calculate_vanna_exposure, calculate_charm_exposure, calculate_iv_cone, calculate_vtl
+from services.calculations import (
+    calculate_vol_surface,
+    calculate_delta_exposure,
+    calculate_vanna_exposure,
+    calculate_charm_exposure,
+    calculate_iv_cone,
+    calculate_vtl,
+    calculate_cum_gex_steepness,
+    calculate_gex,
+    calculate_dealer_reflexivity,
+    calculate_liquidity_profile,
+    calculate_gex_stickiness,
+    calculate_delta_neutral_apex,
+    calculate_gamma_concentration,
+    calculate_gamma_density_profile,
+)
 from services.chart_service import (
     build_dealer_regime_map,
     build_gamma_chart,
@@ -37,20 +55,24 @@ from services.chart_service import (
     build_migration_chart,
     build_ignition_heatmap,
     build_momentum_chart,
+    build_vol_spread_chart,
     build_dealer_reflexivity_chart,
     build_liquidity_depth_chart,
     build_delta_apex_chart,
     build_gamma_profile_chart,
     build_gamma_density_chart,
     build_cum_steepness_chart,
+    build_systemic_pulse_chart,
+    build_aggregate_exposure_chart,
+    build_stickiness_chart,
 )
-from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum
+from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum, get_systemic_pulse
 from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -165,7 +187,6 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
 
     try:
         if chart_type == "gex":
-            from services.calculations import calculate_gex
             cfg = {**INDICES, **STOCKS}.get(index, {})
             df_gex = calculate_gex(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_gamma_chart(df_gex, index, mode=mode)
@@ -174,7 +195,6 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             df_dex   = calculate_delta_exposure(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_delta_chart(df_dex, index, mode=mode)
         elif chart_type == "cum_gex":
-            from services.calculations import calculate_gex
             cfg = {**INDICES, **STOCKS}.get(index, {})
             df_gex = calculate_gex(df, lot_size=cfg.get("lot_size", 75))
             json_str = build_cumulative_gamma_chart(df_gex, index, mode=mode)
@@ -261,50 +281,57 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             spot = df["Spot"].iloc[0]
             cfg = {**INDICES, **STOCKS}.get(index, {})
             lot_size = cfg.get("lot_size", 75)
-            from services.calculations import calculate_dealer_reflexivity
             reflex_data = calculate_dealer_reflexivity(df, spot, lot_size=lot_size)
             json_str = build_dealer_reflexivity_chart(reflex_data, index)
         elif chart_type == "liquidity":
-            from services.calculations import calculate_liquidity_profile
             liq_data = calculate_liquidity_profile(df)
             json_str = build_liquidity_depth_chart(liq_data, index)
         elif chart_type == "stickiness":
-            from services.calculations import calculate_gex_stickiness
             sticky_df = calculate_gex_stickiness(df)
-            from services.chart_service import build_stickiness_chart
             json_str = build_stickiness_chart(sticky_df, index)
         elif chart_type == "apex":
             spot = df["Spot"].iloc[0]
             cfg = {**INDICES, **STOCKS}.get(index, {})
             lot_size = cfg.get("lot_size", 75)
-            from services.calculations import calculate_delta_neutral_apex
             apex_data = calculate_delta_neutral_apex(df, spot, lot_size=lot_size)
-            from services.chart_service import build_delta_apex_chart
             json_str = build_delta_apex_chart(apex_data, index)
         elif chart_type == "gamma_profile":
-            from services.calculations import calculate_gamma_concentration
             conc_data = calculate_gamma_concentration(df)
-            from services.chart_service import build_gamma_profile_chart
             json_str = build_gamma_profile_chart(conc_data, index)
         elif chart_type == "gamma_density":
             spot = df["Spot"].iloc[0]
             cfg = {**INDICES, **STOCKS}.get(index, {})
             lot_size = cfg.get("lot_size", 75)
-            from services.calculations import calculate_gamma_density_profile
             density_data = calculate_gamma_density_profile(df, spot, lot_size=lot_size)
-            from services.chart_service import build_gamma_density_chart
             json_str = build_gamma_density_chart(density_data, index)
         elif chart_type == "cum_steepness":
             spot = df["Spot"].iloc[0]
-            from services.calculations import calculate_cum_gex_steepness
             steepness = calculate_cum_gex_steepness(df, spot)
-            from services.chart_service import build_cum_steepness_chart
             json_str = build_cum_steepness_chart(steepness, index)
+        elif chart_type == "systemic_pulse":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            
+            # Extract day from current file path if possible
+            filepath = store.get_filepath(index)
+            filter_day = None
+            if filepath:
+                filename = Path(filepath).name
+                if "_" in filename:
+                    filter_day = filename.split("_")[0] # e.g. "19"
+                    
+            pulse_data = get_systemic_pulse(index, expiry, filter_day=filter_day)
+            json_str = build_systemic_pulse_chart(pulse_data, index)
+        elif chart_type in ["total_gex", "total_dex"]:
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            filepath = store.get_filepath(index)
+            filter_day = filename.split("_")[0] if filepath and "_" in (filename := Path(filepath).name) else None
+            pulse_data = get_systemic_pulse(index, expiry, filter_day=filter_day)
+            exposure_type = "GEX" if chart_type == "total_gex" else "DEX"
+            json_str = build_aggregate_exposure_chart(pulse_data, index, chart_type=exposure_type)
 
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Chart error: {exc}") from exc
-
-    import json
     # Explicitly serialize the figure to JSON on the backend to avoid 
     # FastAPI's encoder potentially failing on complex Plotly dicts.
     if isinstance(json_str, dict):

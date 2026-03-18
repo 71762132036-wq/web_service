@@ -92,6 +92,11 @@ const DashboardPage = (() => {
       ],
       'Institutional Flow': [
         { key: 'momentum', label: 'Flow Momentum', id: 'chart-momentum' },
+      ],
+      'Systemic Pulse': [
+        { key: 'systemic_pulse', label: 'Market Pulse', id: 'chart-systemic-pulse' },
+        { key: 'total_gex', label: 'Total GEX', id: 'chart-total-gex' },
+        { key: 'total_dex', label: 'Total DEX', id: 'chart-total-dex' },
       ]
     },
     'God Tier': {
@@ -515,14 +520,12 @@ const DashboardPage = (() => {
         { label: 'Quant Power', value: metrics.quant_power.toLocaleString(), sub: 'Blended Zero Level' },
         { label: 'Level Bias', value: metrics.spot > metrics.flip_point ? 'BULLISH' : 'BEARISH', classes: `regime ${metrics.spot > metrics.flip_point ? 'long-gamma' : 'short-gamma'}` },
       ];
-    } else if (st.selectedCategory === 'Vol Mispricing') {
-       // We'll fetch the vol spread data separately or use a placeholder until first chart load
-       // For now, let's keep it consistent
+    } else if (st.selectedCategory === 'Systemic Pulse') {
        cards = [
-        { label: 'Implied Vol (IV)', value: `${vs?.ATM_IV.toFixed(2)}%`, sub: 'Current Market Price' },
-        { label: 'Realized Vol (RV)', value: 'Pending...', sub: 'Historical Movement', id: 'rv-metric-val' },
-        { label: 'Vol Spread', value: '...', sub: 'IV - RV', id: 'spread-metric-val' },
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+        { label: 'ATM IV (%)', value: `${vs?.ATM_IV ? vs.ATM_IV.toFixed(2) : 'N/A'}%`, sub: 'Implied Volatility' },
+        { label: 'Net Gamma', value: (metrics.cum_gex / 1e12).toFixed(2) + 'T', sub: 'Total Portfolio GEX', classes: `flow-status ${metrics.cum_gex > 0 ? 'bullish' : 'bearish'}` },
+        { label: 'Net Delta', value: (metrics.cum_dex / 1e12).toFixed(2) + 'T', sub: 'Total Portfolio DEX', classes: `flow-status ${metrics.cum_dex > 0 ? 'bullish' : 'bearish'}` },
       ];
     } else {
       cards = [

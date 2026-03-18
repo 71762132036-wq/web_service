@@ -1477,3 +1477,139 @@ def build_cum_steepness_chart(steepness: Dict[str, Any], index_name: str = "Inde
     fig.update_layout(**layout)
     
     return fig.to_dict()
+
+def build_systemic_pulse_chart(pulse_data: dict, index_name: str = "Index") -> str:
+    """
+    Visualizes the 'Systemic Pulse' — relationships between Price, IV, and total dealer exposure.
+    Contains 4 lines: Spot, ATM IV, Net GEX, and Net DEX.
+    """
+    if "error" in pulse_data:
+        return json.dumps({"error": pulse_data["error"]})
+
+    history = pulse_data.get("pulse", [])
+    if not history:
+        return json.dumps({"error": "No pulse data found for this expiry."})
+
+    df = pd.DataFrame(history)
+    
+    # We use multiple Y-axes to handle different scales:
+    # Y1 (Left): Spot Price
+    # Y2 (Right): Net GEX & DEX ($ Exposure)
+    # Y3 (Right, offset): ATM IV (%)
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # 1. Spot Price (Y1 - Left)
+    fig.add_trace(go.Scatter(
+        x=df["time"].tolist(), y=df["spot"].tolist(),
+        name="Spot Price",
+        line=dict(color=C_SPOT, width=3),
+        mode='lines+markers',
+        marker=dict(size=4)
+    ), secondary_y=False)
+
+    # 2. Net GEX (Y2 - Right)
+    fig.add_trace(go.Scatter(
+        x=df["time"].tolist(), y=df["cum_gamma"].tolist(),
+        name="Net GEX (Gamma)",
+        line=dict(color=C_POS, width=2, dash='solid'),
+        mode='lines+markers',
+        marker=dict(size=4)
+    ), secondary_y=True)
+
+    # 3. Net DEX (Y2 - Right)
+    fig.add_trace(go.Scatter(
+        x=df["time"].tolist(), y=df["cum_delta"].tolist(),
+        name="Net DEX (Delta)",
+        line=dict(color="#E879F9", width=2, dash='dot'),
+        mode='lines+markers',
+        marker=dict(size=4)
+    ), secondary_y=True)
+
+    # 4. ATM IV (Y2 - Right?) - For now let's put it on Right as well or a 3rd with offset
+    # Given Plotly's make_subplots limitation, we'll put IV on a secondary Y as well, 
+    # but maybe we need a dedicated layout change for a 3rd axis for best UX.
+    # To keep it robust, let's put IV on the Left (Y1) with a large multiplier if needed, 
+    # or just use secondary_y for IV and primary for Spot, and group exposures.
+    
+    # Let's try: 
+    # Left: Spot
+    # Right: IV & Exposures (They will have different scales, so let's use a 3rd axis)
+    
+    fig.add_trace(go.Scatter(
+        x=df["time"].tolist(), y=df["iv"].tolist(),
+        name="ATM IV (%)",
+        line=dict(color="#FCD34D", width=2, dash='dashdot'),
+        mode='lines+markers',
+        marker=dict(size=4),
+        yaxis="y3"
+    ))
+
+    layout = _base_layout(f"{index_name} — Systemic Market Pulse")
+    layout["xaxis"]["title"] = "Timestamp (Snapshots)"
+    layout["yaxis"]["title"] = "Spot Price"
+    layout["yaxis2"] = dict(title="Dealer Net Exposure ($)", side="right", overlaying="y", showgrid=False)
+    
+    # Custom 3rd axis for IV
+    layout["yaxis3"] = dict(
+        title="ATM IV (%)",
+        side="right",
+        overlaying="y",
+        showgrid=False,
+        anchor="free",
+        position=1, # Slightly offset or same side but diff label
+        shift=60     # Shift it to the right of yaxis2
+    )
+    
+    # Adjust margin to fit yaxis3
+    layout["margin"]["r"] = 120
+    layout["hovermode"] = "x unified"
+    
+    fig.update_layout(**layout)
+    
+    return fig.to_dict()
+
+
+def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str = "Index", chart_type: str = "GEX") -> str:
+    """
+    Stand-alone time-series for Total GEX or Total DEX.
+    Shows the aggregate exposure of the entire portfolio over time.
+    """
+    if "error" in pulse_data or not pulse_data.get("pulse"):
+        return {"error": pulse_data.get("error", "No data for aggregate chart")}
+
+    df = pd.DataFrame(pulse_data["pulse"])
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 1. Spot Price (Left Y)
+    fig.add_trace(go.Scatter(
+        x=df["time"], y=df["spot"],
+        name="Spot Price",
+        line=dict(color=C_SPOT, width=2, dash='dot'),
+        mode='lines'
+    ), secondary_y=False)
+    
+    # 2. Exposure (Right Y)
+    metrics_key = "cum_gamma" if chart_type == "GEX" else "cum_delta"
+    label = "Total GEX" if chart_type == "GEX" else "Total DEX"
+    color = C_POS if chart_type == "GEX" else "#E879F9"
+    
+    fig.add_trace(go.Scatter(
+        x=df["time"], y=df[metrics_key],
+        name=label,
+        line=dict(color=color, width=4),
+        fill="tozeroy",
+        fillcolor=f"rgba(129, 140, 248, 0.1)" if chart_type == 'GEX' else "rgba(232, 121, 249, 0.1)",
+        mode='lines'
+    ), secondary_y=True)
+    
+    title = f"{index_name} — Historical {label} Flow"
+    layout = _base_layout(title)
+    layout["xaxis"]["title"] = "Timestamp"
+    layout["yaxis"]["title"] = "Spot Price"
+    layout["yaxis2"] = dict(title=f"{label} ($ Exposure)", side="right", overlaying="y", showgrid=False)
+    layout["hovermode"] = "x unified"
+    
+    fig.update_layout(**layout)
+    return fig.to_dict()
