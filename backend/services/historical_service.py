@@ -8,6 +8,9 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 from core.config import DATA_DIR, INDICES, STOCKS
 from services.upstox_service import load_data_file
@@ -106,7 +109,7 @@ def get_level_migration(index_name: str, expiry_date: str, n_files: int = 150) -
                 "vtl": vtl
             })
         except Exception as e:
-            print(f"[HISTORICAL] Skip file {f.name} due to calculation error: {e}")
+            logger.error("[HISTORICAL] Skip file %s due to calculation error: %s", f.name, e)
             continue
 
     return {
@@ -244,15 +247,20 @@ def get_systemic_pulse(index_name: str, expiry_date: str, n_files: int = 150, fi
             vs = calculate_vol_surface(df)
             iv = vs["ATM_IV"]
             
+            # Filename Format: DD_HHMMSS
+            parts = f.stem.split("_")
+            time_str = parts[1] if len(parts) > 1 else "000000"
+            time_label = f"{time_str[:2]}:{time_str[2:4]}" # HH:MM
+            
             pulse_data.append({
-                "time": f.stem,
+                "time": time_label,
                 "spot": spot,
                 "iv": float(iv),
                 "cum_gamma": float(total_gex),
                 "cum_delta": float(total_dex)
             })
         except Exception as e:
-            print(f"[PULSE] Skip file {f.name} error: {e}")
+            logger.error("[PULSE] Skip file %s error: %s", f.name, e)
             continue
 
     return {

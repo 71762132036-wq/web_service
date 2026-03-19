@@ -5,16 +5,12 @@ import pandas as pd
 
 # Load .env from web_app folder (parent of backend)
 env_file = Path("D:/Investments/Participant_Wise_OI/Analytical_App/gamma_stocks/GC_gamma/nifty/web_app/") / ".env"
-print(f"[BOOTSTRAP] Loading .env from: {env_file}")
-
 load_dotenv(dotenv_path=env_file, encoding="utf-8-sig")
 
 if os.getenv("ACCESS_TOKEN") is None and os.getenv("\ufeffACCESS_TOKEN"):
     os.environ["ACCESS_TOKEN"] = os.environ.pop("\ufeffACCESS_TOKEN")
-print("ACCESS_TOKEN:", os.getenv("ACCESS_TOKEN"))
 # Base data directory (inside backend)
 DATA_DIR = str(Path(__file__).resolve().parent.parent / "data")
-print(f"[BOOTSTRAP] DATA_DIR resolved to: {DATA_DIR}")
 
 # ---------------------------------------------------------------------------
 # Supabase — used by local /api/sync to pull data from the Render cron job
@@ -42,13 +38,13 @@ API_URL = "https://api.upstox.com/v2/option/chain"
 INDICES: dict[str, dict] = {
     "Nifty": {
         "instrument_key": "NSE_INDEX|Nifty 50",
-        "lot_size": 75,
+        "lot_size": 25,
         "expiry_type": "weekly",   # Tuesday
         "expiry_day": 1,
     },
     "BankNifty": {
         "instrument_key": "NSE_INDEX|Nifty Bank",
-        "lot_size": 25,
+        "lot_size": 15,
         "expiry_type": "monthly",  # Last Tuesday of each month
         "expiry_day": 1,
     },
@@ -82,8 +78,8 @@ if STOCKS_CSV_PATH.exists():
                         "expiry_type": "monthly",
                         "expiry_day": 3, # Thursday for stocks
                     }
-    except Exception as e:
-        print(f"[ERROR] Failed to load stocks.csv: {e}")
+    except Exception:
+        pass # Silently fail if stocks.csv missing, or use logging
 
 DEFAULT_INDEX = "Nifty"
 

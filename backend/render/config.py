@@ -76,6 +76,6 @@ if STOCKS_CSV.exists():
             "expiry_day": 3, # Thursday for stocks
         }
 else:
-    print(f"[BOOTSTRAP] Warning: stocks.csv not found at {STOCKS_CSV}")
+    pass # stocks.csv not found
 
 # ---------------------------------------------------------------------------

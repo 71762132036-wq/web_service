@@ -13,6 +13,9 @@ from typing import Optional, Tuple, List, Union
 
 import pandas as pd
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, DATA_DIR, INDICES
 
@@ -22,26 +25,49 @@ from core.config import ACCESS_TOKEN, API_URL, CUTOFF_HOUR, DATA_DIR, INDICES
 # ---------------------------------------------------------------------------
 
 def get_next_expiry(index_name: str, indices: dict = None) -> str:
-    """Return next expiry date (YYYY-MM-DD) based on index/stock rules.
-
-    Uses IST timezone so that expiry rollovers behave the same way as the
-    render collector (which already uses explicit Asia/Kolkata). Previously
-    the comparison ran in system-local time which could differ on servers and
-    lead to mismatched expiry dates between live-fetch and scheduled jobs.
+    """Return next expiry date (YYYY-MM-DD) fetching from Upstox API.
+    
+    If the API fails, it falls back to the old calculation logic (IST-aware).
+    For stocks, it fetches expiries for a representative liquid stock (RELIANCE)
+    if the index_name is not in the primary index set.
     """
     import zoneinfo
-
+    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
+    now = datetime.now(ist)
+    today = now.date()
+    
     if indices is None:
-        from core.config import INDICES
-        indices = INDICES
+        from core.config import INDICES, STOCKS
+        indices = {**INDICES, **STOCKS}
 
     index_config = indices.get(index_name)
     if not index_config:
         raise ValueError(f"Unknown index/stock: {index_name}")
 
-    ist = zoneinfo.ZoneInfo("Asia/Kolkata")
-    now = datetime.now(ist)
-    today = now.date()
+    # 1. Resolve Instrument Key for expiry lookup
+    # Indices use their own, stocks use RELIANCE as proxy for general equity derivatives series
+    lookup_key = index_config["instrument_key"]
+    if index_name not in ["Nifty", "BankNifty", "Sensex"]:
+        lookup_key = "NSE_EQ|RELIANCE" # Standard proxy for stock derivatives expiries
+
+    # 2. Try fetching from API
+    api_expiries = get_active_expiries(lookup_key)
+    if api_expiries:
+        # Find first expiry >= today (after cutoff, strictly > today if today is expiry)
+        for exp_str in api_expiries:
+            exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+            if exp_date > today:
+                return exp_str
+            if exp_date == today:
+                if now.hour < CUTOFF_HOUR:
+                    return exp_str
+                # else: continue to next one
+        
+        # If all API expiries passed, return the last one as a last resort
+        return api_expiries[-1]
+
+    # 3. Fallback: Calculation (Existing Logic)
+    logger.info("[EXPIRY-FALLBACK] Falling back to calculation for %s", index_name)
     expiry_type = index_config["expiry_type"]
     expiry_day = index_config.get("expiry_day", 1)  # Default to 1 for stocks
 
@@ -105,6 +131,26 @@ def get_next_expiry(index_name: str, indices: dict = None) -> str:
     return expiry_date.strftime("%Y-%m-%d")
 
 
+def get_active_expiries(instrument_key: str) -> List[str]:
+    """Fetch active expiry dates from Upstox for a given instrument."""
+    url = "https://api.upstox.com/v2/option/contract"
+    params = {"instrument_key": instrument_key}
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+    }
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json().get("data", [])
+        # Extract unique nested expiry dates and sort them
+        expiries = sorted(list(set(item.get("expiry") for item in data if item.get("expiry"))))
+        return expiries
+    except Exception as exc:
+        logger.error("[EXPIRY-API-ERROR] Failed to fetch expiries for %s: %s", instrument_key, exc)
+        return []
+
+
 # ---------------------------------------------------------------------------
 # API fetch
 # ---------------------------------------------------------------------------
@@ -148,9 +194,9 @@ def fetch_option_chain_data(
 
         if not option_data:
             # 2. Fallback A: Auto-discovery (Nearest Expiry)
-            # Sometimes the calculated expiry is slightly off (e.g. holidays), 
+            # sometimes the calculated expiry is slightly off (e.g. holidays), 
             # so try fetching without an explicit expiry to let Upstox decide.
-            print(f"[EXPIRY FALLBACK] No data for {expiry_date}, trying auto-discovery (no expiry_date param)...")
+            logger.info("[EXPIRY FALLBACK] No data for %s, trying auto-discovery (no expiry_date param)...", expiry_date)
             params_auto = {"instrument_key": index_config["instrument_key"]}
             try:
                 resp_auto = requests.get(API_URL, params=params_auto, headers=headers, timeout=15)
@@ -159,7 +205,7 @@ def fetch_option_chain_data(
                 if auto_data:
                     option_data = auto_data
                     expiry_date = auto_data[0].get("expiry", expiry_date) # Update with what we found
-                    print(f"[EXPIRY FALLBACK] Success via auto-discovery: {expiry_date}")
+                    logger.info("[EXPIRY FALLBACK] Success via auto-discovery: %s", expiry_date)
             except Exception: pass
 
         if not option_data:
@@ -171,7 +217,7 @@ def fetch_option_chain_data(
                 (_orig + timedelta(days=1)).strftime("%Y-%m-%d")
             ]
             for hc in holiday_candidates:
-                print(f"[EXPIRY FALLBACK] Trying holiday candidate: {hc}")
+                logger.debug("[EXPIRY FALLBACK] Trying holiday candidate: %s", hc)
                 params["expiry_date"] = hc
                 try:
                     resp_h = requests.get(API_URL, params=params, headers=headers, timeout=15)
@@ -180,7 +226,7 @@ def fetch_option_chain_data(
                     if h_data:
                         option_data = h_data
                         expiry_date = hc
-                        print(f"[EXPIRY FALLBACK] Success via holiday shift: {hc}")
+                        logger.info("[EXPIRY FALLBACK] Success via holiday shift: %s", hc)
                         break
                 except Exception: continue
 
@@ -244,7 +290,7 @@ def fetch_option_chain_data(
             for fallback_date in fallback_dates:
                 if fallback_date == expiry_date:
                     continue
-                print(f"[EXPIRY FALLBACK] Trying deep candidate: {fallback_date}")
+                logger.debug("[EXPIRY FALLBACK] Trying deep candidate: %s", fallback_date)
                 params["expiry_date"] = fallback_date
                 try:
                     response2 = requests.get(API_URL, params=params, headers=headers, timeout=15)
@@ -252,7 +298,7 @@ def fetch_option_chain_data(
                     option_data = response2.json().get("data", [])
                     if option_data:
                         expiry_date = fallback_date
-                        print(f"[EXPIRY FALLBACK] Success with {fallback_date}")
+                        logger.info("[EXPIRY FALLBACK] Success with %s", fallback_date)
                         break
                 except Exception:
                     continue
@@ -376,7 +422,7 @@ def save_data(df: pd.DataFrame, index_name: str, data_dir: Optional[str] = None,
     
     except Exception as exc:
         error_msg = f"save_data FAILED for {index_name}: {type(exc).__name__}: {exc}"
-        print(f"[ERROR-SAVE] {error_msg}\n")
+        logger.error("[ERROR-SAVE] %s", error_msg)
         raise Exception(error_msg) from exc
 
 

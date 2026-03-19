@@ -87,11 +87,7 @@ class SyncRequest(BaseModel):
     since: Optional[str] = None   # ISO-8601: only sync rows after this timestamp
 
 
-def _plog(msg: str) -> None:
-    """Print a timestamped progress line to the terminal (visible in uvicorn output)."""
-    from zoneinfo import ZoneInfo
-    now = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%H:%M:%S")
-    # print(f"[SYNC {now}] {msg}", flush=True)
+# Done
 
 
 @router.post("/sync")
@@ -99,17 +95,17 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
     """
     Pull unsynced snapshots from Supabase and save as local CSVs.
     """
-    _plog("▶ Sync started")
+    logger.info("[SYNC] Sync started")
 
     # 1. Connect & query Supabase
-    _plog("Connecting to Supabase…")
+    logger.info("[SYNC] Connecting to Supabase…")
     try:
         client = _get_supabase()
     except Exception as exc:
-        _plog(f"✗ Connection failed: {exc}")
+        logger.error("[SYNC] ✗ Connection failed: %s", exc)
         raise
 
-    _plog("Querying pending snapshots (paginated)…")
+    logger.info("[SYNC] Querying pending snapshots (paginated)…")
     try:
         from zoneinfo import ZoneInfo
         today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
@@ -131,20 +127,20 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             page = base_query.range(offset, offset + PAGE_SIZE - 1).execute()
             rows = page.data or []
             snapshots.extend(rows)
-            _plog(f"  Page fetched: {len(rows)} row(s)  (total so far: {len(snapshots)})")
+            logger.info("[SYNC] Page fetched: %d row(s) (total so far: %d)", len(rows), len(snapshots))
 
             if len(rows) < PAGE_SIZE:
                 break   # last page — no more rows
             offset += PAGE_SIZE
 
     except Exception as exc:
-        _plog(f"✗ Supabase query failed: {exc}")
+        logger.error("[SYNC] ✗ Supabase query failed: %s", exc)
         raise HTTPException(status_code=502, detail=f"Supabase query failed: {exc}")
 
-    _plog(f"Found {len(snapshots)} pending snapshot(s) in total")
+    logger.info("[SYNC] Found %d pending snapshot(s) in total", len(snapshots))
 
     if not snapshots:
-        _plog("Nothing to sync — all up to date")
+        logger.info("[SYNC] Nothing to sync — all up to date")
         return {"synced": 0, "skipped": 0, "message": "No new data in Supabase."}
 
     # 2. Save each snapshot to disk
@@ -160,10 +156,10 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
         rows        = snap["data"]
         captured_at = snap.get("captured_at", "")
 
-        _plog(f"[{i}/{total}] {index_name} | captured_at={captured_at}")
+        logger.info("[SYNC] [%d/%d] %s | captured_at=%s", i, total, index_name, captured_at)
 
         if not rows:
-            _plog(f"  → Empty payload, skipping")
+            logger.warning("[SYNC] Empty payload for %s, skipping", snap_id)
             synced_ids.append(snap_id)
             skip_count += 1
             continue
@@ -195,8 +191,7 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
 
         # Deduplicate — skip if file already exists
         if filepath.exists():
-            _plog(f"  → Already exists, skipping: {filename}")
-            logger.info("[SYNC] Skip (exists): %s", filepath)
+            logger.info("[SYNC] Already exists, skipping: %s", filename)
             synced_ids.append(snap_id)
             skip_count += 1
             continue
@@ -209,7 +204,7 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
             df = _reorder_df(df)
 
         df.to_parquet(filepath, engine="pyarrow", index=False)
-        _plog(f"  → Saved: {filename}  ({len(df)} strikes)")
+        logger.debug("[SYNC] Saved: %s (%d strikes)", filename, len(df))
         logger.info("[SYNC] Saved: %s", filepath)
 
         # Update in-memory store so dashboard reflects sync immediately
@@ -220,16 +215,14 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
 
     # 3. Delete all processed rows from Supabase to keep the table lean
     if synced_ids:
-        _plog(f"Deleting {len(synced_ids)} row(s) from Supabase…")
+        logger.info("[SYNC] Deleting %d row(s) from Supabase…", len(synced_ids))
         try:
             client.table("option_snapshots").delete().in_("id", synced_ids).execute()
-            _plog(f"✓ Deleted {len(synced_ids)} row(s)")
             logger.info("[SYNC] Deleted %d row(s) from Supabase.", len(synced_ids))
         except Exception as exc:
-            _plog(f"⚠ Failed to delete rows: {exc}")
             logger.warning("[SYNC] Failed to delete rows: %s", exc)
 
-    _plog(f"■ Sync complete — saved={saved_count}, skipped={skip_count}, total={total}")
+    logger.info("[SYNC] ■ Sync complete — saved=%d, skipped=%d, total=%d", saved_count, skip_count, total)
 
     return {
         "synced":  saved_count,

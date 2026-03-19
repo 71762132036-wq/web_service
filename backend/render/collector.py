@@ -22,10 +22,26 @@ logger = logging.getLogger(__name__)
 # Expiry helpers
 # ---------------------------------------------------------------------------
 
-def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str:
-    """Return next expiry date (YYYY-MM-DD) based on index/stock rules.
+def get_active_expiries(instrument_key: str, access_token: str) -> list[str]:
+    """Fetch active expiry dates from Upstox (Real-time)."""
+    url = "https://api.upstox.com/v2/option/contract-details"
+    params = {"instrument_key": instrument_key}
+    headers = {"Accept": "application/json", "Authorization": f"Bearer {access_token}"}
+    try:
+        resp = requests.get(url, params=params, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
+        return sorted(list(set(item.get("expiry") for item in data if item.get("expiry"))))
+    except Exception as exc:
+        logger.error("[EXPIRY-API] Failed for %s: %s", instrument_key, exc)
+        return []
+
+
+def get_next_expiry(index_name: str, indices: dict, access_token: str, cutoff_hour: int = 16) -> str:
+    """Return next expiry date (YYYY-MM-DD) fetching from Upstox API.
     
-    Uses IST timezone for consistent rollovers.
+    Falls back to calculation logic if API lookup fails.
+    For stocks, uses RELIANCE as proxy for generic equity derivatives series.
     """
     ist = ZoneInfo("Asia/Kolkata")
     now = datetime.now(ist)
@@ -34,6 +50,21 @@ def get_next_expiry(index_name: str, indices: dict, cutoff_hour: int = 9) -> str
     if not index_config:
         raise ValueError(f"Unknown index/stock: {index_name}")
 
+    # 1. API Lookup
+    lookup_key = index_config["instrument_key"]
+    if index_name not in ["Nifty", "BankNifty", "Sensex"]:
+        lookup_key = "NSE_EQ|RELIANCE"
+    
+    api_expiries = get_active_expiries(lookup_key, access_token)
+    if api_expiries:
+        for exp_str in api_expiries:
+            exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+            if exp_date > today: return exp_str
+            if exp_date == today and now.hour < cutoff_hour: return exp_str
+        return api_expiries[-1]
+
+    # 2. Fallback Calculation
+    logger.info("[EXPIRY-FALLBACK] Backing up to calculation for %s", index_name)
     expiry_type = index_config["expiry_type"]
     expiry_day = index_config.get("expiry_day", 1)
 
@@ -103,7 +134,7 @@ def fetch_option_chain(
         return None, f"Unknown index: {index_name}"
 
     if expiry_date is None:
-        expiry_date = get_next_expiry(index_name, indices, cutoff_hour)
+        expiry_date = get_next_expiry(index_name, indices, access_token, cutoff_hour)
 
     params = {"instrument_key": index_config["instrument_key"], "expiry_date": expiry_date}
     headers = {

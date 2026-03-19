@@ -1509,18 +1509,20 @@ def build_systemic_pulse_chart(pulse_data: dict, index_name: str = "Index") -> s
     ), secondary_y=False)
 
     # 2. Net GEX (Y2 - Right)
+    gex_cr = [v / 1e7 for v in df["cum_gamma"].tolist()]
     fig.add_trace(go.Scatter(
-        x=df["time"].tolist(), y=df["cum_gamma"].tolist(),
-        name="Net GEX (Gamma)",
+        x=df["time"].tolist(), y=gex_cr,
+        name="Net GEX (Gamma) Cr",
         line=dict(color=C_POS, width=2, dash='solid'),
         mode='lines+markers',
         marker=dict(size=4)
     ), secondary_y=True)
 
     # 3. Net DEX (Y2 - Right)
+    dex_cr = [v / 1e7 for v in df["cum_delta"].tolist()]
     fig.add_trace(go.Scatter(
-        x=df["time"].tolist(), y=df["cum_delta"].tolist(),
-        name="Net DEX (Delta)",
+        x=df["time"].tolist(), y=dex_cr,
+        name="Net DEX (Delta) Cr",
         line=dict(color="#E879F9", width=2, dash='dot'),
         mode='lines+markers',
         marker=dict(size=4)
@@ -1546,23 +1548,19 @@ def build_systemic_pulse_chart(pulse_data: dict, index_name: str = "Index") -> s
     ))
 
     layout = _base_layout(f"{index_name} — Systemic Market Pulse")
-    layout["xaxis"]["title"] = "Timestamp (Snapshots)"
-    layout["yaxis"]["title"] = "Spot Price"
-    layout["yaxis2"] = dict(title="Dealer Net Exposure ($)", side="right", overlaying="y", showgrid=False)
+    layout["yaxis"] = dict(
+        title="Spot Price", side="left", autorange=True, fixedrange=False
+    )
+    layout["yaxis2"] = dict(
+        title="Dealer Net Exposure (Cr)", side="right", overlaying="y", showgrid=False, autorange=True
+    )
     
     # Custom 3rd axis for IV
     layout["yaxis3"] = dict(
-        title="ATM IV (%)",
-        side="right",
-        overlaying="y",
-        showgrid=False,
-        anchor="free",
-        position=1, # Slightly offset or same side but diff label
-        shift=60     # Shift it to the right of yaxis2
+        title="ATM IV (%)", side="right", overlaying="y", showgrid=False, anchor="free", position=1, shift=60, autorange=True
     )
     
-    # Adjust margin to fit yaxis3
-    layout["margin"]["r"] = 120
+    layout["xaxis"]["title"] = "Timestamp"
     layout["hovermode"] = "x unified"
     
     fig.update_layout(**layout)
@@ -1570,7 +1568,7 @@ def build_systemic_pulse_chart(pulse_data: dict, index_name: str = "Index") -> s
     return fig.to_dict()
 
 
-def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str = "Index", chart_type: str = "GEX") -> str:
+def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str = "Index", chart_type: str = "GEX") -> Dict[str, Any]:
     """
     Stand-alone time-series for Total GEX or Total DEX.
     Shows the aggregate exposure of the entire portfolio over time.
@@ -1579,15 +1577,19 @@ def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str =
         return {"error": pulse_data.get("error", "No data for aggregate chart")}
 
     df = pd.DataFrame(pulse_data["pulse"])
+    # Ensure all required columns are numeric and converted to lists for Plotly JSON
+    times = df["time"].tolist()
+    spots = pd.to_numeric(df["spot"], errors='coerce').tolist()
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     # 1. Spot Price (Left Y)
     fig.add_trace(go.Scatter(
-        x=df["time"], y=df["spot"],
+        x=times, y=spots,
         name="Spot Price",
         line=dict(color=C_SPOT, width=2, dash='dot'),
-        mode='lines'
+        mode='lines+markers',
+        marker=dict(size=3)
     ), secondary_y=False)
     
     # 2. Exposure (Right Y)
@@ -1595,9 +1597,13 @@ def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str =
     label = "Total GEX" if chart_type == "GEX" else "Total DEX"
     color = C_POS if chart_type == "GEX" else "#E879F9"
     
+    # Scale to Crores
+    exposure_vals = pd.to_numeric(df[metrics_key], errors='coerce').fillna(0)
+    exposure_cr = (exposure_vals / 1e7).tolist()
+    
     fig.add_trace(go.Scatter(
-        x=df["time"], y=df[metrics_key],
-        name=label,
+        x=times, y=exposure_cr,
+        name=f"{label} (Cr)",
         line=dict(color=color, width=4),
         fill="tozeroy",
         fillcolor=f"rgba(129, 140, 248, 0.1)" if chart_type == 'GEX' else "rgba(232, 121, 249, 0.1)",
@@ -1606,9 +1612,28 @@ def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str =
     
     title = f"{index_name} — Historical {label} Flow"
     layout = _base_layout(title)
+    
+    # Fix Y-Axis Scaling: Prevent compressing Spot Price to zero
+    layout["yaxis"] = dict(
+        title="Spot Price",
+        side="left",
+        gridcolor=GRID_CLR,
+        zeroline=False,
+        tickfont=dict(size=10),
+        autorange=True,
+        fixedrange=False
+    )
+    
+    layout["yaxis2"] = dict(
+        title=f"{label} (Cr Exposure)", 
+        side="right", 
+        overlaying="y", 
+        showgrid=False,
+        tickfont=dict(size=10, color=color),
+        autorange=True
+    )
+    
     layout["xaxis"]["title"] = "Timestamp"
-    layout["yaxis"]["title"] = "Spot Price"
-    layout["yaxis2"] = dict(title=f"{label} ($ Exposure)", side="right", overlaying="y", showgrid=False)
     layout["hovermode"] = "x unified"
     
     fig.update_layout(**layout)

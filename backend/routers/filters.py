@@ -3,6 +3,9 @@ from typing import Optional
 import store
 from core.config import STOCKS
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/filters", tags=["filters"])
 
@@ -43,14 +46,14 @@ def _get_nearest_df(name: str, target_filename: str, context_expiry: Optional[st
                     best_df, _ = load_data_file(str(filepath))
                     
                     if diff == 0:  # Perfect match
-                        print(f"[DEBUG-FILTER] EXACT MATCH for {name}: {fname}")
+                        logger.debug("[FILTER] EXACT MATCH for %s: %s", name, fname)
                         return best_df
             except Exception:
                 continue
     if best_df is not None:
-        print(f"[DEBUG-FILTER] FUZZY MATCH for {name}: {target_filename} -> closest is {min_diff:.1f}s away")
+        logger.debug("[FILTER] FUZZY MATCH for %s: %s -> closest is %.1fs away", name, target_filename, min_diff)
     else:
-        print(f"[DEBUG-FILTER] NO DATA found for {name} within {target_filename} range")
+        logger.debug("[FILTER] NO DATA found for %s within %s range", name, target_filename)
         
     return best_df
 
@@ -190,7 +193,7 @@ def get_strike_filter(
                     })
 
         except Exception as e:
-            print(f"[ERROR-STRIKE-FILTER] Error processing {name}: {e}")
+            logger.error("[STRIKE-FILTER] Error processing %s: %s", name, e)
             continue
 
     # Calculate Summary Stats

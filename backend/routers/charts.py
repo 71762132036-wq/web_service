@@ -9,6 +9,9 @@ chart_type options:
 from fastapi import APIRouter, HTTPException
 import numpy as np
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 import json
 import store
@@ -78,9 +81,7 @@ CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum
 @router.get("/charts/compare/{index}/{chart_type}")
 def get_compare_chart(index: str, chart_type: str, expiry: str, file1: str, file2: str):
     """Compare two snapshots and return delta chart."""
-    from pathlib import Path
-    
-    print(f"[COMPARE] index={index}, type={chart_type}, expiry={expiry}, f1={file1}, f2={file2}")
+    logger.info("[COMPARE] index=%s, type=%s, expiry=%s, f1=%s, f2=%s", index, chart_type, expiry, file1, file2)
     
     if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
@@ -98,12 +99,12 @@ def get_compare_chart(index: str, chart_type: str, expiry: str, file1: str, file
     if not path_2.exists() and index == "Nifty":
         path_2 = data_path / expiry / file2
     
-    print(f"[COMPARE] Final Path 1: {path_1}")
-    print(f"[COMPARE] Final Path 2: {path_2}")
+    logger.debug("[COMPARE] Final Path 1: %s", path_1)
+    logger.debug("[COMPARE] Final Path 2: %s", path_2)
     
     if not path_1.exists() or not path_2.exists():
         msg = f"Data files not found. Searched: {path_1} and {path_2}"
-        print(f"[COMPARE] ERROR: {msg}")
+        logger.error("[COMPARE] ERROR: %s", msg)
         raise HTTPException(status_code=404, detail=msg)
         
     df1, err1 = load_data_file(str(path_1))
@@ -121,7 +122,7 @@ def get_compare_chart(index: str, chart_type: str, expiry: str, file1: str, file
         return {"index": index, "chart_type": chart_type, "figure": json_str}
         
     except Exception as exc:
-        print(f"[COMPARE] Build error: {exc}")
+        logger.error("[COMPARE] Build error: %s", exc)
         raise HTTPException(status_code=500, detail=f"Comparison error: {exc}")
 
 

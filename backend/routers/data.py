@@ -12,6 +12,9 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
@@ -70,58 +73,58 @@ class FetchRequest(BaseModel):
 @router.post("/fetch")
 def fetch_data(body: FetchRequest):
     """Fetch live option chain data from Upstox API for one or all indices/stocks."""
-    print(f"\n[DEBUG-FETCH] /fetch endpoint called with indices={body.indices}")
+    logger.info("[FETCH] Request for indices=%s", body.indices)
     all_instruments = {**INDICES, **STOCKS}
     target_indices = body.indices or list(all_instruments.keys())
-    print(f"[DEBUG-FETCH] Target indices/stocks: {target_indices}")
+    logger.debug("[FETCH] Target indices/stocks: %s", target_indices)
 
     # Generate a single IST timestamp for this entire batch so every instrument
     # saved in one "Fetch Live" click gets the same timestamp (matching auto-fetcher).
     ist = ZoneInfo("Asia/Kolkata")
     batch_timestamp = datetime.now(ist).strftime("%d_%H%M%S")
-    print(f"[DEBUG-FETCH] Batch timestamp (IST): {batch_timestamp}")
+    logger.debug("[FETCH] Batch timestamp (IST): %s", batch_timestamp)
 
     results = []
 
     for index_name in target_indices:
         try:
-            print(f"\n[DEBUG-FETCH] Processing {index_name}...")
+            logger.info("[FETCH] Processing %s...", index_name)
             
             if index_name not in all_instruments:
                 error_msg = f"Unknown index/stock: {index_name}"
-                print(f"[DEBUG-FETCH] ✗ {index_name}: {error_msg}")
+                logger.warning("[FETCH] ✗ %s: %s", index_name, error_msg)
                 results.append({"index": index_name, "success": False, "error": error_msg})
                 continue
 
-            print(f"[DEBUG-FETCH] Getting next expiry for {index_name}")
+            logger.debug("[FETCH] Getting next expiry for %s", index_name)
             expiry = get_next_expiry(index_name, all_instruments)
-            print(f"[DEBUG-FETCH] Next expiry: {expiry}")
+            logger.info("[FETCH] Next expiry: %s", expiry)
             
-            print(f"[DEBUG-FETCH] Fetching option chain data...")
+            logger.debug("[FETCH] Fetching option chain data...")
             df, error = fetch_option_chain_data(index_name, expiry_date=expiry, indices=all_instruments)
 
             if error:
                 error_msg = f"Failed to fetch data: {error}"
-                print(f"[DEBUG-FETCH] ✗ {index_name}: {error_msg}")
+                logger.error("[FETCH] ✗ %s: %s", index_name, error_msg)
                 results.append({"index": index_name, "success": False, "error": error_msg})
                 continue
 
-            print(f"[DEBUG-FETCH] Fetched {len(df)} rows, filtering strikes...")
+            logger.debug("[FETCH] Fetched %d rows, filtering strikes...", len(df))
             df_filtered = filter_near_strikes(df, FILTER_STRIKES_RADIUS)
-            print(f"[DEBUG-FETCH] After filter: {len(df_filtered)} strikes")
+            logger.debug("[FETCH] After filter: %d strikes", len(df_filtered))
             
             lot_size    = all_instruments[index_name]["lot_size"]
             df_filtered = calculate_gex(df_filtered, lot_size)
-            print(f"[DEBUG-FETCH] Calculated GEX for {len(df_filtered)} strikes")
+            logger.debug("[FETCH] Calculated GEX for %d strikes", len(df_filtered))
 
-            print(f"[DEBUG-FETCH] Calling save_data with data_dir={DATA_DIR}, timestamp={batch_timestamp}")
+            logger.debug("[FETCH] Calling save_data with data_dir=%s, timestamp=%s", DATA_DIR, batch_timestamp)
             filepath = save_data(df_filtered, index_name, data_dir=DATA_DIR, timestamp_str=batch_timestamp)
-            print(f"[DEBUG-FETCH] save_data returned: {filepath}")
+            logger.info("[FETCH] save_data returned: %s", filepath)
 
-            print(f"[DEBUG-FETCH] Setting data in store...")
+            logger.debug("[FETCH] Setting data in store...")
             # Auto-load into store
             store.set_data(index_name, df_filtered, filepath)
-            print(f"[DEBUG-FETCH] ✓ Store updated for {index_name}")
+            logger.info("[FETCH] ✓ Store updated for %s", index_name)
 
             results.append({
                 "index":     index_name,
@@ -130,18 +133,18 @@ def fetch_data(body: FetchRequest):
                 "filepath":  filepath,
                 "expiry":    expiry,
             })
-            print(f"[DEBUG-FETCH] ✓ {index_name} completed successfully")
+            logger.info("[FETCH] ✓ %s completed successfully", index_name)
         
         except Exception as e:
             error_msg = f"Exception during fetch for {index_name}: {type(e).__name__}: {e}"
-            print(f"[ERROR-FETCH] {error_msg}")
+            logger.error("[ERROR-FETCH] %s", error_msg)
             results.append({
                 "index": index_name,
                 "success": False,
                 "error": str(e)
             })
 
-    print(f"[DEBUG-FETCH] /fetch endpoint returning results\n")
+    logger.info("[FETCH] endpoint returning results")
     return {"results": results}
 
 
@@ -180,7 +183,7 @@ def load_data(body: LoadRequest):
         df = calculate_gex(df, lot_size)
 
     store.set_data(body.index, df, str(filepath))
-    # print(f"[DEBUG] Load successful for {body.index}. Updated store: {list(store._store.keys())}")
+    logger.info("[LOAD] Load successful for %s. Updated store.", body.index)
 
     return {
         "success":  True,

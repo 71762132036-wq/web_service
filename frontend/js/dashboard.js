@@ -524,8 +524,8 @@ const DashboardPage = (() => {
        cards = [
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
         { label: 'ATM IV (%)', value: `${vs?.ATM_IV ? vs.ATM_IV.toFixed(2) : 'N/A'}%`, sub: 'Implied Volatility' },
-        { label: 'Net Gamma', value: (metrics.cum_gex / 1e12).toFixed(2) + 'T', sub: 'Total Portfolio GEX', classes: `flow-status ${metrics.cum_gex > 0 ? 'bullish' : 'bearish'}` },
-        { label: 'Net Delta', value: (metrics.cum_dex / 1e12).toFixed(2) + 'T', sub: 'Total Portfolio DEX', classes: `flow-status ${metrics.cum_dex > 0 ? 'bullish' : 'bearish'}` },
+        { label: 'Net Gamma', value: Math.round(metrics.cum_gex / 1e7).toLocaleString() + ' Cr', sub: 'Portfolio GEX (1% Move)', classes: `flow-status ${metrics.cum_gex > 0 ? 'bullish' : 'bearish'}` },
+        { label: 'Net Delta', value: Math.round(metrics.cum_dex / 1e7).toLocaleString() + ' Cr', sub: 'Portfolio Delta (Notional)', classes: `flow-status ${metrics.cum_dex > 0 ? 'bullish' : 'bearish'}` },
       ];
     } else {
       cards = [

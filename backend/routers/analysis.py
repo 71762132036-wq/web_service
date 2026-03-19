@@ -40,10 +40,7 @@ def _require_data(index: str):
     if index not in {**INDICES, **STOCKS}:
         raise HTTPException(status_code=404, detail=f"Unknown index: {index}")
     
-    # Diagnostic print
     import store
-    # print(f"[DEBUG] Require data for {index}. Available in store: {list(store._store.keys())}")
-    
     if not store.has_data(index):
         raise HTTPException(status_code=404, detail="No data loaded for this index")
     return store.get_data(index)

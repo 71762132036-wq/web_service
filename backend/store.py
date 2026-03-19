@@ -7,6 +7,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 # { index_name: {"df": DataFrame, "filepath": str} }
 _store: dict = {}
@@ -39,7 +42,7 @@ def initialize_from_disk() -> None:
     from services.upstox_service import get_available_files, load_data_file
     from services.calculations import calculate_gex
     
-    print("[BOOTSTRAP] Initializing store from disk...")
+    logger.info("[BOOTSTRAP] Initializing store from disk...")
     
     all_instruments = {**INDICES, **STOCKS}
     for index_name in all_instruments:
@@ -65,6 +68,6 @@ def initialize_from_disk() -> None:
                         df = calculate_gex(df, lot_size)
                         
                     set_data(index_name, df, str(filepath))
-                    print(f"[BOOTSTRAP] Successfully auto-loaded {index_name} from {filepath.name}")
+                    logger.info("[BOOTSTRAP] Successfully auto-loaded %s from %s", index_name, filepath.name)
         except Exception as e:
-            print(f"[BOOTSTRAP] Error auto-loading {index_name}: {e}")
+            logger.error("[BOOTSTRAP] Error auto-loading %s: %s", index_name, e)
