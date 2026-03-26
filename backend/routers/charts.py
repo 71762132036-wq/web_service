@@ -67,15 +67,18 @@ from services.chart_service import (
     build_cum_steepness_chart,
     build_systemic_pulse_chart,
     build_aggregate_exposure_chart,
+    build_aggregate_exposure_chart,
     build_stickiness_chart,
+    build_intraday_iv_chart,
+    build_vol_surface_3d_chart,
 )
-from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum, get_systemic_pulse
+from services.historical_service import get_level_migration, get_historical_prices, get_flow_momentum, get_systemic_pulse, get_intraday_iv_tracker, get_vol_surface_history
 from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -309,6 +312,25 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             spot = df["Spot"].iloc[0]
             steepness = calculate_cum_gex_steepness(df, spot)
             json_str = build_cum_steepness_chart(steepness, index)
+        elif chart_type == "iv_tracker":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            
+            filepath = store.get_filepath(index)
+            filter_day = None
+            if filepath:
+                filename = Path(filepath).name
+                if "_" in filename:
+                    filter_day = filename.split("_")[0]
+            
+            iv_data = get_intraday_iv_tracker(index, expiry, filter_day=filter_day)
+            json_str = build_intraday_iv_chart(iv_data, index)
+        elif chart_type == "vol_surface_3d":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            filepath = store.get_filepath(index)
+            filter_day = filename.split("_")[0] if filepath and "_" in (filename := Path(filepath).name) else None
+            iv_data = get_vol_surface_history(index, expiry, filter_day=filter_day)
+            json_str = build_vol_surface_3d_chart(iv_data, index)
         elif chart_type == "systemic_pulse":
             expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
             if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
@@ -330,6 +352,31 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
             pulse_data = get_systemic_pulse(index, expiry, filter_day=filter_day)
             exposure_type = "GEX" if chart_type == "total_gex" else "DEX"
             json_str = build_aggregate_exposure_chart(pulse_data, index, chart_type=exposure_type)
+        elif chart_type == "gex_dex_combined":
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            df_gex = calculate_gex(df, lot_size=lot_size)
+            df_dex = calculate_delta_exposure(df, lot_size=lot_size)
+            spot = float(df["Spot"].iloc[0])
+            # Merge on Strike (pandas already imported in this module via services)
+            gex_cols = df_gex[["Strike", "GEX_Total", "GEX_Abs"]]
+            dex_cols = df_dex[["Strike", "DEX_Total", "DEX_Abs"]]
+            df_m = gex_cols.merge(dex_cols, on="Strike", how="inner")
+            # Return raw data — frontend slider does live delta-shift math
+            return {
+                "index": index,
+                "chart_type": chart_type,
+                "figure": None,
+                "data": {
+                    "strikes": [float(x) for x in df_m["Strike"].tolist()],
+                    "gex": [float(x) for x in df_m["GEX_Total"].tolist()],
+                    "gex_abs": [float(x) for x in df_m["GEX_Abs"].tolist()],
+                    "dex": [float(x) for x in df_m["DEX_Total"].tolist()],
+                    "dex_abs": [float(x) for x in df_m["DEX_Abs"].tolist()],
+                    "spot": spot,
+                    "lot_size": lot_size,
+                }
+            }
 
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Chart error: {exc}") from exc

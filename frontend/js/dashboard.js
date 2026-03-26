@@ -33,6 +33,9 @@ const DashboardPage = (() => {
         { key: 'dex', label: 'Delta Exposure', id: 'chart-dex' },
         { key: 'cum_dex', label: 'Cumulative Delta', id: 'chart-cum-dex' },
       ],
+      'Greek Interaction': [
+        { key: 'gex_dex_combined', label: 'Gamma × Delta', id: 'chart-gex-dex' },
+      ],
       'Vanna': [
         { key: 'vex', label: 'Vanna Exposure', id: 'chart-vex' },
         { key: 'cum_vex', label: 'Cumulative Vanna', id: 'chart-cum-vex' },
@@ -54,6 +57,12 @@ const DashboardPage = (() => {
       ],
       'Vol Trigger': [
         { key: 'vtl', label: 'Volatility Trigger', id: 'chart-vtl' },
+      ],
+      'Intraday IV': [
+        { key: 'iv_tracker', label: 'IV Tracker', id: 'chart-iv-tracker' },
+      ],
+      '3D Surface': [
+        { key: 'vol_surface_3d', label: '3D Vol Surface', id: 'chart-vol-surface-3d' },
       ]
     },
     OI: {
@@ -393,9 +402,12 @@ const DashboardPage = (() => {
         else {
           const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
           const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
-          const res = await Charts.fetchAndRender(index, chart.key, chart.id, mode);
-          _lastFlowSummary = res?.summary || null;
-          
+          if (chart.key === 'gex_dex_combined') {
+            await _renderGexDexInteractive(index, chart.id);
+          } else {
+            const res = await Charts.fetchAndRender(index, chart.key, chart.id, mode);
+            _lastFlowSummary = res?.summary || null;
+          }
           _renderMetricsOnly(container, metrics, regimeClass, vs);
         }
         _loadedCharts.add(chart.id);
@@ -586,6 +598,175 @@ const DashboardPage = (() => {
 
   function _renderMetricsOnly(container, metrics, regimeClass, vs) {
     _updateMetricsState(container, metrics, regimeClass, vs);
+  }
+
+  async function _renderGexDexInteractive(index, containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '<div class="chart-placeholder"><div class="spin"></div><span>Loading Greek Interaction…</span></div>';
+
+    let rawData;
+    try {
+      const res = await fetch(`/api/charts/${index}/gex_dex_combined`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      rawData = json.data;
+    } catch (err) {
+      el.innerHTML = `<div class="alert alert-error">Failed to load data: ${err.message}</div>`;
+      return;
+    }
+
+    const { strikes, gex, dex, dex_abs, spot } = rawData;
+    const RANGE = 350;
+    const STEP = 25;
+
+    // Build wrapper with slider on top
+    el.innerHTML = `
+      <div class="gex-dex-wrapper" style="width:100%;height:100%;display:flex;flex-direction:column;gap:10px;padding:8px 4px;">
+        <div class="gex-dex-controls" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 8px;">
+          <span style="font-size:11px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;">Spot Shift</span>
+          <input type="range" id="spot-slider-${containerId}"
+            min="${-RANGE}" max="${RANGE}" step="${STEP}" value="0"
+            style="flex:1;min-width:180px;accent-color:#6366f1;cursor:pointer;">
+          <div style="display:flex;gap:18px;">
+            <div style="text-align:center;">
+              <div style="font-size:10px;color:#64748B;">Shifted Spot</div>
+              <div id="slider-spot-label-${containerId}" style="font-size:14px;font-weight:700;color:#E2E8F0;">${Math.round(spot).toLocaleString()}</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:10px;color:#64748B;">Δ Spot</div>
+              <div id="slider-delta-label-${containerId}" style="font-size:14px;font-weight:700;color:#6366F1;">0</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:10px;color:#64748B;">Net Abs Δ</div>
+              <div id="slider-netdex-label-${containerId}" style="font-size:14px;font-weight:700;color:#34D399;">—</div>
+            </div>
+          </div>
+        </div>
+        <div id="gex-dex-plotly-${containerId}" style="flex:1;min-height:400px;"></div>
+      </div>`;
+
+    const plotEl = document.getElementById(`gex-dex-plotly-${containerId}`);
+    const slider = document.getElementById(`spot-slider-${containerId}`);
+    const spotLabel = document.getElementById(`slider-spot-label-${containerId}`);
+    const deltaLabel = document.getElementById(`slider-delta-label-${containerId}`);
+    const netDexLabel = document.getElementById(`slider-netdex-label-${containerId}`);
+
+    // colour arrays  
+    const POS = 'rgba(52,211,153,0.82)';
+    const NEG = 'rgba(239,68,68,0.82)';
+    const GEX_CLR = 'rgba(99,102,241,0.5)';
+    const GEX_POS = 'rgba(99,102,241,0.75)';
+    const GEX_NEG = 'rgba(232,121,249,0.75)';
+
+    function computeShiftedDex(deltaSpot) {
+      // When spot moves ΔS, each option's delta changes by gamma × ΔS
+      // GEX is already in ₹ terms (gamma × lots × lot_size × spot²/100), but the
+      // ratio gex/spot gives delta sensitivity per ₹. Use gex/spot as the shift rate.
+      return dex.map((d, i) => d + (gex[i] / (spot || 1)) * deltaSpot);
+    }
+
+    function renderPlot(deltaSpot) {
+      const shiftedDex = computeShiftedDex(deltaSpot);
+      const shiftedAbsDex = shiftedDex.map(Math.abs);
+      const netAbsDex = shiftedAbsDex.reduce((a, b) => a + b, 0);
+
+      const dexColors = shiftedDex.map(v => v >= 0 ? POS : NEG);
+      const gexColors = gex.map(v => v >= 0 ? GEX_POS : GEX_NEG);
+
+      const traces = [
+        {
+          name: 'Abs Delta (Shifted)',
+          x: strikes,
+          y: shiftedAbsDex,
+          type: 'bar',
+          marker: { color: dexColors, opacity: 0.88 },
+          yaxis: 'y',
+          hovertemplate: '<b>Strike %{x}</b><br>|ΔEX|: %{y:.2f}<extra></extra>'
+        },
+        {
+          name: 'Gamma Exposure',
+          x: strikes,
+          y: gex,
+          type: 'bar',
+          marker: { color: gexColors, opacity: 0.65 },
+          yaxis: 'y2',
+          hovertemplate: '<b>Strike %{x}</b><br>GEX: %{y:.2f}<extra></extra>'
+        },
+      ];
+
+      const shiftedSpot = spot + deltaSpot;
+      const layout = {
+        paper_bgcolor: 'rgba(15,23,42,0)',
+        plot_bgcolor: 'rgba(30,41,59,0.15)',
+        font: { color: '#CBD5E1', family: "'Inter', sans-serif", size: 11 },
+        margin: { l: 55, r: 55, t: 32, b: 50 },
+        barmode: 'overlay',
+        legend: { bgcolor: 'rgba(0,0,0,0)', borderwidth: 0, orientation: 'h', y: 1.08, xanchor: 'right', x: 1, font: { size: 10 } },
+        xaxis: {
+          title: 'Strike Price',
+          gridcolor: 'rgba(255,255,255,0.04)',
+          zeroline: false,
+          tickfont: { size: 10 },
+        },
+        yaxis: {
+          title: '|Abs Delta Exposure|',
+          gridcolor: 'rgba(255,255,255,0.04)',
+          zeroline: true,
+          zerolinecolor: 'rgba(255,255,255,0.15)',
+          tickfont: { size: 10 },
+        },
+        yaxis2: {
+          title: 'Gamma Exposure (GEX)',
+          overlaying: 'y',
+          side: 'right',
+          gridcolor: 'rgba(255,255,255,0)',
+          zeroline: false,
+          tickfont: { size: 10, color: '#818CF8' },
+          titlefont: { color: '#818CF8' },
+        },
+        shapes: [
+          // Current spot line
+          {
+            type: 'line', xref: 'x', yref: 'paper',
+            x0: spot, x1: spot, y0: 0, y1: 1,
+            line: { color: 'rgba(255,255,255,0.25)', width: 1.5, dash: 'dot' }
+          },
+          // Shifted spot line
+          ...(deltaSpot !== 0 ? [{
+            type: 'line', xref: 'x', yref: 'paper',
+            x0: shiftedSpot, x1: shiftedSpot, y0: 0, y1: 1,
+            line: { color: '#6366F1', width: 2, dash: 'solid' }
+          }] : [])
+        ],
+        annotations: [
+          { xref: 'x', yref: 'paper', x: spot, y: 1.02, text: `Spot ${Math.round(spot).toLocaleString()}`, showarrow: false, font: { size: 10, color: '#94A3B8' }, xanchor: 'center' },
+          ...(deltaSpot !== 0 ? [{ xref: 'x', yref: 'paper', x: shiftedSpot, y: 1.02, text: `→ ${Math.round(shiftedSpot).toLocaleString()}`, showarrow: false, font: { size: 10, color: '#818CF8' }, xanchor: 'center' }] : [])
+        ]
+      };
+
+      // Update summary labels
+      spotLabel.textContent = Math.round(shiftedSpot).toLocaleString();
+      deltaLabel.textContent = (deltaSpot >= 0 ? '+' : '') + deltaSpot;
+      deltaLabel.style.color = deltaSpot > 0 ? '#34D399' : deltaSpot < 0 ? '#F87171' : '#6366F1';
+      netDexLabel.textContent = (netAbsDex / 1e7).toFixed(1) + ' Cr';
+
+      if (!plotEl._gexDexInit) {
+        Plotly.newPlot(plotEl, traces, layout, { responsive: true, displayModeBar: false });
+        plotEl._gexDexInit = true;
+      } else {
+        Plotly.react(plotEl, traces, layout);
+      }
+    }
+
+    // Initial render at delta=0
+    renderPlot(0);
+
+    // Wire slider
+    slider.addEventListener('input', () => {
+      const dS = parseInt(slider.value, 10);
+      renderPlot(dS);
+    });
   }
 
   return { render };

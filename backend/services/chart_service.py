@@ -376,6 +376,62 @@ def build_iv_smile(df: pd.DataFrame) -> str:
     return fig.to_dict()
 
 
+def build_intraday_iv_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    Builds a 3-line time series chart tracking:
+    1. Call IV
+    2. Put IV
+    3. Spot Price (Secondary Axis)
+    """
+    history = data.get("history", [])
+    if not history:
+        return {}
+
+    times = [h["time"] for h in history]
+    call_ivs = [h["call_iv"] for h in history]
+    put_ivs = [h["put_iv"] for h in history]
+    spots = [h["spot"] for h in history]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # 1. Call IV
+    fig.add_trace(go.Scatter(
+        x=times, y=call_ivs,
+        mode="lines", name="ATM Call IV",
+        line=dict(color="#3B82F6", width=2.5),
+    ), secondary_y=False)
+
+    # 2. Put IV
+    fig.add_trace(go.Scatter(
+        x=times, y=put_ivs,
+        mode="lines", name="ATM Put IV",
+        line=dict(color=C_NEG, width=2.5),
+    ), secondary_y=False)
+
+    # 3. Spot Price
+    fig.add_trace(go.Scatter(
+        x=times, y=spots,
+        mode="lines", name="Spot Price",
+        line=dict(color=C_SPOT, width=1.5, dash="dot"),
+        opacity=0.7
+    ), secondary_y=True)
+
+    layout = _base_layout(f"{index_name} — Intraday IV Tracker")
+    layout["yaxis"]["title"] = "Implied Volatility (%)"
+    layout["yaxis2"] = dict(
+        gridcolor=GRID_CLR, 
+        zeroline=False, 
+        title="Spot Price",
+        overlaying="y",
+        side="right",
+        showgrid=False
+    )
+    layout["xaxis"]["title"] = "Time (IST)"
+    
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
 # ---------------------------------------------------------------------------
 # 5 — Risk Reversal & Butterfly
 # ---------------------------------------------------------------------------
@@ -1636,5 +1692,50 @@ def build_aggregate_exposure_chart(pulse_data: Dict[str, Any], index_name: str =
     layout["xaxis"]["title"] = "Timestamp"
     layout["hovermode"] = "x unified"
     
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_vol_surface_3d_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    Builds a 3D Surface chart tracking IV over Strike and Time.
+    X = strikes, Y = times, Z = iv_grid
+    """
+    strikes = data.get("strikes", [])
+    times = data.get("times", [])
+    iv_grid = data.get("iv_grid", [])
+
+    if not iv_grid or not strikes or not times:
+        return {"error": "Insufficient data for 3D Vol Surface."}
+
+    # Plotly go.Surface expects z as a 2D array [y][x]
+    # times=Y, strikes=X, iv_grid=Z
+    fig = go.Figure(data=[go.Surface(
+        z=iv_grid,
+        x=strikes,
+        y=times,
+        colorscale="Viridis",
+        colorbar=dict(title="IV (%)", thickness=15, len=0.8)
+    )])
+
+    layout = _base_layout(f"{index_name} — 3D Volatility Surface")
+    # Override margins to maximize 3D plot area
+    layout["margin"] = dict(l=0, r=0, t=40, b=0)
+    layout["height"] = 700  # slightly reduced to fit typical screens better without scrolling
+    
+    # 3D specific layout
+    layout["scene"] = dict(
+        xaxis=dict(title="Strike Price", gridcolor=GRID_CLR, backgroundcolor="rgba(0,0,0,0)", showbackground=False),
+        yaxis=dict(title="Time (IST)", gridcolor=GRID_CLR, backgroundcolor="rgba(0,0,0,0)", showbackground=False),
+        zaxis=dict(title="Implied Vol (%)", gridcolor=GRID_CLR, backgroundcolor="rgba(0,0,0,0)", showbackground=False),
+        camera=dict(eye=dict(x=1.5, y=1.5, z=1.0)), # closer and slightly lower
+        aspectratio=dict(x=1.2, y=1.2, z=0.6), # Flatten Z slightly, expand X/Y to fill space
+        bgcolor="rgba(0,0,0,0)"
+    )
+    
+    # Remove standard axes as we use 'scene' for 3D
+    if "xaxis" in layout: del layout["xaxis"]
+    if "yaxis" in layout: del layout["yaxis"]
+
     fig.update_layout(**layout)
     return fig.to_dict()

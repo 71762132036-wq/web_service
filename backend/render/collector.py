@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def get_active_expiries(instrument_key: str, access_token: str) -> list[str]:
     """Fetch active expiry dates from Upstox (Real-time)."""
-    url = "https://api.upstox.com/v2/option/contract-details"
+    url = "https://api.upstox.com/v2/option/contract"
     params = {"instrument_key": instrument_key}
     headers = {"Accept": "application/json", "Authorization": f"Bearer {access_token}"}
     try:
@@ -60,7 +60,9 @@ def get_next_expiry(index_name: str, indices: dict, access_token: str, cutoff_ho
         for exp_str in api_expiries:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
             if exp_date > today: return exp_str
-            if exp_date == today and now.hour < cutoff_hour: return exp_str
+            if exp_date == today:
+                if now.hour < cutoff_hour:
+                    return exp_str
         return api_expiries[-1]
 
     # 2. Fallback Calculation
