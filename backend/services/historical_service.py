@@ -398,3 +398,69 @@ def get_vol_surface_history(index_name: str, expiry_date: str, n_files: int = 10
         "times": times,
         "iv_grid": iv_grid
     }
+
+
+def get_intraday_oi_tracker(index_name: str, expiry_date: str, n_files: int = 150, filter_day: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Tracks cumulative intraday Call OI Change and Put OI Change across snapshots.
+    Used for the Intraday OI Tracker chart.
+    """
+    data_path = Path(DATA_DIR) / index_name / expiry_date
+    if not data_path.exists():
+        data_path = Path(DATA_DIR) / expiry_date
+        if not data_path.exists():
+            return {"error": "No historical data found for OI tracker."}
+
+    all_files = list(data_path.glob("*.parquet"))
+    
+    if filter_day:
+        day_str = f"{filter_day}_"
+        all_files = [f for f in all_files if f.name.startswith(day_str)]
+
+    files = _sort_parquet_files(all_files, expiry_date)
+    files = files[:n_files]
+    files.reverse()
+
+    oi_history = []
+    for f in files:
+        df, error = load_data_file(str(f))
+        if error or df is None or df.empty: continue
+        
+        try:
+            spot = float(df["Spot"].iloc[0])
+            
+            # Fallback calculation if columns are missing
+            if "call_oi_chg" not in df.columns or df["call_oi_chg"].isna().all():
+                if "call_oi" in df.columns and "call_prev_oi" in df.columns:
+                    df["call_oi_chg"] = df["call_oi"].fillna(0) - df["call_prev_oi"].fillna(0)
+            
+            if "put_oi_chg" not in df.columns or df["put_oi_chg"].isna().all():
+                if "put_oi" in df.columns and "put_prev_oi" in df.columns:
+                    df["put_oi_chg"] = df["put_oi"].fillna(0) - df["put_prev_oi"].fillna(0)
+
+            total_call_oi = float(df["call_oi"].sum()) if "call_oi" in df.columns else 0.0
+            total_put_oi = float(df["put_oi"].sum()) if "put_oi" in df.columns else 0.0
+            total_call_chg = float(df["call_oi_chg"].sum()) if "call_oi_chg" in df.columns else 0.0
+            total_put_chg = float(df["put_oi_chg"].sum()) if "put_oi_chg" in df.columns else 0.0
+            
+            parts = f.stem.split("_")
+            time_str = parts[1] if len(parts) > 1 else "000000"
+            time_label = f"{time_str[:2]}:{time_str[2:4]}" # HH:MM
+            
+            oi_history.append({
+                "time": time_label,
+                "spot": spot,
+                "call_oi": total_call_oi,
+                "put_oi": total_put_oi,
+                "call_oi_chg": total_call_chg,
+                "put_oi_chg": total_put_chg
+            })
+        except Exception as e:
+            logger.error("[OI_TRACKER] Skip file %s error: %s", f.name, e)
+            continue
+
+    return {
+        "index": index_name,
+        "expiry": expiry_date,
+        "history": oi_history
+    }

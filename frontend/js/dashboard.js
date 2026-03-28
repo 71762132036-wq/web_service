@@ -15,10 +15,10 @@ const DashboardPage = (() => {
   let _currentCategory = null;
   let _currentSubChart = null;
   let _currentMode = null; // Track mode changes
-  
+
   let _isRendering = false; // Render lock
-  let _isWired = false; 
-  
+  let _isWired = false;
+
   // High-level data cache to prevent global flickers
   const _metricsCache = new Map(); // index -> data
   const _volCache = new Map();     // index -> data
@@ -49,6 +49,9 @@ const DashboardPage = (() => {
       'IV Smile/Skew': [
         { key: 'iv_smile', label: 'IV Smile', id: 'chart-iv-smile' },
       ],
+      'BS Pricing': [
+        { key: 'bs_pricing', label: 'Actual vs BS', id: 'chart-bs-pricing' },
+      ],
       'Risk Reversal': [
         { key: 'rr_bf', label: 'RR & BF', id: 'chart-rr-bf' },
       ],
@@ -71,6 +74,10 @@ const DashboardPage = (() => {
       ],
       'OI Change': [
         { key: 'oi_change', label: 'Daily Shift', id: 'chart-oi-change' },
+      ],
+      'Intraday OI Tracker': [
+        { key: 'oi_tracker', label: 'Overall', id: 'chart-oi-tracker-total', mode: 'total' },
+        { key: 'oi_tracker', label: 'Change', id: 'chart-oi-tracker-change', mode: 'change' },
       ],
       'Premium Flow': [
         { key: 'premium_flow', label: 'Net Direction', id: 'chart-prem-flow' },
@@ -262,7 +269,7 @@ const DashboardPage = (() => {
   }
 
   // ── Render ─────────────────────────────────────────────
-  
+
   async function render(container) {
     const st = State.get();
     const index = st.selectedIndex;
@@ -282,9 +289,9 @@ const DashboardPage = (() => {
         _currentFile !== filename ||
         _currentFile2 !== filename2
       );
-      
+
       if (isContextChange) {
-         FilterViews.clearContext();
+        FilterViews.clearContext();
       }
 
       const isPageChange = (
@@ -364,12 +371,12 @@ const DashboardPage = (() => {
       // 4. Chart Loading Logic
       const activeCharts = structure[st.selectedBucket]?.[st.selectedCategory] || [];
       const filterKeys = ['overall_filter', 'strike_filter'];
-      
+
       const shouldReloadChart = isPageChange || isModeChange || (filterKeys.includes(activeCharts[0]?.key));
       const chartId = st.selectedSubChart || activeCharts[0]?.id;
 
       if (activeCharts.length > 0 && (shouldReloadChart || !_loadedCharts.has(chartId))) {
-        _loadedCharts.clear(); 
+        _loadedCharts.clear();
         const activeId = st.selectedSubChart || activeCharts[0].id;
         const chart = activeCharts.find(c => c.id === activeId) || activeCharts[0];
 
@@ -384,7 +391,7 @@ const DashboardPage = (() => {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files in Compare mode</span></div>';
           }
-        } 
+        }
         else if (st.compareMode) {
           const idxData = State.getIndexData(index);
           const { selectedFile: file1, selectedFile2: file2, selectedExpiry: expiry } = idxData;
@@ -394,14 +401,14 @@ const DashboardPage = (() => {
             const el = document.getElementById(chart.id);
             if (el) el.innerHTML = '<div class="chart-placeholder"><span>Select two files to compare</span></div>';
           }
-        } 
+        }
         else if (filterKeys.includes(chart.key)) {
           const filterArea = container.querySelector(`#${chart.id}`);
           if (filterArea) await FilterViews.render(filterArea);
-        } 
+        }
         else {
           const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
-          const mode = exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net';
+          const mode = chart.mode || (exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net');
           if (chart.key === 'gex_dex_combined') {
             await _renderGexDexInteractive(index, chart.id);
           } else {
@@ -439,7 +446,7 @@ const DashboardPage = (() => {
         State.set({ selectedBucket: bucket, selectedCategory: firstCat, selectedSubChart: firstSub });
         render(container); return;
       }
-      
+
       const catBtn = e.target.closest('.category-btn');
       if (catBtn) {
         const cat = catBtn.dataset.category;
@@ -465,15 +472,15 @@ const DashboardPage = (() => {
 
   function _updateNavState(container, structure) {
     const st = State.get();
-    
+
     // 1. Bucket Nav
     const bucketArea = container.querySelector('.bucket-selector');
     if (bucketArea) bucketArea.innerHTML = buildBucketNav();
-    
+
     // 2. Category Nav
     const catArea = container.querySelector('.category-pills');
     if (catArea) catArea.innerHTML = buildCategoryNav();
-    
+
     // 3. Sub Nav
     const subNavArea = container.querySelector('.sub-nav-area');
     if (subNavArea) {
@@ -533,7 +540,7 @@ const DashboardPage = (() => {
         { label: 'Level Bias', value: metrics.spot > metrics.flip_point ? 'BULLISH' : 'BEARISH', classes: `regime ${metrics.spot > metrics.flip_point ? 'long-gamma' : 'short-gamma'}` },
       ];
     } else if (st.selectedCategory === 'Systemic Pulse') {
-       cards = [
+      cards = [
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
         { label: 'ATM IV (%)', value: `${vs?.ATM_IV ? vs.ATM_IV.toFixed(2) : 'N/A'}%`, sub: 'Implied Volatility' },
         { label: 'Net Gamma', value: Math.round(metrics.cum_gex / 1e7).toLocaleString() + ' Cr', sub: 'Portfolio GEX (1% Move)', classes: `flow-status ${metrics.cum_gex > 0 ? 'bullish' : 'bearish'}` },
@@ -551,16 +558,16 @@ const DashboardPage = (() => {
     // EXTRA: If God Tier is selected, we want to add specific Apex info
     if (st.selectedBucket === 'God Tier' && metrics.apex) {
       cards = [
-        { label: 'Delta Magnet', value: metrics.apex.price.toLocaleString(undefined, {maximumFractionDigits:0}), sub: 'Neutral Apex Point', classes: 'flow-status' },
+        { label: 'Delta Magnet', value: metrics.apex.price.toLocaleString(undefined, { maximumFractionDigits: 0 }), sub: 'Neutral Apex Point', classes: 'flow-status' },
         { label: 'Apex Distance', value: `${metrics.apex.distance_pct.toFixed(2)}%`, sub: metrics.apex.distance_pct > 0 ? 'Spot < Apex' : 'Spot > Apex', classes: `flow-status ${Math.abs(metrics.apex.distance_pct) < 1 ? 'bullish' : 'bearish'}` },
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
         { label: 'Quant Power', value: metrics.quant_power.toLocaleString(), sub: 'Blended Zero Level' },
       ];
 
       if (metrics.concentration) {
-        cards.push({ 
-          label: 'Gamma Sharpness', 
-          value: metrics.concentration.index.toFixed(1), 
+        cards.push({
+          label: 'Gamma Sharpness',
+          value: metrics.concentration.index.toFixed(1),
           sub: metrics.concentration.is_sharp ? 'SHARP / EXPLOSIVE' : 'WIDE / LINEAR',
           classes: `flow-status ${metrics.concentration.is_sharp ? 'bearish' : 'bullish'}`
         });
@@ -568,15 +575,15 @@ const DashboardPage = (() => {
 
       if (metrics.steepness) {
         const s = metrics.steepness;
-        cards.push({ 
-          label: 'Curve Steepness', 
-          value: s.slope_label, 
+        cards.push({
+          label: 'Curve Steepness',
+          value: s.slope_label,
           sub: s.regime,
           classes: `flow-status ${s.regime === 'High Sensitivity' ? 'bearish' : (s.regime === 'Stable Grip' ? 'bullish' : 'neutral')}`
         });
       }
     }
-    
+
     grid.innerHTML = cards.map(c => buildMetricCard(c.label, c.value, c.sub, c.classes)).join('');
   }
 

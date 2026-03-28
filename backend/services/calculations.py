@@ -989,6 +989,40 @@ def calculate_cum_gex_steepness(df: pd.DataFrame, spot: float) -> Dict[str, Any]
         "current_spot":    float(spot),
     }
 
+def calculate_bs_pricing(df: pd.DataFrame, r: float = 0.05) -> pd.DataFrame:
+    """Calculate theoretical Black-Scholes prices for all options."""
+    df = df.copy()
+    if df.empty or "Spot" not in df.columns:
+        return df
+        
+    spot = df["Spot"].iloc[0]
+    today = pd.Timestamp("today").normalize()
+    
+    T_days = (pd.to_datetime(df["expiry"], format="%Y-%m-%d") - today).dt.days
+    T = np.maximum(T_days / 365.0, 1.0 / 365.0)
+    
+    K = df["Strike"]
+    
+    # Calls
+    sigma_call = df["call_iv"] / 100.0
+    v_c = (sigma_call > 0) & ~sigma_call.isna()
+    bs_c = np.full(len(df), np.nan)
+    d1_c = (np.log(spot / K[v_c]) + (r + 0.5 * sigma_call[v_c]**2) * T[v_c]) / (sigma_call[v_c] * np.sqrt(T[v_c]))
+    d2_c = d1_c - sigma_call[v_c] * np.sqrt(T[v_c])
+    bs_c[v_c] = spot * norm.cdf(d1_c) - K[v_c] * np.exp(-r * T[v_c]) * norm.cdf(d2_c)
+    df["bs_call_price"] = bs_c
+    
+    # Puts
+    sigma_put = df["put_iv"] / 100.0
+    v_p = (sigma_put > 0) & ~sigma_put.isna()
+    bs_p = np.full(len(df), np.nan)
+    d1_p = (np.log(spot / K[v_p]) + (r + 0.5 * sigma_put[v_p]**2) * T[v_p]) / (sigma_put[v_p] * np.sqrt(T[v_p]))
+    d2_p = d1_p - sigma_put[v_p] * np.sqrt(T[v_p])
+    bs_p[v_p] = K[v_p] * np.exp(-r * T[v_p]) * norm.cdf(-d2_p) - spot * norm.cdf(-d1_p)
+    df["bs_put_price"] = bs_p
+    
+    return df
+
 
 def measure_cumulative_curve_metrics(df: pd.DataFrame, spot: float) -> Dict[str, Any]:
     """

@@ -1739,3 +1739,151 @@ def build_vol_surface_3d_chart(data: dict, index_name: str = "Index") -> dict:
 
     fig.update_layout(**layout)
     return fig.to_dict()
+
+
+def build_bs_pricing_chart(df: pd.DataFrame, index_name: str) -> dict:
+    """Builds a comparison chart for Actual LTP vs Theoretical Black-Scholes Price.
+    Calls are plotted on the positive Y-axis, Puts on the negative Y-axis.
+    Using a Bar-in-Bar design for instant comparison of Market vs Fair Value.
+    """
+    if df.empty or "bs_call_price" not in df.columns:
+        return {"error": "Black-Scholes data not available."}
+        
+    spot = df["Spot"].iloc[0]
+    strikes = df["Strike"].tolist()
+    bw = _bar_width(df)
+    
+    # Pre-calculate Gaps and Percentages for optimized hover
+    c_ltp = df["call_ltp"].tolist()
+    c_theo = df["bs_call_price"].tolist()
+    c_gap = [l - t for l, t in zip(c_ltp, c_theo)]
+    c_pct = [(g / t * 100) if t > 0 else 0 for g, t in zip(c_gap, c_theo)]
+    
+    p_ltp = df["put_ltp"].tolist()
+    p_theo = df["bs_put_price"].tolist()
+    p_gap = [l - t for l, t in zip(p_ltp, p_theo)]
+    p_pct = [(g / t * 100) if t > 0 else 0 for g, t in zip(p_gap, p_theo)]
+
+    # Find "Fair Value" center (total absolute mispricing is minimized)
+    total_abs_gap = [abs(cg) + abs(pg) for cg, pg in zip(c_gap, p_gap)]
+    fair_idx = total_abs_gap.index(min(total_abs_gap)) if total_abs_gap else 0
+    fair_strike = strikes[fair_idx]
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+
+    # ---------------- CALLS (Red Spectrum) ----------------
+    # BS Theoretical - Wide muted background
+    fig.add_trace(go.Bar(
+        x=strikes, y=c_theo, width=bw * 0.9,
+        marker=dict(color="rgba(244, 63, 94, 0.35)", line=dict(width=0)),
+        name="Call BS (Fair Value)", hoverinfo='skip', showlegend=True
+    ))
+    # Actual LTP - Narrower bright foreground
+    fig.add_trace(go.Bar(
+        x=strikes, y=c_ltp, width=bw * 0.45,
+        marker=dict(color="#F43F5E", line=dict(color="rgba(255,255,255,0.2)", width=0.5)),
+        name="Call LTP (Market)",
+        hovertemplate="<b>%{x} CALL</b><br>LTP: ₹%{y:.2f}<br>Theo: ₹%{customdata[0]:.2f}<br>Gap: ₹%{customdata[1]:+.2f} (%{customdata[2]:+.1f}%)<extra></extra>",
+        customdata=list(zip(c_theo, c_gap, c_pct))
+    ))
+
+    # ---------------- PUTS (Green Spectrum) ----------------
+    # BS Theoretical - Wide muted background (Negative Y)
+    fig.add_trace(go.Bar(
+        x=strikes, y=[-v for v in p_theo], width=bw * 0.9,
+        marker=dict(color="rgba(16, 185, 129, 0.35)", line=dict(width=0)),
+        name="Put BS (Fair Value)", hoverinfo='skip', showlegend=True
+    ))
+    # Actual LTP - Narrower bright foreground (Negative Y)
+    fig.add_trace(go.Bar(
+        x=strikes, y=[-v for v in p_ltp], width=bw * 0.45,
+        marker=dict(color="#10B981", line=dict(color="rgba(255,255,255,0.2)", width=0.5)),
+        name="Put LTP (Market)",
+        hovertemplate="<b>%{x} PUT</b><br>LTP: ₹%{customdata[3]:.2f}<br>Theo: ₹%{customdata[0]:.2f}<br>Gap: ₹%{customdata[1]:+.2f} (%{customdata[2]:+.1f}%)<extra></extra>",
+        customdata=list(zip(p_theo, p_gap, p_pct, p_ltp))
+    ))
+
+    layout = _base_layout(f"{index_name} — BS Fair Value Analysis (Market Overvaluation)")
+    layout["yaxis"]["title"] = "Premium (₹) [Calls ↑ | Puts ↓]"
+    layout["yaxis"]["tickformat"] = "0"
+    layout["barmode"] = "overlay" # Crucial for bar-in-bar effect
+    layout["hovermode"] = "closest"
+    
+    # Visual focus on the central data
+    layout["xaxis"]["showgrid"] = False
+    
+    # Benchmarks
+    fig.add_vline(x=spot, line_color=C_SPOT, line_dash="solid", line_width=2,
+                  annotation_text="SPOT", annotation_position="top left",
+                  annotation_font_color=C_SPOT, annotation_font_size=11)
+    
+    fig.add_vline(x=fair_strike, line_color="#D946EF", line_dash="dash", line_width=1.5,
+                  annotation_text="FAIR VAL", annotation_position="bottom right",
+                  annotation_font_color="#D946EF", annotation_font_size=10)
+
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_intraday_oi_chart(data: dict, index_name: str, mode: str = "total") -> dict:
+    """Builds a time-series chart for Intraday OI (Total or Change) vs Spot Price."""
+    history = data.get("history", [])
+    if not history:
+        return {"error": "No historical OI data available."}
+        
+    times = [h["time"] for h in history]
+    spots = [h["spot"] for h in history]
+    
+    if mode == "change":
+        call_vals = [h["call_oi_chg"] for h in history]
+        put_vals = [h["put_oi_chg"] for h in history]
+        title_suffix = "Intraday OI Change"
+        y_title = "OI Change (Daily)"
+        label_prefix = "OI Change"
+    else:
+        call_vals = [h["call_oi"] for h in history]
+        put_vals = [h["put_oi"] for h in history]
+        title_suffix = "Intraday Total OI"
+        y_title = "Total Open Interest"
+        label_prefix = "Total OI"
+        
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Call OI (Red)
+    fig.add_trace(
+        go.Scatter(x=times, y=call_vals, name=f"Call {label_prefix}", 
+                   line=dict(color="#F43F5E", width=2)),
+        secondary_y=False
+    )
+    
+    # Put OI (Green)
+    fig.add_trace(
+        go.Scatter(x=times, y=put_vals, name=f"Put {label_prefix}", 
+                   line=dict(color="#10B981", width=2)),
+        secondary_y=False
+    )
+    
+    # Spot Price (Secondary Y)
+    fig.add_trace(
+        go.Scatter(x=times, y=spots, name="Spot Price", 
+                   line=dict(color=C_SPOT, width=1.5, dash='dash')),
+        secondary_y=True
+    )
+    
+    layout = _base_layout(f"{index_name} — {title_suffix}")
+    layout["yaxis"]["title"] = dict(text=y_title)
+    layout["yaxis2"] = dict(
+        title=dict(text="Spot Price", font=dict(color=C_SPOT)),
+        side="right",
+        overlaying="y",
+        showgrid=False,
+        tickfont=dict(color=C_SPOT)
+    )
+    
+    # Adjust layout for time series
+    layout["xaxis"]["title"] = "Time (IST)"
+    layout["hovermode"] = "x unified"
+    
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
