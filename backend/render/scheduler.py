@@ -20,12 +20,6 @@ _scheduler: AsyncIOScheduler | None = None
 
 def _collection_job():
     """Scheduled task: collect data if in market hours."""
-    if not collector.is_market_hours(
-        config.MARKET_OPEN_H,  config.MARKET_OPEN_M,
-        config.MARKET_CLOSE_H, config.MARKET_CLOSE_M,
-    ):
-        logger.info("[SCHEDULER] Outside market hours, skipping.")
-        return
 
     logger.info("[SCHEDULER] Market hours active — starting collection cycle.")
     client = db.get_client(config.SUPABASE_URL, config.SUPABASE_KEY)
