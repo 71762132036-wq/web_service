@@ -1,16 +1,16 @@
 name: Set Upstox Token
 
 on:
-  # External trigger from cron-job.org (same pattern as collect.yml)
   repository_dispatch:
     types: [set-token]
 
-  # Fallback schedule: 8:30 AM IST = 3:00 AM UTC, Mon-Fri
   schedule:
     - cron: "0 3 * * 1-5"
 
-  # Manual trigger from GitHub UI
   workflow_dispatch:
+
+permissions:
+  secrets: write
 
 jobs:
   set-token:
@@ -39,14 +39,7 @@ jobs:
           HEADLESS:           "true"
         run: python scripts/upstox_auth.py
 
-      - name: Update GitHub secrets
+      - name: Update GitHub secret
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          gh secret set UPSTOX_ACCESS_TOKEN < /tmp/upstox_token.txt
-          gh secret set ACCESS_TOKEN        < /tmp/upstox_token.txt
-
-      - name: Trigger Render redeploy
-        run: |
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
-            -o /dev/null -w "Render deploy HTTP %{http_code}\n"
+          GH_TOKEN: ${{ github.token }}
+        run: gh secret set UPSTOX_ACCESS_TOKEN < /tmp/upstox_token.txt
