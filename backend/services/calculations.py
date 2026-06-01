@@ -1081,3 +1081,431 @@ def measure_cumulative_curve_metrics(df: pd.DataFrame, spot: float) -> Dict[str,
         "relative_position": rel_pos,
         "is_supportive": bool(shield_depth > 0)
     }
+
+
+# ---------------------------------------------------------------------------
+# Volume-Weighted GEX
+# ---------------------------------------------------------------------------
+
+def calculate_volume_weighted_gex(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
+    """
+    VWGEX = GEX * (Volume / OI) — distinguishes live gamma walls from ghost walls.
+    High volume relative to OI means fresh positioning; low volume = legacy.
+    """
+    df = df.copy()
+    if "Total_GEX" not in df.columns:
+        df = calculate_gex(df, lot_size)
+
+    call_vol = df.get("call_vol", pd.Series(0, index=df.index)).fillna(0)
+    put_vol = df.get("put_vol", pd.Series(0, index=df.index)).fillna(0)
+
+    call_oi = df["Call_OI"].fillna(1).replace(0, 1)
+    put_oi = df["Put_OI"].fillna(1).replace(0, 1)
+
+    df["call_vol_oi_ratio"] = call_vol / call_oi
+    df["put_vol_oi_ratio"] = put_vol / put_oi
+
+    avg_ratio = ((call_vol + put_vol) / (df["Call_OI"].fillna(0) + df["Put_OI"].fillna(0) + 1))
+    df["vol_oi_ratio"] = avg_ratio
+
+    df["VWGEX"] = df["Total_GEX"] * avg_ratio
+    df["Abs_VWGEX"] = df["VWGEX"].abs()
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Bid-Ask Spread Heatmap Data
+# ---------------------------------------------------------------------------
+
+def calculate_spread_heatmap(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """
+    Computes bid-ask spread at each strike alongside GEX.
+    Wide spread near a gamma wall = weak/unconvincing wall.
+    """
+    spot = df["Spot"].iloc[0] if "Spot" in df.columns else 0
+    if spot == 0:
+        return []
+
+    mask = (df["Strike"] > spot * 0.92) & (df["Strike"] < spot * 1.08)
+    ldf = df[mask].copy()
+
+    results = []
+    for _, row in ldf.iterrows():
+        call_spread = (row.get("call_ask_price", 0) or 0) - (row.get("call_bid_price", 0) or 0)
+        put_spread = (row.get("put_ask_price", 0) or 0) - (row.get("put_bid_price", 0) or 0)
+        call_mid = ((row.get("call_ask_price", 0) or 0) + (row.get("call_bid_price", 0) or 0)) / 2
+        put_mid = ((row.get("put_ask_price", 0) or 0) + (row.get("put_bid_price", 0) or 0)) / 2
+
+        call_spread_pct = (call_spread / call_mid * 100) if call_mid > 0 else 0
+        put_spread_pct = (put_spread / put_mid * 100) if put_mid > 0 else 0
+
+        gex_val = row.get("Total_GEX", 0) or 0
+        abs_gex = abs(gex_val)
+
+        results.append({
+            "strike": float(row["Strike"]),
+            "call_spread": float(call_spread),
+            "put_spread": float(put_spread),
+            "call_spread_pct": float(call_spread_pct),
+            "put_spread_pct": float(put_spread_pct),
+            "avg_spread_pct": float((call_spread_pct + put_spread_pct) / 2),
+            "abs_gex": float(abs_gex),
+        })
+
+    if not results:
+        return results
+
+    gex_values = [r["abs_gex"] for r in results]
+    gex_p75 = float(np.percentile(gex_values, 75)) if gex_values else 0
+
+    for r in results:
+        avg_spread = r["avg_spread_pct"]
+        is_meaningful_gex = r["abs_gex"] >= gex_p75
+        is_tight_spread = avg_spread < 3
+        r["conviction"] = "Strong" if is_meaningful_gex and is_tight_spread else "Weak"
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Put-Call Volume Ratio
+# ---------------------------------------------------------------------------
+
+def calculate_pcr_volume(df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    PCR by volume (intraday signal) vs PCR by OI (accumulation signal).
+    """
+    call_vol = df.get("call_vol", pd.Series(0, index=df.index)).fillna(0).sum()
+    put_vol = df.get("put_vol", pd.Series(0, index=df.index)).fillna(0).sum()
+    call_oi = df["Call_OI"].fillna(0).sum()
+    put_oi = df["Put_OI"].fillna(0).sum()
+
+    pcr_vol = float(put_vol / call_vol) if call_vol > 0 else 0
+    pcr_oi = float(put_oi / call_oi) if call_oi > 0 else 0
+
+    if pcr_vol > 1.2:
+        vol_sentiment = "Bearish (Heavy Put Volume)"
+    elif pcr_vol < 0.7:
+        vol_sentiment = "Bullish (Heavy Call Volume)"
+    else:
+        vol_sentiment = "Neutral"
+
+    return {
+        "pcr_volume": round(pcr_vol, 3),
+        "pcr_oi": round(pcr_oi, 3),
+        "call_volume": int(call_vol),
+        "put_volume": int(put_vol),
+        "call_oi": int(call_oi),
+        "put_oi": int(put_oi),
+        "vol_sentiment": vol_sentiment,
+        "divergence": round(pcr_vol - pcr_oi, 3),
+    }
+
+
+# ---------------------------------------------------------------------------
+# OI Buildup / Unwinding Classification
+# ---------------------------------------------------------------------------
+
+def classify_oi_buildup(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Classifies each strike's call/put as one of:
+      Long Buildup   (OI up, Price up)
+      Short Buildup  (OI up, Price down)
+      Short Covering  (OI down, Price up)
+      Long Unwinding  (OI down, Price down)
+    Uses prev_oi and ltp relative to close.
+    """
+    df = df.copy()
+
+    call_oi_chg = df.get("call_oi_chg", pd.Series(0, index=df.index)).fillna(0)
+    put_oi_chg = df.get("put_oi_chg", pd.Series(0, index=df.index)).fillna(0)
+
+    call_ltp = df.get("call_ltp", pd.Series(0, index=df.index)).fillna(0)
+    call_close = df.get("call_close", pd.Series(0, index=df.index)).fillna(0)
+    put_ltp = df.get("put_ltp", pd.Series(0, index=df.index)).fillna(0)
+    put_close = df.get("put_close", pd.Series(0, index=df.index)).fillna(0)
+
+    has_close = (call_close.sum() != 0) or (put_close.sum() != 0)
+    if not has_close:
+        call_price_chg = pd.Series(0, index=df.index)
+        put_price_chg = pd.Series(0, index=df.index)
+    else:
+        call_price_chg = call_ltp - call_close
+        put_price_chg = put_ltp - put_close
+
+    def _classify(oi_chg, price_chg):
+        labels = []
+        for o, p in zip(oi_chg, price_chg):
+            if o > 0 and p > 0:
+                labels.append("Long Buildup")
+            elif o > 0 and p <= 0:
+                labels.append("Short Buildup")
+            elif o <= 0 and p > 0:
+                labels.append("Short Covering")
+            else:
+                labels.append("Long Unwinding")
+        return labels
+
+    df["call_buildup"] = _classify(call_oi_chg, call_price_chg)
+    df["put_buildup"] = _classify(put_oi_chg, put_price_chg)
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# GEX Decay (Theta-Adjusted Gamma / DTE-normalized)
+# ---------------------------------------------------------------------------
+
+def calculate_gex_decay(df: pd.DataFrame, lot_size: int = 75) -> pd.DataFrame:
+    """
+    Normalizes GEX by days-to-expiry.
+    Near-expiry gamma inflates; this shows which walls are structurally real
+    vs. which are about to evaporate.
+    Decay-adjusted GEX = GEX * sqrt(DTE / 7)
+    """
+    df = df.copy()
+    if "Total_GEX" not in df.columns:
+        df = calculate_gex(df, lot_size)
+
+    today = pd.Timestamp("today").normalize()
+    expiry = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+    dte = max((expiry - today).days, 1)
+
+    decay_factor = min(1.0, np.sqrt(dte / 7.0))
+
+    df["Decay_GEX"] = df["Total_GEX"] * decay_factor
+    df["Abs_Decay_GEX"] = df["Decay_GEX"].abs()
+    df["DTE"] = dte
+    df["decay_factor"] = decay_factor
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Dealer Hedge Flow Simulation
+# ---------------------------------------------------------------------------
+
+def calculate_hedge_flow_simulation(df: pd.DataFrame, spot: float, lot_size: int = 75) -> Dict[str, Any]:
+    """
+    Simulates dealer hedge requirements for ±1%, ±2%, ±3% moves.
+    Shows where dealer buying/selling *accelerates* (convexity).
+    Positive = dealers must BUY (supportive), Negative = dealers must SELL (resistance).
+    """
+    r = 0.05
+    if "T" in df.columns:
+        T = df["T"].iloc[0]
+    else:
+        today = pd.Timestamp("today").normalize()
+        expiry = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+        T = max((expiry - today).days / 365.0, 1.0 / 365.0)
+
+    sqrtT = np.sqrt(T)
+    strikes = df["Strike"].values
+    c_iv = np.maximum(df["call_iv"].values / 100.0, 0.001)
+    p_iv = np.maximum(df["put_iv"].values / 100.0, 0.001)
+    c_oi = df["Call_OI"].values
+    p_oi = df["Put_OI"].values
+
+    def get_net_delta(s_test):
+        d1_c = (np.log(s_test / strikes) + (r + 0.5 * c_iv**2) * T) / (c_iv * sqrtT)
+        delta_c = norm.cdf(d1_c)
+        d1_p = (np.log(s_test / strikes) + (r + 0.5 * p_iv**2) * T) / (p_iv * sqrtT)
+        delta_p = norm.cdf(d1_p) - 1
+        return -((c_oi * delta_c).sum() + (p_oi * delta_p).sum()) * lot_size
+
+    baseline_delta = get_net_delta(spot)
+
+    steps_pct = np.array([-3.0, -2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0])
+    profile = []
+    for pct in steps_pct:
+        s_test = spot * (1 + pct / 100.0)
+        net_d = get_net_delta(s_test)
+        hedge_flow = net_d - baseline_delta
+        profile.append({
+            "pct": float(pct),
+            "price": float(s_test),
+            "net_delta": float(net_d),
+            "hedge_flow": float(hedge_flow),
+        })
+
+    flows = [abs(p["hedge_flow"]) for p in profile if p["pct"] != 0]
+    convexity_score = float(np.std(flows)) if flows else 0
+
+    return {
+        "spot": float(spot),
+        "profile": profile,
+        "baseline_delta": float(baseline_delta),
+        "convexity_score": convexity_score,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Max Pain + Pin Risk Score
+# ---------------------------------------------------------------------------
+
+def calculate_max_pain(df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Max pain = strike where option holders lose the most.
+    Pin risk = how likely the market is to pin at max pain, amplified by GEX.
+    """
+    df = df.copy()
+    strikes = sorted(df["Strike"].unique())
+    spot = df["Spot"].iloc[0]
+
+    strike_arr = df["Strike"].values
+    call_oi_arr = df["Call_OI"].values
+    put_oi_arr = df["Put_OI"].values
+    test_strikes = np.array(strikes)
+
+    call_itm = np.maximum(test_strikes[:, None] - strike_arr[None, :], 0)
+    put_itm = np.maximum(strike_arr[None, :] - test_strikes[:, None], 0)
+
+    call_pain_arr = (call_itm * call_oi_arr[None, :]).sum(axis=1)
+    put_pain_arr = (put_itm * put_oi_arr[None, :]).sum(axis=1)
+    total_pain_arr = call_pain_arr + put_pain_arr
+
+    pain_values = [
+        {
+            "strike": float(test_strikes[i]),
+            "total_pain": float(total_pain_arr[i]),
+            "call_pain": float(call_pain_arr[i]),
+            "put_pain": float(put_pain_arr[i]),
+        }
+        for i in range(len(test_strikes))
+    ]
+
+    min_idx = int(np.argmin(total_pain_arr))
+    max_pain_strike = float(test_strikes[min_idx])
+
+    if "Total_GEX" not in df.columns:
+        df = calculate_gex(df)
+
+    today = pd.Timestamp("today").normalize()
+    expiry = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+    dte = max((expiry - today).days, 1)
+
+    gex_at_mp = df.loc[(df["Strike"] - max_pain_strike).abs().idxmin(), "Abs_GEX"]
+    max_gex = df["Abs_GEX"].max()
+    gex_concentration = float(gex_at_mp / max_gex) if max_gex > 0 else 0
+
+    dte_factor = max(0, 1.0 - (dte / 10.0))
+    distance_factor = max(0, 1.0 - abs(spot - max_pain_strike) / (spot * 0.02))
+    pin_risk = round(min(1.0, (gex_concentration * 0.4 + dte_factor * 0.35 + distance_factor * 0.25)), 3)
+
+    if pin_risk > 0.7:
+        pin_label = "HIGH PIN RISK"
+    elif pin_risk > 0.4:
+        pin_label = "MODERATE PIN RISK"
+    else:
+        pin_label = "LOW PIN RISK"
+
+    return {
+        "max_pain_strike": float(max_pain_strike),
+        "spot": float(spot),
+        "distance_pts": float(spot - max_pain_strike),
+        "distance_pct": float((spot - max_pain_strike) / spot * 100),
+        "dte": dte,
+        "pin_risk_score": pin_risk,
+        "pin_label": pin_label,
+        "gex_concentration_at_mp": gex_concentration,
+        "pain_profile": pain_values,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Gamma-Adjusted Expected Range
+# ---------------------------------------------------------------------------
+
+def calculate_gamma_adjusted_range(df: pd.DataFrame, lot_size: int = 75) -> Dict[str, Any]:
+    """
+    Corrects straddle-implied range using GEX:
+    - Negative gamma territory: realized > implied (dealers amplify)
+    - Positive gamma territory: realized < implied (dealers dampen)
+    Gamma adjustment = 1 + (normalized_net_gex * scaling_factor)
+    """
+    df = df.copy()
+    spot = df["Spot"].iloc[0]
+
+    if "Total_GEX" not in df.columns:
+        df = calculate_gex(df, lot_size)
+
+    atm_idx = (df["Strike"] - spot).abs().idxmin()
+    atm_row = df.loc[atm_idx]
+
+    straddle_price = (atm_row.get("call_ltp", 0) or 0) + (atm_row.get("put_ltp", 0) or 0)
+    implied_move_pct = (straddle_price / spot) * 100
+
+    net_gex = df["Total_GEX"].sum()
+    max_possible_gex = df["Abs_GEX"].sum()
+    normalized_gex = net_gex / max_possible_gex if max_possible_gex > 0 else 0
+
+    gamma_multiplier = 1.0 - (normalized_gex * 0.35)
+    gamma_multiplier = max(0.5, min(1.8, gamma_multiplier))
+
+    adjusted_move_pct = implied_move_pct * gamma_multiplier
+    adjusted_move_pts = spot * adjusted_move_pct / 100
+
+    regime = "Dampened (Positive Gamma)" if normalized_gex > 0 else "Amplified (Negative Gamma)"
+
+    return {
+        "spot": float(spot),
+        "straddle_price": float(straddle_price),
+        "implied_move_pct": round(float(implied_move_pct), 3),
+        "implied_range_upper": float(spot + spot * implied_move_pct / 100),
+        "implied_range_lower": float(spot - spot * implied_move_pct / 100),
+        "gamma_multiplier": round(float(gamma_multiplier), 3),
+        "adjusted_move_pct": round(float(adjusted_move_pct), 3),
+        "adjusted_range_upper": float(spot + adjusted_move_pts),
+        "adjusted_range_lower": float(spot - adjusted_move_pts),
+        "net_gex_normalized": round(float(normalized_gex), 4),
+        "regime": regime,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Cross-Index Gamma Correlation (System Gamma Score)
+# ---------------------------------------------------------------------------
+
+def calculate_system_gamma_score(data_map: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """
+    Aggregates gamma regime across multiple indices.
+    When all indices are in negative gamma → elevated systemic risk.
+    data_map: { "Nifty": df, "BankNifty": df, ... }
+    """
+    scores = {}
+    for name, df in data_map.items():
+        if df is None or df.empty:
+            continue
+        if "Total_GEX" not in df.columns:
+            df = calculate_gex(df)
+        net_gex = df["Total_GEX"].sum()
+        spot = df["Spot"].iloc[0]
+        flip = calculate_flip_point(df)
+        regime = 1 if spot > flip else -1
+        scores[name] = {
+            "net_gex": float(net_gex),
+            "spot": float(spot),
+            "flip": float(flip),
+            "regime": regime,
+            "regime_label": "Positive Gamma" if regime > 0 else "Negative Gamma",
+        }
+
+    if not scores:
+        return {"system_score": 0, "label": "No Data", "indices": {}}
+
+    regime_values = [s["regime"] for s in scores.values()]
+    system_score = float(np.mean(regime_values))
+
+    if system_score > 0.5:
+        label = "SYSTEM STABLE (Positive Gamma Dominance)"
+    elif system_score < -0.5:
+        label = "ELEVATED RISK (Negative Gamma Dominance)"
+    else:
+        label = "MIXED REGIME (Divergent Gamma)"
+
+    return {
+        "system_score": round(system_score, 3),
+        "label": label,
+        "indices": scores,
+    }

@@ -28,6 +28,8 @@ const DashboardPage = (() => {
       'Gamma': [
         { key: 'gex', label: 'Gamma Exposure', id: 'chart-gex' },
         { key: 'cum_gex', label: 'Cumulative GEX', id: 'chart-cum-gex' },
+        { key: 'vwgex', label: 'Volume-Weighted', id: 'chart-vwgex' },
+        { key: 'gex_decay', label: 'GEX Decay (DTE)', id: 'chart-gex-decay' },
       ],
       'Delta': [
         { key: 'dex', label: 'Delta Exposure', id: 'chart-dex' },
@@ -57,6 +59,7 @@ const DashboardPage = (() => {
       ],
       'Expected Range': [
         { key: 'iv_cone', label: 'IV Cone', id: 'chart-iv-cone' },
+        { key: 'gamma_range', label: 'Gamma-Adjusted', id: 'chart-gamma-range' },
       ],
       'Vol Trigger': [
         { key: 'vtl', label: 'Volatility Trigger', id: 'chart-vtl' },
@@ -74,6 +77,7 @@ const DashboardPage = (() => {
       ],
       'OI Change': [
         { key: 'oi_change', label: 'Daily Shift', id: 'chart-oi-change' },
+        { key: 'oi_buildup', label: 'Buildup Class', id: 'chart-oi-buildup' },
       ],
       'Intraday OI Tracker': [
         { key: 'oi_tracker', label: 'Overall', id: 'chart-oi-tracker-total', mode: 'total' },
@@ -85,6 +89,9 @@ const DashboardPage = (() => {
       'OI Flow': [
         { key: 'oi_flow', label: 'OI vs Vol', id: 'chart-oi-flow' },
       ],
+      'PCR Analysis': [
+        { key: 'pcr_volume', label: 'Vol vs OI PCR', id: 'chart-pcr-volume' },
+      ],
       'Filter': [
         { key: 'overall_filter', label: 'Overall', id: 'filter-overall' },
         { key: 'strike_filter', label: 'Strike Wise', id: 'filter-strike' }
@@ -94,6 +101,9 @@ const DashboardPage = (() => {
       'Quant': [
         { key: 'quant_power', label: 'Quant Power', id: 'chart-quant-power' },
         { key: 'regime', label: 'Dealer Regime', id: 'chart-regime' },
+      ],
+      'Max Pain': [
+        { key: 'max_pain', label: 'Pain & Pin Risk', id: 'chart-max-pain' },
       ]
     },
     'Advanced': {
@@ -108,6 +118,8 @@ const DashboardPage = (() => {
       ],
       'Institutional Flow': [
         { key: 'momentum', label: 'Flow Momentum', id: 'chart-momentum' },
+        { key: 'participant', label: 'FII/DII Position', id: 'chart-participant' },
+        { key: 'fii_alignment', label: 'FII × Gamma', id: 'chart-fii-alignment' },
       ],
       'Systemic Pulse': [
         { key: 'systemic_pulse', label: 'Market Pulse', id: 'chart-systemic-pulse' },
@@ -115,12 +127,34 @@ const DashboardPage = (() => {
         { key: 'total_dex', label: 'Total DEX', id: 'chart-total-dex' },
       ]
     },
+    'Signals': {
+      'Composite Score': [
+        { key: 'sig_composite', label: 'Move Imminent', id: 'chart-sig-composite' },
+      ],
+      'Flip Proximity': [
+        { key: 'sig_flip', label: 'Regime Break', id: 'chart-sig-flip' },
+      ],
+      'Wall Decay': [
+        { key: 'sig_wall_decay', label: 'Live vs Ghost', id: 'chart-sig-wall-decay' },
+      ],
+      'IV Divergence': [
+        { key: 'sig_iv_divergence', label: 'Smart Money Tell', id: 'chart-sig-iv-div' },
+      ],
+      'OI Asymmetry': [
+        { key: 'sig_oi_asymmetry', label: 'Directional Trigger', id: 'chart-sig-oi-asym' },
+      ],
+      'Delta Acceleration': [
+        { key: 'sig_delta_accel', label: 'Cascade Detector', id: 'chart-sig-delta-accel' },
+      ],
+    },
     'God Tier': {
       'Dealer Reflexivity': [
         { key: 'reflexivity', label: 'Hedge Curve', id: 'chart-reflexivity' },
+        { key: 'hedge_flow', label: 'Hedge Simulation', id: 'chart-hedge-flow' },
       ],
       'Liquidity Profile': [
         { key: 'liquidity', label: 'Voids & Depth', id: 'chart-liquidity' },
+        { key: 'spread_heatmap', label: 'Spread Conviction', id: 'chart-spread-heatmap' },
       ],
       'Stickiness': [
         { key: 'stickiness', label: 'Level Heat', id: 'chart-stickiness' },
@@ -133,6 +167,9 @@ const DashboardPage = (() => {
       ],
       'Curve Steepness': [
         { key: 'cum_steepness', label: 'GEX Slope', id: 'chart-cum_steepness' },
+      ],
+      'System Gamma': [
+        { key: 'system_gamma', label: 'Cross-Index', id: 'chart-system-gamma' },
       ]
     }
   };
@@ -407,7 +444,7 @@ const DashboardPage = (() => {
           if (filterArea) await FilterViews.render(filterArea);
         }
         else {
-          const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex'];
+          const exposureKeys = ['gex', 'cum_gex', 'dex', 'cum_dex', 'vex', 'cum_vex', 'cex', 'cum_cex', 'vwgex'];
           const mode = chart.mode || (exposureKeys.includes(chart.key) ? st.gammaChartMode : 'net');
           if (chart.key === 'gex_dex_combined') {
             await _renderGexDexInteractive(index, chart.id);
@@ -546,6 +583,43 @@ const DashboardPage = (() => {
         { label: 'Net Gamma', value: Math.round(metrics.cum_gex / 1e7).toLocaleString() + ' Cr', sub: 'Portfolio GEX (1% Move)', classes: `flow-status ${metrics.cum_gex > 0 ? 'bullish' : 'bearish'}` },
         { label: 'Net Delta', value: Math.round(metrics.cum_dex / 1e7).toLocaleString() + ' Cr', sub: 'Portfolio Delta (Notional)', classes: `flow-status ${metrics.cum_dex > 0 ? 'bullish' : 'bearish'}` },
       ];
+    } else if (st.selectedCategory === 'Max Pain') {
+      cards = [
+        { label: 'Max Pain', value: metrics.max_pain ? metrics.max_pain.toLocaleString() : 'N/A', sub: metrics.pin_label || '', classes: `flow-status ${metrics.pin_risk > 0.5 ? 'bearish' : 'bullish'}` },
+        { label: 'Pin Risk', value: metrics.pin_risk ? (metrics.pin_risk * 100).toFixed(0) + '%' : 'N/A' },
+        { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+        { label: 'Dealer Regime', value: metrics.regime, classes: `regime ${regimeClass}` },
+      ];
+    } else if (st.selectedCategory === 'PCR Analysis') {
+      cards = [
+        { label: 'PCR (Volume)', value: metrics.pcr_volume ? metrics.pcr_volume.toFixed(3) : 'N/A', sub: 'Intraday Signal', classes: `flow-status ${(metrics.pcr_volume || 0) > 1 ? 'bearish' : 'bullish'}` },
+        { label: 'PCR (OI)', value: metrics.pcr_oi ? metrics.pcr_oi.toFixed(3) : 'N/A', sub: 'Accumulation Signal' },
+        { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+        { label: 'Dealer Regime', value: metrics.regime, classes: `regime ${regimeClass}` },
+      ];
+    } else if (st.selectedBucket === 'Signals') {
+      const flipDist = ((Math.abs(metrics.spot - metrics.flip_point) / metrics.spot) * 100).toFixed(2);
+      const nearFlip = parseFloat(flipDist) < 0.3;
+      if (_lastFlowSummary?.composite_score !== undefined) {
+        const cs = _lastFlowSummary.composite_score;
+        const urgency = _lastFlowSummary.urgency || '';
+        const bias = _lastFlowSummary.bias || '';
+        const urgencyClass = cs >= 60 ? 'bearish' : (cs >= 40 ? '' : 'bullish');
+        const biasClass = bias === 'BULLISH' ? 'bullish' : (bias === 'BEARISH' ? 'bearish' : '');
+        cards = [
+          { label: 'Move Score', value: `${cs}/100`, sub: urgency, classes: `flow-status ${urgencyClass}` },
+          { label: 'Direction', value: bias, sub: `${_lastFlowSummary.snapshots || 0} snapshots`, classes: `flow-status ${biasClass}` },
+          { label: 'Flip Distance', value: `${flipDist}%`, sub: nearFlip ? 'DANGER ZONE' : (metrics.spot > metrics.flip_point ? 'Above Flip' : 'Below Flip'), classes: `flow-status ${nearFlip ? 'bearish' : 'bullish'}` },
+          { label: 'Dealer Regime', value: metrics.regime, classes: `regime ${regimeClass}` },
+        ];
+      } else {
+        cards = [
+          { label: 'Spot Price', value: metrics.spot.toLocaleString() },
+          { label: 'Flip Distance', value: `${flipDist}%`, sub: metrics.spot > metrics.flip_point ? 'Above Flip' : 'Below Flip', classes: `flow-status ${nearFlip ? 'bearish' : 'bullish'}` },
+          { label: 'Flip Point', value: metrics.flip_point.toLocaleString(), sub: 'Regime Break Level' },
+          { label: 'Dealer Regime', value: metrics.regime, classes: `regime ${regimeClass}` },
+        ];
+      }
     } else {
       cards = [
         { label: 'Spot Price', value: metrics.spot.toLocaleString() },
@@ -607,173 +681,212 @@ const DashboardPage = (() => {
     _updateMetricsState(container, metrics, regimeClass, vs);
   }
 
+  // ── Black-Scholes math (inline, no library) ──────────────
+  function _normPdf(x) { return Math.exp(-0.5 * x * x) / 2.5066282746310002; }
+  function _normCdf(x) {
+    if (x > 6) return 1; if (x < -6) return 0;
+    const a = Math.abs(x);
+    const t = 1 / (1 + 0.2316419 * a);
+    const t2 = t * t, t3 = t2 * t, t4 = t3 * t, t5 = t4 * t;
+    const inner = 0.319381530 * t - 0.356563782 * t2 + 1.781477937 * t3
+                - 1.821255978 * t4 + 1.330274429 * t5;
+    const c = 1 - _normPdf(a) * inner;
+    return x >= 0 ? c : 1 - c;
+  }
+
+  function _recalcGreeks(S, strikes, callIV, putIV, callOI, putOI, lotSize, T, r) {
+    const sqrtT = Math.sqrt(T);
+    const n = strikes.length;
+    const gex = new Array(n), dex = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const K = strikes[i];
+      const sigC = Math.max(callIV[i] / 100, 0.001);
+      const d1c = (Math.log(S / K) + (r + 0.5 * sigC * sigC) * T) / (sigC * sqrtT);
+      const gammaC = _normPdf(d1c) / (S * sigC * sqrtT);
+      const deltaC = _normCdf(d1c);
+
+      const sigP = Math.max(putIV[i] / 100, 0.001);
+      const d1p = (Math.log(S / K) + (r + 0.5 * sigP * sigP) * T) / (sigP * sqrtT);
+      const gammaP = _normPdf(d1p) / (S * sigP * sqrtT);
+      const deltaP = _normCdf(d1p) - 1;
+
+      const gexMul = lotSize * S * S * 0.01;
+      gex[i] = (-gammaC * callOI[i] + gammaP * putOI[i]) * gexMul;
+      const dexMul = lotSize * S;
+      dex[i] = (-deltaC * callOI[i] - deltaP * putOI[i]) * dexMul;
+    }
+    return { gex, dex };
+  }
+
+  function _computeFlip(strikes, gex) {
+    for (let i = 0; i < gex.length - 1; i++) {
+      const g1 = gex[i], g2 = gex[i + 1];
+      if ((g1 <= 0 && g2 >= 0) || (g1 >= 0 && g2 <= 0)) {
+        if (Math.abs(g2 - g1) < 1e-9) return strikes[i];
+        return strikes[i] - g1 * (strikes[i + 1] - strikes[i]) / (g2 - g1);
+      }
+    }
+    let minIdx = 0, minVal = Math.abs(gex[0] || 0);
+    for (let i = 1; i < gex.length; i++) {
+      if (Math.abs(gex[i]) < minVal) { minVal = Math.abs(gex[i]); minIdx = i; }
+    }
+    return strikes[minIdx];
+  }
+
+  function _topNByAbs(strikes, vals, n) {
+    const arr = vals.map((v, i) => ({ a: Math.abs(v), s: strikes[i] }));
+    arr.sort((a, b) => b.a - a.a);
+    return arr.slice(0, n).map(x => x.s);
+  }
+
   async function _renderGexDexInteractive(index, containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
     el.innerHTML = '<div class="chart-placeholder"><div class="spin"></div><span>Loading Greek Interaction…</span></div>';
 
-    let rawData;
+    let raw;
     try {
-      const res = await fetch(`/api/charts/${index}/gex_dex_combined`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      rawData = json.data;
+      const json = await API.getChart(index, 'gex_dex_combined');
+      raw = json.data;
     } catch (err) {
       el.innerHTML = `<div class="alert alert-error">Failed to load data: ${err.message}</div>`;
       return;
     }
 
-    const { strikes, gex, dex, dex_abs, spot } = rawData;
-    const RANGE = 350;
-    const STEP = 25;
+    const { strikes, call_iv, put_iv, call_oi, put_oi, spot, lot_size, T, r } = raw;
+    const dtick = strikes.length >= 2 ? strikes[1] - strikes[0] : 50;
+    const bw = dtick * 0.8;
+    const RANGE = Math.max(500, dtick * 10);
+    const STEP = Math.max(25, dtick / 2);
 
-    // Build wrapper with slider on top
     el.innerHTML = `
-      <div class="gex-dex-wrapper" style="width:100%;height:100%;display:flex;flex-direction:column;gap:10px;padding:8px 4px;">
-        <div class="gex-dex-controls" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 8px;">
+      <div style="width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:8px 4px;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 8px;">
           <span style="font-size:11px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;">Spot Shift</span>
-          <input type="range" id="spot-slider-${containerId}"
+          <input type="range" id="gi-slider-${containerId}"
             min="${-RANGE}" max="${RANGE}" step="${STEP}" value="0"
             style="flex:1;min-width:180px;accent-color:#6366f1;cursor:pointer;">
-          <div style="display:flex;gap:18px;">
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:#64748B;">Shifted Spot</div>
-              <div id="slider-spot-label-${containerId}" style="font-size:14px;font-weight:700;color:#E2E8F0;">${Math.round(spot).toLocaleString()}</div>
-            </div>
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:#64748B;">Δ Spot</div>
-              <div id="slider-delta-label-${containerId}" style="font-size:14px;font-weight:700;color:#6366F1;">0</div>
-            </div>
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:#64748B;">Net Abs Δ</div>
-              <div id="slider-netdex-label-${containerId}" style="font-size:14px;font-weight:700;color:#34D399;">—</div>
-            </div>
+          <div style="display:flex;gap:16px;">
+            <div style="text-align:center;"><div style="font-size:10px;color:#64748B;">Shifted Spot</div>
+              <div id="gi-spot-${containerId}" style="font-size:14px;font-weight:700;color:#F59E0B;">${Math.round(spot).toLocaleString()}</div></div>
+            <div style="text-align:center;"><div style="font-size:10px;color:#64748B;">Move</div>
+              <div id="gi-move-${containerId}" style="font-size:14px;font-weight:700;color:#6366F1;">0</div></div>
+            <div style="text-align:center;"><div style="font-size:10px;color:#64748B;">Net GEX</div>
+              <div id="gi-gex-${containerId}" style="font-size:14px;font-weight:700;color:#6366F1;">—</div></div>
           </div>
         </div>
-        <div id="gex-dex-plotly-${containerId}" style="flex:1;min-height:400px;"></div>
+        <div id="gi-plot-${containerId}" style="flex:1;min-height:500px;"></div>
       </div>`;
 
-    const plotEl = document.getElementById(`gex-dex-plotly-${containerId}`);
-    const slider = document.getElementById(`spot-slider-${containerId}`);
-    const spotLabel = document.getElementById(`slider-spot-label-${containerId}`);
-    const deltaLabel = document.getElementById(`slider-delta-label-${containerId}`);
-    const netDexLabel = document.getElementById(`slider-netdex-label-${containerId}`);
+    const plotEl   = document.getElementById(`gi-plot-${containerId}`);
+    const slider   = document.getElementById(`gi-slider-${containerId}`);
+    const lblSpot  = document.getElementById(`gi-spot-${containerId}`);
+    const lblMove  = document.getElementById(`gi-move-${containerId}`);
+    const lblGex   = document.getElementById(`gi-gex-${containerId}`);
 
-    // colour arrays  
-    const POS = 'rgba(52,211,153,0.82)';
-    const NEG = 'rgba(239,68,68,0.82)';
-    const GEX_CLR = 'rgba(99,102,241,0.5)';
-    const GEX_POS = 'rgba(99,102,241,0.75)';
-    const GEX_NEG = 'rgba(232,121,249,0.75)';
-
-    function computeShiftedDex(deltaSpot) {
-      // When spot moves ΔS, each option's delta changes by gamma × ΔS
-      // GEX is already in ₹ terms (gamma × lots × lot_size × spot²/100), but the
-      // ratio gex/spot gives delta sensitivity per ₹. Use gex/spot as the shift rate.
-      return dex.map((d, i) => d + (gex[i] / (spot || 1)) * deltaSpot);
-    }
+    const C_POS  = '#6366F1', C_NEG = '#F43F5E';
+    const C_ABS  = 'rgba(239,222,11,0.3)';
+    const C_SPOT = '#F59E0B', C_FLIP = '#F1F5F9';
+    const C_ZONE = 'rgba(245,158,11,0.12)';
 
     function renderPlot(deltaSpot) {
-      const shiftedDex = computeShiftedDex(deltaSpot);
-      const shiftedAbsDex = shiftedDex.map(Math.abs);
-      const netAbsDex = shiftedAbsDex.reduce((a, b) => a + b, 0);
+      const S = spot + deltaSpot;
+      const { gex } = _recalcGreeks(S, strikes, call_iv, put_iv, call_oi, put_oi, lot_size, T, r);
+      const absGex = gex.map(Math.abs);
+      const flip = _computeFlip(strikes, gex);
+      const zones = _topNByAbs(strikes, gex, 3);
+      const netGex = gex.reduce((a, b) => a + b, 0);
 
-      const dexColors = shiftedDex.map(v => v >= 0 ? POS : NEG);
-      const gexColors = gex.map(v => v >= 0 ? GEX_POS : GEX_NEG);
+      const gexPos = gex.map(v => v > 0 ? v : 0);
+      const gexNeg = gex.map(v => v < 0 ? v : 0);
 
       const traces = [
-        {
-          name: 'Abs Delta (Shifted)',
-          x: strikes,
-          y: shiftedAbsDex,
-          type: 'bar',
-          marker: { color: dexColors, opacity: 0.88 },
-          yaxis: 'y',
-          hovertemplate: '<b>Strike %{x}</b><br>|ΔEX|: %{y:.2f}<extra></extra>'
-        },
-        {
-          name: 'Gamma Exposure',
-          x: strikes,
-          y: gex,
-          type: 'bar',
-          marker: { color: gexColors, opacity: 0.65 },
-          yaxis: 'y2',
-          hovertemplate: '<b>Strike %{x}</b><br>GEX: %{y:.2f}<extra></extra>'
-        },
+        { name: '+Dealer GEX', x: strikes, y: gexPos, type: 'bar', width: bw,
+          marker: { color: C_POS }, opacity: 0.9, yaxis: 'y' },
+        { name: '-Dealer GEX', x: strikes, y: gexNeg, type: 'bar', width: bw,
+          marker: { color: C_NEG }, opacity: 0.9, yaxis: 'y' },
+        { name: 'Abs GEX Heat', x: strikes, y: absGex, type: 'scatter', mode: 'lines',
+          fill: 'tozeroy', fillcolor: C_ABS,
+          line: { color: 'rgba(168,85,247,0.4)', width: 2 }, yaxis: 'y2' },
       ];
 
-      const shiftedSpot = spot + deltaSpot;
+      const shapes = [];
+      const annotations = [];
+
+      shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+        x0: S, x1: S, y0: 0, y1: 1,
+        line: { color: C_SPOT, width: 1.5, dash: 'solid' } });
+      annotations.push({ xref: 'x', yref: 'paper', x: S, y: 1.04,
+        text: `SPOT: ${Math.round(S)}`, showarrow: false,
+        font: { size: 10, color: C_SPOT }, xanchor: 'left',
+        bgcolor: 'rgba(0,0,0,0.5)', bordercolor: 'rgba(255,255,255,0.1)' });
+
+      shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+        x0: flip, x1: flip, y0: 0, y1: 1,
+        line: { color: C_FLIP, width: 1.5, dash: 'dot' } });
+      annotations.push({ xref: 'x', yref: 'paper', x: flip, y: 1.04,
+        text: `ZERO: ${Math.round(flip)}`, showarrow: false,
+        font: { size: 10, color: C_FLIP }, xanchor: 'left',
+        bgcolor: 'rgba(0,0,0,0.5)', bordercolor: 'rgba(255,255,255,0.1)' });
+
+      if (deltaSpot !== 0) {
+        shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+          x0: spot, x1: spot, y0: 0, y1: 1,
+          line: { color: 'rgba(255,255,255,0.2)', width: 1, dash: 'dot' } });
+        annotations.push({ xref: 'x', yref: 'paper', x: spot, y: 0.97,
+          text: `ORIG: ${Math.round(spot)}`, showarrow: false,
+          font: { size: 9, color: '#64748B' }, xanchor: 'center' });
+      }
+
+      for (const zs of zones) {
+        shapes.push({ type: 'rect', xref: 'x', yref: 'paper',
+          x0: zs - bw / 2, x1: zs + bw / 2, y0: 0, y1: 1,
+          fillcolor: C_ZONE, line: { width: 0 }, layer: 'below' });
+      }
+
+      const regime = S > flip ? 'LONG GAMMA' : 'SHORT GAMMA';
+      annotations.push({ xref: 'paper', yref: 'paper', x: 0.99, y: 0.97,
+        text: regime, showarrow: false, xanchor: 'right',
+        font: { size: 11, color: S > flip ? C_POS : C_NEG, weight: 700 },
+        bgcolor: 'rgba(0,0,0,0.5)', bordercolor: 'rgba(255,255,255,0.1)' });
+
+      const titleText = `${index} — DEALER GAMMA EXPOSURE @ ${Math.round(S)}`;
       const layout = {
+        title: { text: titleText.toUpperCase(), font: { size: 12, color: '#94A3B8', weight: 700 }, x: 0.01, y: 0.98 },
         paper_bgcolor: 'rgba(15,23,42,0)',
-        plot_bgcolor: 'rgba(30,41,59,0.15)',
+        plot_bgcolor: 'rgba(30,41,59,0.2)',
         font: { color: '#CBD5E1', family: "'Inter', sans-serif", size: 11 },
-        margin: { l: 55, r: 55, t: 32, b: 50 },
+        legend: { bgcolor: 'rgba(0,0,0,0)', borderwidth: 0, orientation: 'h',
+          yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1, font: { size: 10 } },
+        margin: { l: 50, r: 50, t: 100, b: 60 },
+        height: 650, autosize: true,
         barmode: 'overlay',
-        legend: { bgcolor: 'rgba(0,0,0,0)', borderwidth: 0, orientation: 'h', y: 1.08, xanchor: 'right', x: 1, font: { size: 10 } },
-        xaxis: {
-          title: 'Strike Price',
-          gridcolor: 'rgba(255,255,255,0.04)',
-          zeroline: false,
-          tickfont: { size: 10 },
-        },
-        yaxis: {
-          title: '|Abs Delta Exposure|',
-          gridcolor: 'rgba(255,255,255,0.04)',
-          zeroline: true,
-          zerolinecolor: 'rgba(255,255,255,0.15)',
-          tickfont: { size: 10 },
-        },
-        yaxis2: {
-          title: 'Gamma Exposure (GEX)',
-          overlaying: 'y',
-          side: 'right',
-          gridcolor: 'rgba(255,255,255,0)',
-          zeroline: false,
-          tickfont: { size: 10, color: '#818CF8' },
-          titlefont: { color: '#818CF8' },
-        },
-        shapes: [
-          // Current spot line
-          {
-            type: 'line', xref: 'x', yref: 'paper',
-            x0: spot, x1: spot, y0: 0, y1: 1,
-            line: { color: 'rgba(255,255,255,0.25)', width: 1.5, dash: 'dot' }
-          },
-          // Shifted spot line
-          ...(deltaSpot !== 0 ? [{
-            type: 'line', xref: 'x', yref: 'paper',
-            x0: shiftedSpot, x1: shiftedSpot, y0: 0, y1: 1,
-            line: { color: '#6366F1', width: 2, dash: 'solid' }
-          }] : [])
-        ],
-        annotations: [
-          { xref: 'x', yref: 'paper', x: spot, y: 1.02, text: `Spot ${Math.round(spot).toLocaleString()}`, showarrow: false, font: { size: 10, color: '#94A3B8' }, xanchor: 'center' },
-          ...(deltaSpot !== 0 ? [{ xref: 'x', yref: 'paper', x: shiftedSpot, y: 1.02, text: `→ ${Math.round(shiftedSpot).toLocaleString()}`, showarrow: false, font: { size: 10, color: '#818CF8' }, xanchor: 'center' }] : [])
-        ]
+        xaxis: { gridcolor: 'rgba(255,255,255,0.04)', zeroline: false,
+          showline: true, linecolor: 'rgba(255,255,255,0.1)',
+          tickfont: { size: 10 }, tickmode: 'linear', dtick, tickangle: -45 },
+        yaxis: { title: 'Dealer GEX', gridcolor: 'rgba(255,255,255,0.04)',
+          zeroline: true, zerolinecolor: 'rgba(255,255,255,0.1)', tickfont: { size: 10 } },
+        yaxis2: { title: 'Absolute Dealer GEX', gridcolor: 'rgba(255,255,255,0.04)',
+          zeroline: false, overlaying: 'y', side: 'right', tickfont: { size: 10 } },
+        shapes, annotations,
       };
 
-      // Update summary labels
-      spotLabel.textContent = Math.round(shiftedSpot).toLocaleString();
-      deltaLabel.textContent = (deltaSpot >= 0 ? '+' : '') + deltaSpot;
-      deltaLabel.style.color = deltaSpot > 0 ? '#34D399' : deltaSpot < 0 ? '#F87171' : '#6366F1';
-      netDexLabel.textContent = (netAbsDex / 1e7).toFixed(1) + ' Cr';
+      lblSpot.textContent = Math.round(S).toLocaleString();
+      lblMove.textContent = (deltaSpot >= 0 ? '+' : '') + deltaSpot;
+      lblMove.style.color = deltaSpot > 0 ? '#34D399' : deltaSpot < 0 ? '#F43F5E' : '#6366F1';
+      lblGex.textContent = (netGex / 1e7).toFixed(1) + ' Cr';
+      lblGex.style.color = netGex >= 0 ? C_POS : C_NEG;
 
-      if (!plotEl._gexDexInit) {
+      if (!plotEl._init) {
         Plotly.newPlot(plotEl, traces, layout, { responsive: true, displayModeBar: false });
-        plotEl._gexDexInit = true;
+        plotEl._init = true;
       } else {
         Plotly.react(plotEl, traces, layout);
       }
     }
 
-    // Initial render at delta=0
     renderPlot(0);
-
-    // Wire slider
-    slider.addEventListener('input', () => {
-      const dS = parseInt(slider.value, 10);
-      renderPlot(dS);
-    });
+    slider.addEventListener('input', () => renderPlot(parseInt(slider.value, 10)));
   }
 
   return { render };

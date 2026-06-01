@@ -1883,7 +1883,926 @@ def build_intraday_oi_chart(data: dict, index_name: str, mode: str = "total") ->
     # Adjust layout for time series
     layout["xaxis"]["title"] = "Time (IST)"
     layout["hovermode"] = "x unified"
-    
+
     fig.update_layout(**layout)
     return fig.to_dict()
 
+
+# ---------------------------------------------------------------------------
+# NEW: Volume-Weighted GEX Chart
+# ---------------------------------------------------------------------------
+
+def build_vwgex_chart(df: pd.DataFrame, index_name: str = "Index", mode: str = "net") -> dict:
+    """Volume-weighted GEX — distinguishes live walls from ghost walls."""
+    spot = df["Spot"].iloc[0]
+    flip = calculate_flip_point(df)
+    bw = _bar_width(df)
+    top_zones = df.nlargest(3, "Abs_VWGEX") if "Abs_VWGEX" in df.columns else df.nlargest(3, "Abs_GEX")
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    if mode == "net":
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["VWGEX"].clip(lower=0).tolist(),
+            width=bw, marker_color=C_POS, name="+Dealer VWGEX", opacity=0.9,
+        ), secondary_y=False)
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["VWGEX"].clip(upper=0).tolist(),
+            width=bw, marker_color=C_NEG, name="-Dealer VWGEX", opacity=0.9,
+        ), secondary_y=False)
+    else:
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["Total_GEX"].tolist(),
+            width=bw * 0.9, marker_color="rgba(99,102,241,0.25)", name="Raw GEX (Ghost)", opacity=0.5,
+        ), secondary_y=False)
+        fig.add_trace(go.Bar(
+            x=df["Strike"].tolist(), y=df["VWGEX"].tolist(),
+            width=bw * 0.5, marker_color=C_POS, name="VWGEX (Live)", opacity=0.9,
+        ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=df["Strike"].tolist(), y=df["Abs_VWGEX"].tolist() if "Abs_VWGEX" in df.columns else df["Abs_GEX"].tolist(),
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Absolute VWGEX Heat", mode="lines",
+    ), secondary_y=True)
+
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    for _, row in top_zones.iterrows():
+        fig.add_vrect(
+            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
+            fillcolor=C_ZONE, layer="below", line_width=0,
+        )
+
+    layout = _base_layout(f"{index_name} — Volume-Weighted Dealer GEX")
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"] = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+    layout["barmode"] = "overlay"
+    layout["yaxis"]["title"] = "Volume-Weighted Dealer GEX"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute VWGEX")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: Bid-Ask Spread Heatmap
+# ---------------------------------------------------------------------------
+
+def build_spread_heatmap_chart(spread_data: list, index_name: str = "Index") -> dict:
+    """Bid-ask spread width by strike alongside GEX — a conviction filter."""
+    if not spread_data:
+        return {"error": "No spread data available"}
+
+    df = pd.DataFrame(spread_data)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    colors = [C_POS if c == "Strong" else C_NEG for c in df["conviction"].tolist()]
+
+    fig.add_trace(go.Bar(
+        x=df["strike"].tolist(), y=df["abs_gex"].tolist(),
+        marker_color=colors, name="Abs GEX (Conviction)", opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=df["strike"].tolist(), y=df["avg_spread_pct"].tolist(),
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Avg Spread %", mode="lines",
+    ), secondary_y=True)
+
+    strikes = sorted(df["strike"].unique())
+    layout = _base_layout(f"{index_name} — Bid-Ask Spread vs Dealer GEX (Conviction)")
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"] = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+    layout["yaxis"]["title"] = "Absolute Dealer GEX"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Avg Spread %")
+    layout["barmode"] = "overlay"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: OI Buildup Classification Chart
+# ---------------------------------------------------------------------------
+
+def build_oi_buildup_chart(df: pd.DataFrame, index_name: str = "Index") -> dict:
+    """Strike-wise OI buildup/unwinding classification."""
+    spot = df["Spot"].iloc[0]
+    flip = calculate_flip_point(df)
+    bw = _bar_width(df)
+
+    color_map = {
+        "Long Buildup": C_POS,
+        "Short Buildup": C_NEG,
+        "Short Covering": "#3B82F6",
+        "Long Unwinding": C_SPOT,
+    }
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.5, 0.5],
+                        subplot_titles=["Call OI Classification", "Put OI Classification"],
+                        vertical_spacing=0.10)
+
+    call_oi_chg = df.get("call_oi_chg", pd.Series(0, index=df.index)).fillna(0)
+    put_oi_chg = df.get("put_oi_chg", pd.Series(0, index=df.index)).fillna(0)
+
+    call_colors = [color_map.get(b, "#94A3B8") for b in df["call_buildup"].tolist()]
+    put_colors = [color_map.get(b, "#94A3B8") for b in df["put_buildup"].tolist()]
+
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=call_oi_chg.abs().tolist(),
+        width=bw, marker_color=call_colors, name="Call OI Change",
+        hovertemplate="Strike: %{x}<br>|OI Chg|: %{y:,.0f}<br>Type: %{customdata}<extra></extra>",
+        customdata=df["call_buildup"].tolist(), opacity=0.9,
+    ), row=1, col=1)
+
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=put_oi_chg.abs().tolist(),
+        width=bw, marker_color=put_colors, name="Put OI Change",
+        hovertemplate="Strike: %{x}<br>|OI Chg|: %{y:,.0f}<br>Type: %{customdata}<extra></extra>",
+        customdata=df["put_buildup"].tolist(), opacity=0.9,
+    ), row=2, col=1)
+
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    for label, color in color_map.items():
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(color=color, size=8), name=label, showlegend=True,
+        ))
+
+    layout = _base_layout(f"{index_name} — OI Buildup / Unwinding Classification")
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"] = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+    layout["showlegend"] = True
+    fig.update_layout(**layout)
+    fig.update_annotations(font=dict(color="#94A3B8", size=11))
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: GEX Decay (DTE-Normalized) Chart
+# ---------------------------------------------------------------------------
+
+def build_gex_decay_chart(df: pd.DataFrame, index_name: str = "Index") -> dict:
+    """Shows raw GEX vs DTE-normalized GEX — which walls will evaporate."""
+    spot = df["Spot"].iloc[0]
+    flip = calculate_flip_point(df)
+    dte = int(df["DTE"].iloc[0]) if "DTE" in df.columns else "?"
+    decay_factor = float(df["decay_factor"].iloc[0]) if "decay_factor" in df.columns else 1.0
+    bw = _bar_width(df)
+    top_zones = df.nlargest(3, "Abs_GEX")
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Total_GEX"].tolist(),
+        width=bw * 0.9, marker_color="rgba(99,102,241,0.25)",
+        name=f"Raw GEX ({dte} DTE)", opacity=0.5,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Decay_GEX"].clip(lower=0).tolist(),
+        width=bw * 0.5, marker_color=C_POS,
+        name=f"+Decay GEX (×{decay_factor:.2f})", opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=df["Strike"].tolist(), y=df["Decay_GEX"].clip(upper=0).tolist(),
+        width=bw * 0.5, marker_color=C_NEG,
+        name=f"-Decay GEX (×{decay_factor:.2f})", opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=df["Strike"].tolist(), y=df["Abs_Decay_GEX"].tolist() if "Abs_Decay_GEX" in df.columns else df["Abs_GEX"].tolist(),
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Absolute Decay Heat", mode="lines",
+    ), secondary_y=True)
+
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (flip, f"ZERO: {flip:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    for _, row in top_zones.iterrows():
+        fig.add_vrect(
+            x0=row["Strike"] - bw / 2, x1=row["Strike"] + bw / 2,
+            fillcolor=C_ZONE, layer="below", line_width=0,
+        )
+
+    layout = _base_layout(f"{index_name} — Dealer GEX Decay Analysis ({dte} DTE)")
+    strikes = sorted(df["Strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"] = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+    layout["barmode"] = "overlay"
+    layout["yaxis"]["title"] = "Dealer Gamma Exposure"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Absolute Decay GEX")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: Dealer Hedge Flow Simulation Chart
+# ---------------------------------------------------------------------------
+
+def build_hedge_flow_chart(sim_data: dict, index_name: str = "Index") -> dict:
+    """Plots dealer hedge demand curve — where buying/selling accelerates."""
+    profile = sim_data.get("profile", [])
+    if not profile:
+        return {"error": "No simulation data"}
+
+    pcts = [p["pct"] for p in profile]
+    flows = [p["hedge_flow"] for p in profile]
+    net_deltas = [p["net_delta"] for p in profile]
+    prices = [p["price"] for p in profile]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=pcts, y=[max(0, f) for f in flows],
+        marker_color=C_POS, name="+Hedge Flow (Dealers Buy)", opacity=0.9,
+        hovertemplate="Move: %{x}%<br>Flow: %{y:,.0f}<extra></extra>",
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=pcts, y=[min(0, f) for f in flows],
+        marker_color=C_NEG, name="-Hedge Flow (Dealers Sell)", opacity=0.9,
+        hovertemplate="Move: %{x}%<br>Flow: %{y:,.0f}<extra></extra>",
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=pcts, y=net_deltas,
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Net Dealer Delta", mode="lines",
+    ), secondary_y=True)
+
+    fig.add_vline(x=0, line_color=C_SPOT, line_dash="solid", line_width=1.5,
+                  annotation_text=f"SPOT: {sim_data['spot']:.0f}", annotation_font_color=C_SPOT,
+                  annotation_position="top left", annotation_font_size=10)
+
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=1)
+
+    convexity = sim_data.get("convexity_score", 0)
+    fig.add_annotation(
+        text=f"Convexity Score: {convexity:,.0f}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color="#94A3B8"),
+        bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Dealer Hedge Flow Simulation")
+    layout["barmode"] = "overlay"
+    layout["xaxis"]["title"] = "% Price Move from Spot"
+    layout["yaxis"]["title"] = "Hedge Flow (Δ Delta)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Net Dealer Delta")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: Max Pain + Pin Risk Chart
+# ---------------------------------------------------------------------------
+
+def build_max_pain_chart(pain_data: dict, index_name: str = "Index") -> dict:
+    """Plots total pain curve and highlights max-pain strike + pin risk."""
+    profile = pain_data.get("pain_profile", [])
+    if not profile:
+        return {"error": "No pain profile data"}
+
+    pdf = pd.DataFrame(profile)
+    spot = pain_data["spot"]
+    mp = pain_data["max_pain_strike"]
+    pin_risk = pain_data["pin_risk_score"]
+    pin_label = pain_data["pin_label"]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=pdf["strike"].tolist(), y=pdf["call_pain"].tolist(),
+        marker_color=C_NEG, name="Call Pain", opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=pdf["strike"].tolist(), y=[-v for v in pdf["put_pain"].tolist()],
+        marker_color=C_POS, name="Put Pain", opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=pdf["strike"].tolist(), y=pdf["total_pain"].tolist(),
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Total Pain Curve", mode="lines",
+    ), secondary_y=True)
+
+    for x, label, color, dash in [
+        (spot, f"SPOT: {spot:.0f}", C_SPOT, "solid"),
+        (mp, f"MAX PAIN: {mp:.0f}", C_FLIP, "dot"),
+    ]:
+        fig.add_vline(x=x, line_color=color, line_dash=dash, line_width=1.5,
+                      annotation_text=label, annotation_font_color=color,
+                      annotation_position="top left", annotation_font_size=10)
+
+    risk_color = C_NEG if pin_risk > 0.7 else (C_SPOT if pin_risk > 0.4 else C_POS)
+    fig.add_annotation(
+        text=f"Pin Risk: {pin_risk:.0%} — {pin_label}<br>Distance: {pain_data['distance_pts']:+.0f} pts ({pain_data['distance_pct']:+.1f}%)",
+        xref="paper", yref="paper", x=0.98, y=0.98, xanchor="right",
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=risk_color),
+        bordercolor=risk_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Max Pain & Pin Risk Analysis")
+    strikes = sorted(pdf["strike"].unique())
+    if len(strikes) > 1:
+        layout["xaxis"]["tickmode"] = "linear"
+        layout["xaxis"]["dtick"] = strikes[1] - strikes[0]
+        layout["xaxis"]["tickangle"] = -45
+    layout["barmode"] = "overlay"
+    layout["yaxis"]["title"] = "Call / Put Pain"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Total Pain")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: Gamma-Adjusted Expected Range Chart
+# ---------------------------------------------------------------------------
+
+def build_gamma_adjusted_range_chart(range_data: dict, index_name: str = "Index") -> dict:
+    """Side-by-side comparison of implied vs gamma-adjusted expected ranges."""
+    spot = range_data["spot"]
+    imp_up = range_data["implied_range_upper"]
+    imp_lo = range_data["implied_range_lower"]
+    adj_up = range_data["adjusted_range_upper"]
+    adj_lo = range_data["adjusted_range_lower"]
+    mult = range_data["gamma_multiplier"]
+    regime = range_data["regime"]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=["Implied Lower", "Implied Upper"], y=[imp_lo, imp_up],
+        marker_color=C_POS, name=f"Implied ({range_data['implied_move_pct']:.2f}%)",
+        opacity=0.9, width=0.35,
+        text=[f"{imp_lo:.0f}", f"{imp_up:.0f}"], textposition="outside",
+        textfont=dict(color=C_POS, size=11),
+    ), secondary_y=False)
+
+    adj_color = C_NEG if mult > 1 else "#10B981"
+    fig.add_trace(go.Bar(
+        x=["Adjusted Lower", "Adjusted Upper"], y=[adj_lo, adj_up],
+        marker_color=adj_color, name=f"Gamma-Adj ({range_data['adjusted_move_pct']:.2f}%)",
+        opacity=0.9, width=0.35,
+        text=[f"{adj_lo:.0f}", f"{adj_up:.0f}"], textposition="outside",
+        textfont=dict(color=adj_color, size=11),
+    ), secondary_y=False)
+
+    fig.add_hline(y=spot, line_color=C_SPOT, line_dash="solid", line_width=1.5,
+                  annotation_text=f"SPOT: {spot:.0f}", annotation_font_color=C_SPOT,
+                  annotation_font_size=10)
+
+    fig.add_annotation(
+        text=f"Multiplier: {mult:.2f}x — {regime}<br>Straddle: ₹{range_data['straddle_price']:.1f}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color="#94A3B8"),
+        bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Gamma-Adjusted Expected Range")
+    layout["yaxis"]["title"] = "Price Level"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: FII/DII Participant Positioning Chart
+# ---------------------------------------------------------------------------
+
+def build_participant_chart(participant_data: dict, index_name: str = "Index") -> dict:
+    """Time-series of FII/Client/Pro net futures positioning vs Nifty close."""
+    history = participant_data.get("history", [])
+    if not history:
+        return {"error": "No participant data available"}
+
+    df = pd.DataFrame(history)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(
+        x=df["date"].tolist(), y=df["nifty_close"].tolist(),
+        name="Nifty Close", line=dict(color=C_SPOT, width=2.5),
+        mode="lines+markers", marker=dict(size=3),
+    ), secondary_y=False)
+
+    for prefix, color, label in [
+        ("fii", C_NEG, "FII Net Futures"),
+        ("client", C_POS, "Client Net Futures"),
+        ("pro", "#10B981", "Pro Net Futures"),
+    ]:
+        vals = df[f"{prefix}_net_futures"].tolist()
+        fig.add_trace(go.Bar(
+            x=df["date"].tolist(), y=vals,
+            name=label, marker_color=color, opacity=0.7,
+        ), secondary_y=True)
+
+    layout = _base_layout(f"{index_name} — FII/Client/Pro Positioning")
+    layout["yaxis"]["title"] = "Nifty Close"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, zerolinecolor="rgba(255,255,255,0.1)", title="Net Futures (Contracts)")
+    layout["barmode"] = "group"
+    layout["hovermode"] = "x unified"
+    layout["xaxis"]["title"] = "Date"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: FII-Gamma Alignment Chart
+# ---------------------------------------------------------------------------
+
+def build_fii_gamma_alignment_chart(alignment_data: dict, index_name: str = "Index") -> dict:
+    """Visualizes FII positioning alignment with gamma regime."""
+    if "error" in alignment_data:
+        return {"error": alignment_data["error"]}
+
+    score = alignment_data["alignment_score"]
+    setup = alignment_data["setup"]
+    fii_dir = alignment_data["fii_direction"]
+    gamma_reg = alignment_data["gamma_regime"]
+
+    categories = ["FII Direction", "Gamma Regime", "Alignment Score"]
+    values = [
+        1 if fii_dir == "Long" else -1,
+        1 if gamma_reg == "Positive" else -1,
+        score,
+    ]
+    colors = [C_POS if v > 0 else C_NEG for v in values]
+    labels = [fii_dir, gamma_reg, f"{score:+.1f}"]
+
+    fig = go.Figure(go.Bar(
+        x=categories, y=values,
+        marker_color=colors, text=labels, textposition="outside",
+        textfont=dict(color=FONT_CLR, size=12),
+        width=0.5, opacity=0.9,
+    ))
+
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=1)
+
+    fig.add_annotation(
+        text=f"{setup}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color="#94A3B8"),
+        bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — FII vs Gamma Alignment")
+    layout["yaxis"]["title"] = "Score (-1 to +1)"
+    layout["yaxis"]["range"] = [-1.5, 1.5]
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: PCR Volume vs OI Comparison Chart
+# ---------------------------------------------------------------------------
+
+def build_pcr_comparison_chart(pcr_data: dict, index_name: str = "Index") -> dict:
+    """Side-by-side PCR by Volume vs PCR by OI."""
+    pcr_vol = pcr_data["pcr_volume"]
+    pcr_oi = pcr_data["pcr_oi"]
+    divergence = pcr_data["divergence"]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=["PCR by Volume", "PCR by OI"],
+        y=[pcr_vol, pcr_oi],
+        marker_color=[C_NEG, C_POS],
+        text=[f"{pcr_vol:.3f}", f"{pcr_oi:.3f}"],
+        textposition="outside", textfont=dict(color=FONT_CLR, size=12),
+        width=0.4, opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_hline(y=1.0, line_color="rgba(255,255,255,0.15)", line_width=1,
+                  annotation_text="Neutral (1.0)", annotation_position="top right",
+                  annotation_font_color="#94A3B8", annotation_font_size=10)
+
+    fig.add_annotation(
+        text=f"Divergence: {divergence:+.3f} — {pcr_data['vol_sentiment']}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color="#94A3B8"),
+        bordercolor="rgba(255,255,255,0.1)", borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Put-Call Ratio: Volume vs OI")
+    layout["yaxis"]["title"] = "PCR Value"
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# NEW: Cross-Index System Gamma Score Chart
+# ---------------------------------------------------------------------------
+
+def build_system_gamma_chart(system_data: dict) -> dict:
+    """Bar chart of gamma regime across all loaded indices."""
+    indices_data = system_data.get("indices", {})
+    if not indices_data:
+        return {"error": "No multi-index data available"}
+
+    names = list(indices_data.keys())
+    regimes = [indices_data[n]["regime"] for n in names]
+    net_gex = [indices_data[n]["net_gex"] for n in names]
+    labels = [indices_data[n]["regime_label"] for n in names]
+    colors = [C_POS if r > 0 else C_NEG for r in regimes]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=names, y=regimes,
+        marker_color=colors, text=labels, textposition="outside",
+        textfont=dict(color=FONT_CLR, size=11),
+        width=0.5, opacity=0.9, name="Gamma Regime",
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=names, y=net_gex,
+        fill="tozeroy", fillcolor=C_ABS,
+        line=dict(color="rgba(168,85,247,0.4)", width=2),
+        name="Net GEX", mode="lines+markers",
+        marker=dict(size=6),
+    ), secondary_y=True)
+
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=1)
+
+    system_score = system_data["system_score"]
+    system_label = system_data["label"]
+    score_color = C_POS if system_score > 0 else C_NEG
+
+    fig.add_annotation(
+        text=f"System Score: {system_score:+.2f} — {system_label}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=score_color),
+        bordercolor=score_color, borderwidth=1,
+    )
+
+    layout = _base_layout("Cross-Index System Gamma Score")
+    layout["yaxis"]["title"] = "Gamma Regime (-1 to +1)"
+    layout["yaxis"]["range"] = [-1.5, 1.5]
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Net GEX")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Signal Engine Charts
+# ---------------------------------------------------------------------------
+
+def build_flip_proximity_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """Tracks distance-to-flip over intraday snapshots — regime break detector."""
+    sig = signal_data.get("signals", {}).get("flip_proximity", {})
+    history = sig.get("history", [])
+    if not history:
+        return {"error": "No flip proximity data"}
+
+    times = [h["time"] for h in history]
+    distances = [h["distance_pct"] for h in history]
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+
+    fig.add_trace(go.Scatter(
+        x=times, y=distances,
+        mode="lines+markers", name="Distance to Flip (%)",
+        line=dict(color=C_POS, width=3),
+        marker=dict(size=4),
+        fill="tozeroy", fillcolor="rgba(99,102,241,0.1)",
+    ), secondary_y=False)
+
+    fig.add_hline(y=0.3, line_color=C_NEG, line_dash="dash", line_width=1.5,
+                  annotation_text="DANGER ZONE (0.3%)", annotation_font_color=C_NEG,
+                  annotation_position="top right", annotation_font_size=10)
+    fig.add_hline(y=0.15, line_color="#E879F9", line_dash="dot", line_width=1.5,
+                  annotation_text="CRITICAL (0.15%)", annotation_font_color="#E879F9",
+                  annotation_position="top right", annotation_font_size=10)
+
+    score = sig.get("score", 0)
+    label = sig.get("label", "")
+    score_color = C_NEG if score >= 25 else (C_SPOT if score >= 15 else C_POS)
+
+    fig.add_annotation(
+        text=f"Score: {score}/30 — {label}<br>Spot {sig.get('side', '')} Flip | Velocity: {sig.get('velocity', 0):.4f}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=score_color),
+        bordercolor=score_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Flip Proximity (Regime Break Detector)")
+    layout["yaxis"]["title"] = "Distance to Flip (%)"
+    layout["xaxis"]["title"] = "Time (IST)"
+    layout["hovermode"] = "x unified"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_wall_decay_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """Shows wall health status — live, weak, or ghost."""
+    sig = signal_data.get("signals", {}).get("wall_decay", {})
+    walls = sig.get("walls", [])
+    if not walls:
+        return {"error": "No wall data"}
+
+    strikes = [w["strike"] for w in walls]
+    abs_gex = [w["abs_gex"] for w in walls]
+    vol_oi = [w["current_vol_oi"] for w in walls]
+    trends = [w["vol_oi_trend"] for w in walls]
+    statuses = [w["status"] for w in walls]
+
+    colors = [C_NEG if w["is_dying"] else (C_POS if w["current_vol_oi"] > 0.5 else C_SPOT) for w in walls]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Bar(
+        x=[str(s) for s in strikes], y=abs_gex,
+        marker_color=colors, name="Abs GEX", opacity=0.9,
+        text=statuses, textposition="outside",
+        textfont=dict(size=10, color=FONT_CLR),
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=[str(s) for s in strikes], y=vol_oi,
+        mode="lines+markers", name="Vol/OI Ratio (Health)",
+        line=dict(color="rgba(168,85,247,0.6)", width=2),
+        marker=dict(size=8),
+        fill="tozeroy", fillcolor=C_ABS,
+    ), secondary_y=True)
+
+    fig.add_hline(y=0.5, line_color="rgba(255,255,255,0.15)", line_dash="dot",
+                  secondary_y=True)
+
+    score = sig.get("score", 0)
+    label = sig.get("label", "")
+    score_color = C_NEG if "COLLAPSING" in label else (C_SPOT if "WEAKENING" in label else C_POS)
+
+    fig.add_annotation(
+        text=f"Score: {score}/20 — {label}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=score_color),
+        bordercolor=score_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Wall Decay (Live vs Ghost)")
+    layout["yaxis"]["title"] = "Absolute Dealer GEX"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Vol/OI Ratio")
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_iv_divergence_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """Tracks IV vs Spot rate-of-change divergence."""
+    sig = signal_data.get("signals", {}).get("iv_divergence", {})
+    history = sig.get("history", [])
+    if not history:
+        return {"error": "No IV divergence data"}
+
+    times = [h["time"] for h in history]
+    ivs = [h["iv"] for h in history]
+    spots = [h["spot"] for h in history]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(
+        x=times, y=ivs,
+        mode="lines+markers", name="ATM IV (%)",
+        line=dict(color=C_POS, width=3),
+        marker=dict(size=4),
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=times, y=spots,
+        mode="lines+markers", name="Spot Price",
+        line=dict(color=C_SPOT, width=2, dash="dot"),
+        marker=dict(size=3),
+    ), secondary_y=True)
+
+    score = sig.get("score", 0)
+    label = sig.get("label", "")
+    score_color = C_NEG if score >= 20 else (C_SPOT if score >= 10 else C_POS)
+
+    fig.add_annotation(
+        text=f"Score: {score}/25 — {label}<br>IV RoC: {sig.get('iv_roc', 0):+.3f}% | Spot RoC: {sig.get('spot_roc', 0):+.3f}%",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=score_color),
+        bordercolor=score_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — IV-Spot Divergence (Smart Money Tell)")
+    layout["yaxis"]["title"] = "ATM IV (%)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Spot Price")
+    layout["xaxis"]["title"] = "Time (IST)"
+    layout["hovermode"] = "x unified"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_oi_asymmetry_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """Shows OI buildup asymmetry — which side is capitulating."""
+    sig = signal_data.get("signals", {}).get("oi_asymmetry", {})
+    breakdown = sig.get("breakdown", {})
+    calls = breakdown.get("calls", {})
+    puts = breakdown.get("puts", {})
+    if not calls and not puts:
+        return {"error": "No OI asymmetry data"}
+
+    categories = ["Long Buildup", "Short Buildup", "Short Covering", "Long Unwinding"]
+    call_vals = [calls.get(c, 0) for c in categories]
+    put_vals = [puts.get(c, 0) for c in categories]
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+
+    fig.add_trace(go.Bar(
+        x=categories, y=call_vals,
+        marker_color=C_NEG, name="Call OI",
+        opacity=0.9, width=0.35, offset=-0.2,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=categories, y=put_vals,
+        marker_color=C_POS, name="Put OI",
+        opacity=0.9, width=0.35, offset=0.2,
+    ), secondary_y=False)
+
+    score = sig.get("score", 0)
+    label = sig.get("label", "")
+    direction = sig.get("direction", "NEUTRAL")
+    dir_color = C_POS if direction == "BULLISH" else (C_NEG if direction == "BEARISH" else C_SPOT)
+
+    fig.add_annotation(
+        text=f"Score: {score}/15 — {label}<br>Call Unwind: {sig.get('call_unwinding_pct', 0):.0f}% | Put Unwind: {sig.get('put_unwinding_pct', 0):.0f}%",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=dir_color),
+        bordercolor=dir_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — OI Buildup Asymmetry ({direction})")
+    layout["yaxis"]["title"] = "Strikes Classified"
+    layout["barmode"] = "group"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_delta_acceleration_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """Tracks dealer delta velocity and acceleration — cascade detector."""
+    sig = signal_data.get("signals", {}).get("delta_acceleration", {})
+    history = sig.get("history", [])
+    if not history:
+        return {"error": "No delta acceleration data"}
+
+    times = [h["time"] for h in history]
+    deltas = [h["net_delta"] for h in history]
+
+    velocities = [0] + [deltas[i] - deltas[i - 1] for i in range(1, len(deltas))]
+    accelerations = [0, 0] + [velocities[i] - velocities[i - 1] for i in range(2, len(velocities))]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    vel_colors = [C_POS if v >= 0 else C_NEG for v in velocities]
+    fig.add_trace(go.Bar(
+        x=times, y=velocities,
+        marker_color=vel_colors, name="Delta Velocity",
+        opacity=0.9,
+    ), secondary_y=False)
+
+    fig.add_trace(go.Scatter(
+        x=times, y=accelerations,
+        mode="lines+markers", name="Acceleration (2nd Derivative)",
+        line=dict(color="rgba(168,85,247,0.6)", width=2),
+        marker=dict(size=4),
+        fill="tozeroy", fillcolor=C_ABS,
+    ), secondary_y=True)
+
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)", line_width=1)
+
+    score = sig.get("score", 0)
+    label = sig.get("label", "")
+    score_color = C_NEG if score >= 8 else (C_SPOT if score >= 4 else C_POS)
+
+    fig.add_annotation(
+        text=f"Score: {score}/10 — {label}<br>Normalized Accel: {sig.get('normalized_accel', 0):.2f}x",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=score_color),
+        bordercolor=score_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Dealer Delta Acceleration (Cascade Detector)")
+    layout["yaxis"]["title"] = "Delta Velocity (Δ per snapshot)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Acceleration")
+    layout["xaxis"]["title"] = "Time (IST)"
+    layout["hovermode"] = "x unified"
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_composite_signal_chart(signal_data: dict, index_name: str = "Index") -> dict:
+    """The master signal dashboard — composite score breakdown."""
+    signals = signal_data.get("signals", {})
+    if not signals:
+        return {"error": "No signal data"}
+
+    names = ["Flip Proximity", "Wall Decay", "IV Divergence", "OI Asymmetry", "Delta Accel"]
+    max_scores = [30, 20, 25, 15, 10]
+    actual_scores = [
+        signals.get("flip_proximity", {}).get("score", 0),
+        signals.get("wall_decay", {}).get("score", 0),
+        signals.get("iv_divergence", {}).get("score", 0),
+        signals.get("oi_asymmetry", {}).get("score", 0),
+        signals.get("delta_acceleration", {}).get("score", 0),
+    ]
+    fill_pct = [a / m * 100 if m > 0 else 0 for a, m in zip(actual_scores, max_scores)]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    bar_colors = []
+    for pct in fill_pct:
+        if pct >= 75:
+            bar_colors.append(C_NEG)
+        elif pct >= 40:
+            bar_colors.append(C_SPOT)
+        else:
+            bar_colors.append(C_POS)
+
+    fig.add_trace(go.Bar(
+        x=names, y=actual_scores,
+        marker_color=bar_colors, name="Signal Score",
+        opacity=0.9, width=0.5,
+        text=[f"{s}/{m}" for s, m in zip(actual_scores, max_scores)],
+        textposition="outside", textfont=dict(color=FONT_CLR, size=11),
+    ), secondary_y=False)
+
+    fig.add_trace(go.Bar(
+        x=names, y=max_scores,
+        marker_color="rgba(255,255,255,0.05)", name="Max Possible",
+        opacity=0.3, width=0.5,
+    ), secondary_y=False)
+
+    composite = signal_data.get("composite_score", 0)
+    urgency = signal_data.get("urgency", "")
+    bias = signal_data.get("directional_bias", "")
+
+    if composite >= 60:
+        comp_color = C_NEG
+    elif composite >= 40:
+        comp_color = C_SPOT
+    else:
+        comp_color = C_POS
+
+    fig.add_annotation(
+        text=f"COMPOSITE: {composite}/100 — {urgency}<br>Bias: {bias} | Snapshots: {signal_data.get('snapshots_analyzed', 0)}",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=13, color=comp_color),
+        bordercolor=comp_color, borderwidth=1,
+    )
+
+    layout = _base_layout(f"{index_name} — Move Imminent Score ({urgency})")
+    layout["yaxis"]["title"] = "Signal Score"
+    layout["barmode"] = "overlay"
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    return fig.to_dict()

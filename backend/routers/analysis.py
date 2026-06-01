@@ -29,8 +29,13 @@ from services.calculations import (
     calculate_gamma_concentration,
     calculate_gamma_density_profile,
     calculate_cum_gex_steepness,
+    calculate_max_pain,
+    calculate_gamma_adjusted_range,
+    calculate_pcr_volume,
+    calculate_system_gamma_score,
 )
 from services.historical_service import get_level_migration, get_historical_prices
+from services.signal_engine import compute_signals
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -68,6 +73,21 @@ def get_metrics(index: str):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Quant Power error: {exc}") from exc
 
+    try:
+        pain = calculate_max_pain(df)
+        max_pain_strike = pain["max_pain_strike"]
+        pin_risk = pain["pin_risk_score"]
+        pin_label = pain["pin_label"]
+    except Exception:
+        max_pain_strike = 0
+        pin_risk = 0
+        pin_label = ""
+
+    try:
+        pcr = calculate_pcr_volume(df)
+    except Exception:
+        pcr = {"pcr_volume": 0, "pcr_oi": 0}
+
     return {
         "index":       index,
         "spot":        spot,
@@ -85,6 +105,11 @@ def get_metrics(index: str):
         "filepath":    store.get_filepath(index),
         "cum_gex":     float(df["Total_GEX"].sum()) if "Total_GEX" in df.columns else 0.0,
         "cum_dex":     float(calculate_delta_exposure(df).Total_DEX.sum()) if "Spot" in df.columns else 0.0,
+        "max_pain":    max_pain_strike,
+        "pin_risk":    pin_risk,
+        "pin_label":   pin_label,
+        "pcr_volume":  pcr.get("pcr_volume", 0),
+        "pcr_oi":      pcr.get("pcr_oi", 0),
     }
 
 
@@ -241,3 +266,94 @@ def get_god_tier_metrics(index: str):
         "density": calculate_gamma_density_profile(df, spot, lot_size=lot_size),
         "steepness": calculate_cum_gex_steepness(df, spot),
     }
+
+
+# ---------------------------------------------------------------------------
+# Max Pain & Pin Risk
+# ---------------------------------------------------------------------------
+
+@router.get("/max-pain/{index}")
+def get_max_pain(index: str):
+    """Return max pain strike, pin risk score, and pain profile."""
+    df = _require_data(index)
+    return calculate_max_pain(df)
+
+
+# ---------------------------------------------------------------------------
+# Gamma-Adjusted Expected Range
+# ---------------------------------------------------------------------------
+
+@router.get("/gamma-range/{index}")
+def get_gamma_range(index: str):
+    """Return gamma-adjusted expected move vs straddle-implied move."""
+    df = _require_data(index)
+    lot_size = 75
+    if index in INDICES:
+        lot_size = INDICES[index]["lot_size"]
+    elif index in STOCKS:
+        lot_size = STOCKS[index].get("lot_size", 1)
+    return calculate_gamma_adjusted_range(df, lot_size=lot_size)
+
+
+# ---------------------------------------------------------------------------
+# PCR Volume vs OI
+# ---------------------------------------------------------------------------
+
+@router.get("/pcr/{index}")
+def get_pcr(index: str):
+    """Return put-call ratio by volume and OI with divergence."""
+    df = _require_data(index)
+    return calculate_pcr_volume(df)
+
+
+# ---------------------------------------------------------------------------
+# System Gamma Score (Cross-Index)
+# ---------------------------------------------------------------------------
+
+@router.get("/system-gamma")
+def get_system_gamma():
+    """Return cross-index gamma regime correlation."""
+    import store
+    data_map = {}
+    for idx_name in ["Nifty", "BankNifty", "Sensex"]:
+        if store.has_data(idx_name):
+            data_map[idx_name] = store.get_data(idx_name)
+    if not data_map:
+        return {"system_score": 0, "label": "No Data", "indices": {}}
+    return calculate_system_gamma_score(data_map)
+
+
+# ---------------------------------------------------------------------------
+# FII / Participant Data
+# ---------------------------------------------------------------------------
+
+@router.get("/participants")
+def get_participants():
+    """Return FII/Client/Pro positioning summary."""
+    from services.participant_service import get_participant_summary
+    return get_participant_summary(last_n_days=20)
+
+
+@router.get("/fii-alignment/{index}")
+def get_fii_alignment(index: str):
+    """Return FII positioning vs gamma regime alignment."""
+    df = _require_data(index)
+    from services.participant_service import get_fii_gamma_correlation
+    spot = float(df["Spot"].iloc[0])
+    flip = float(calculate_flip_point(df))
+    gamma_regime = 1 if spot > flip else -1
+    return get_fii_gamma_correlation(gamma_regime, flip, spot)
+
+
+# ---------------------------------------------------------------------------
+# Signal Engine — Move Imminent Detection
+# ---------------------------------------------------------------------------
+
+@router.get("/signals/{index}")
+def get_signals(index: str):
+    """Return composite signal score and all 5 sub-signals."""
+    df = _require_data(index)
+    expiry = str(df["expiry"].iloc[0]) if "expiry" in df.columns else None
+    if not expiry:
+        raise HTTPException(status_code=400, detail="Expiry required for signal analysis")
+    return compute_signals(index, expiry)

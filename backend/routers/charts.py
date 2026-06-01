@@ -8,6 +8,7 @@ chart_type options:
 
 from fastapi import APIRouter, HTTPException
 import numpy as np
+import pandas as pd
 from pathlib import Path
 import logging
 
@@ -33,6 +34,16 @@ from services.calculations import (
     calculate_gamma_concentration,
     calculate_gamma_density_profile,
     calculate_bs_pricing,
+    calculate_volume_weighted_gex,
+    calculate_spread_heatmap,
+    classify_oi_buildup,
+    calculate_gex_decay,
+    calculate_hedge_flow_simulation,
+    calculate_max_pain,
+    calculate_gamma_adjusted_range,
+    calculate_pcr_volume,
+    calculate_system_gamma_score,
+    calculate_flip_point,
 )
 from services.chart_service import (
     build_dealer_regime_map,
@@ -68,13 +79,30 @@ from services.chart_service import (
     build_cum_steepness_chart,
     build_systemic_pulse_chart,
     build_aggregate_exposure_chart,
-    build_aggregate_exposure_chart,
     build_stickiness_chart,
     build_intraday_iv_chart,
     build_vol_surface_3d_chart,
     build_bs_pricing_chart,
     build_intraday_oi_chart,
+    build_vwgex_chart,
+    build_spread_heatmap_chart,
+    build_oi_buildup_chart,
+    build_gex_decay_chart,
+    build_hedge_flow_chart,
+    build_max_pain_chart,
+    build_gamma_adjusted_range_chart,
+    build_participant_chart,
+    build_fii_gamma_alignment_chart,
+    build_pcr_comparison_chart,
+    build_system_gamma_chart,
+    build_flip_proximity_chart,
+    build_wall_decay_chart,
+    build_iv_divergence_chart,
+    build_oi_asymmetry_chart,
+    build_delta_acceleration_chart,
+    build_composite_signal_chart,
 )
+from services.signal_engine import compute_signals
 from services.historical_service import (
     get_level_migration, 
     get_historical_prices, 
@@ -89,7 +117,7 @@ from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker", "vwgex", "spread_heatmap", "oi_buildup", "gex_decay", "hedge_flow", "max_pain", "gamma_range", "participant", "fii_alignment", "pcr_volume", "system_gamma", "sig_composite", "sig_flip", "sig_wall_decay", "sig_iv_divergence", "sig_oi_asymmetry", "sig_delta_accel"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -379,29 +407,142 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
         elif chart_type == "bs_pricing":
             df_bs = calculate_bs_pricing(df)
             json_str = build_bs_pricing_chart(df_bs, index)
-        elif chart_type == "gex_dex_combined":
+        elif chart_type == "vwgex":
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            df_vw = calculate_volume_weighted_gex(df, lot_size=lot_size)
+            json_str = build_vwgex_chart(df_vw, index, mode=mode)
+        elif chart_type == "spread_heatmap":
             cfg = {**INDICES, **STOCKS}.get(index, {})
             lot_size = cfg.get("lot_size", 75)
             df_gex = calculate_gex(df, lot_size=lot_size)
-            df_dex = calculate_delta_exposure(df, lot_size=lot_size)
+            spread_data = calculate_spread_heatmap(df_gex)
+            json_str = build_spread_heatmap_chart(spread_data, index)
+        elif chart_type == "oi_buildup":
+            df_bu = classify_oi_buildup(df)
+            json_str = build_oi_buildup_chart(df_bu, index)
+        elif chart_type == "gex_decay":
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            df_decay = calculate_gex_decay(df, lot_size=lot_size)
+            json_str = build_gex_decay_chart(df_decay, index)
+        elif chart_type == "hedge_flow":
+            spot = df["Spot"].iloc[0]
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            sim_data = calculate_hedge_flow_simulation(df, spot, lot_size=lot_size)
+            json_str = build_hedge_flow_chart(sim_data, index)
+        elif chart_type == "max_pain":
+            pain_data = calculate_max_pain(df)
+            json_str = build_max_pain_chart(pain_data, index)
+            return {
+                "index": index,
+                "chart_type": chart_type,
+                "figure": json_str if not isinstance(json_str, dict) else json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o),
+                "summary": {
+                    "max_pain": pain_data["max_pain_strike"],
+                    "pin_risk": pain_data["pin_risk_score"],
+                    "pin_label": pain_data["pin_label"],
+                    "distance_pct": pain_data["distance_pct"],
+                }
+            }
+        elif chart_type == "gamma_range":
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
+            range_data = calculate_gamma_adjusted_range(df, lot_size=lot_size)
+            json_str = build_gamma_adjusted_range_chart(range_data, index)
+            return {
+                "index": index,
+                "chart_type": chart_type,
+                "figure": json_str if not isinstance(json_str, dict) else json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o),
+                "summary": {
+                    "implied_move": range_data["implied_move_pct"],
+                    "adjusted_move": range_data["adjusted_move_pct"],
+                    "gamma_multiplier": range_data["gamma_multiplier"],
+                    "regime": range_data["regime"],
+                }
+            }
+        elif chart_type == "participant":
+            from services.participant_service import get_participant_summary
+            participant_data = get_participant_summary(last_n_days=20)
+            json_str = build_participant_chart(participant_data, index)
+        elif chart_type == "fii_alignment":
+            from services.participant_service import get_fii_gamma_correlation
+            spot = df["Spot"].iloc[0]
+            flip = calculate_flip_point(df)
+            gamma_regime = 1 if spot > flip else -1
+            alignment = get_fii_gamma_correlation(gamma_regime, flip, spot)
+            json_str = build_fii_gamma_alignment_chart(alignment, index)
+        elif chart_type == "pcr_volume":
+            pcr_data = calculate_pcr_volume(df)
+            json_str = build_pcr_comparison_chart(pcr_data, index)
+        elif chart_type == "system_gamma":
+            data_map = {}
+            for idx_name in ["Nifty", "BankNifty", "Sensex"]:
+                if store.has_data(idx_name):
+                    data_map[idx_name] = store.get_data(idx_name)
+            system_data = calculate_system_gamma_score(data_map)
+            json_str = build_system_gamma_chart(system_data)
+        elif chart_type.startswith("sig_"):
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry:
+                raise HTTPException(status_code=400, detail="Expiry required for signals")
+            sig_data = compute_signals(index, str(expiry))
+            if "error" in sig_data:
+                raise HTTPException(status_code=404, detail=sig_data["error"])
+            chart_builders = {
+                "sig_composite": build_composite_signal_chart,
+                "sig_flip": build_flip_proximity_chart,
+                "sig_wall_decay": build_wall_decay_chart,
+                "sig_iv_divergence": build_iv_divergence_chart,
+                "sig_oi_asymmetry": build_oi_asymmetry_chart,
+                "sig_delta_accel": build_delta_acceleration_chart,
+            }
+            builder = chart_builders[chart_type]
+            json_str = builder(sig_data, index)
+            if chart_type == "sig_composite":
+                return {
+                    "index": index,
+                    "chart_type": chart_type,
+                    "figure": json_str if not isinstance(json_str, dict) else json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o),
+                    "summary": {
+                        "composite_score": sig_data.get("composite_score", 0),
+                        "urgency": sig_data.get("urgency", ""),
+                        "bias": sig_data.get("directional_bias", ""),
+                        "snapshots": sig_data.get("snapshots_analyzed", 0),
+                    }
+                }
+        elif chart_type == "gex_dex_combined":
+            cfg = {**INDICES, **STOCKS}.get(index, {})
+            lot_size = cfg.get("lot_size", 75)
             spot = float(df["Spot"].iloc[0])
-            # Merge on Strike (pandas already imported in this module via services)
-            gex_cols = df_gex[["Strike", "GEX_Total", "GEX_Abs"]]
-            dex_cols = df_dex[["Strike", "DEX_Total", "DEX_Abs"]]
-            df_m = gex_cols.merge(dex_cols, on="Strike", how="inner")
-            # Return raw data — frontend slider does live delta-shift math
+
+            today = pd.Timestamp("today").normalize()
+            expiry_date = pd.to_datetime(df["expiry"].iloc[0], format="%Y-%m-%d")
+            T_days = (expiry_date - today).days
+            T = max(T_days / 365.0, 1.0 / 365.0)
+
+            chain = df.groupby("Strike").agg({
+                "call_iv": "first",
+                "put_iv": "first",
+                "Call_OI": "sum",
+                "Put_OI": "sum",
+            }).sort_index().reset_index()
+
             return {
                 "index": index,
                 "chart_type": chart_type,
                 "figure": None,
                 "data": {
-                    "strikes": [float(x) for x in df_m["Strike"].tolist()],
-                    "gex": [float(x) for x in df_m["GEX_Total"].tolist()],
-                    "gex_abs": [float(x) for x in df_m["GEX_Abs"].tolist()],
-                    "dex": [float(x) for x in df_m["DEX_Total"].tolist()],
-                    "dex_abs": [float(x) for x in df_m["DEX_Abs"].tolist()],
+                    "strikes": chain["Strike"].tolist(),
+                    "call_iv": chain["call_iv"].fillna(0).tolist(),
+                    "put_iv": chain["put_iv"].fillna(0).tolist(),
+                    "call_oi": chain["Call_OI"].fillna(0).astype(int).tolist(),
+                    "put_oi": chain["Put_OI"].fillna(0).astype(int).tolist(),
                     "spot": spot,
                     "lot_size": lot_size,
+                    "T": T,
+                    "r": 0.05,
                 }
             }
 

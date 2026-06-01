@@ -1,0 +1,52 @@
+name: Set Upstox Token
+
+on:
+  # External trigger from cron-job.org (same pattern as collect.yml)
+  repository_dispatch:
+    types: [set-token]
+
+  # Fallback schedule: 8:30 AM IST = 3:00 AM UTC, Mon-Fri
+  schedule:
+    - cron: "0 3 * * 1-5"
+
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  set-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright pyotp requests python-dotenv
+          playwright install chromium --with-deps
+
+      - name: Get Upstox access token
+        env:
+          UPSTOX_PHONE:       ${{ secrets.UPSTOX_PHONE }}
+          UPSTOX_PIN:         ${{ secrets.UPSTOX_PIN }}
+          UPSTOX_TOTP_SECRET: ${{ secrets.UPSTOX_TOTP_SECRET }}
+          HEADLESS:           "true"
+        run: python scripts/upstox_auth.py
+
+      - name: Update GitHub secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          gh secret set UPSTOX_ACCESS_TOKEN < /tmp/upstox_token.txt
+          gh secret set ACCESS_TOKEN        < /tmp/upstox_token.txt
+
+      - name: Trigger Render redeploy
+        run: |
+          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            -o /dev/null -w "Render deploy HTTP %{http_code}\n"

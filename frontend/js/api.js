@@ -113,4 +113,7 @@ const API = {
 
   /** GET /api/god-tier-metrics/{index} */
   getGodTierMetrics: (index) => apiFetch(`/api/god-tier-metrics/${index}`),
+
+  /** GET /api/signals/{index} */
+  getSignals: (index) => apiFetch(`/api/signals/${index}`),
 };

@@ -21,3 +21,7 @@ backend/render/.env
 Data_Test/
 node_modules/
 .DS_Store
+
+# Local test scripts (contain hardcoded credentials)
+test_totp.py
+test_upstox_auth.py
