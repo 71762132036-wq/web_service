@@ -9,9 +9,6 @@ on:
 
   workflow_dispatch:
 
-permissions:
-  secrets: write
-
 jobs:
   set-token:
     runs-on: ubuntu-latest
@@ -28,18 +25,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright pyotp requests python-dotenv
+          pip install playwright pyotp requests python-dotenv supabase
           playwright install chromium --with-deps
 
-      - name: Get Upstox access token
+      - name: Get and store Upstox access token
         env:
           UPSTOX_PHONE:       ${{ secrets.UPSTOX_PHONE }}
           UPSTOX_PIN:         ${{ secrets.UPSTOX_PIN }}
           UPSTOX_TOTP_SECRET: ${{ secrets.UPSTOX_TOTP_SECRET }}
           HEADLESS:           "true"
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
         run: python scripts/upstox_auth.py
-
-      - name: Update GitHub secret
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh secret set UPSTOX_ACCESS_TOKEN < /tmp/upstox_token.txt

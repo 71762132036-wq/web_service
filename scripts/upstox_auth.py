@@ -2,16 +2,18 @@
 """
 scripts/upstox_auth.py — Automated Upstox OAuth token refresh.
 
-Local usage  (visible browser, updates .env + GitHub secret):
+Local usage  (visible browser, updates .env + GitHub secret via at.ps1):
     python scripts/upstox_auth.py
 
-GitHub Actions (headless, writes token to /tmp/upstox_token.txt):
+GitHub Actions (headless, pushes token directly to Supabase tokens table):
     HEADLESS=true python scripts/upstox_auth.py
 
 Required env vars (local: read from .env | CI: GitHub Secrets):
     UPSTOX_PHONE        - 10-digit mobile number
     UPSTOX_PIN          - 6-digit Upstox PIN
     UPSTOX_TOTP_SECRET  - TOTP secret key
+    SUPABASE_URL        - Supabase project URL        (CI only)
+    SUPABASE_KEY        - Supabase anon/service key   (CI only)
 """
 
 import io
@@ -170,18 +172,22 @@ def update_local(token: str) -> None:
         print(f"  WARNING: at.ps1 exited with code {result.returncode}")
 
 
-# ── Step 3b (CI): write token to file for GitHub Actions steps to consume ─────
+# ── Step 3b (CI): push token directly to Supabase tokens table ───────────────
 
-def write_ci_output(token: str) -> None:
-    out = Path("/tmp/upstox_token.txt")
-    out.write_text(token)
-    print(f"  Token written to {out}")
+def push_to_supabase(token: str) -> None:
+    from supabase import create_client
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
 
-    github_env = os.environ.get("GITHUB_ENV")
-    if github_env:
-        with open(github_env, "a") as f:
-            f.write(f"UPSTOX_ACCESS_TOKEN={token}\n")
-        print("  Token exported to GITHUB_ENV")
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_KEY", "")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in CI")
+
+    client = create_client(url, key)
+    now_ist = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
+    client.table("tokens").upsert({"id": 1, "token": token, "updated_at": now_ist}).execute()
+    print("  Token pushed to Supabase tokens table")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -207,7 +213,7 @@ def main():
 
         print("\n[3/3] Saving token...")
         if HEADLESS:
-            write_ci_output(token)
+            push_to_supabase(token)
         else:
             update_local(token)
 
