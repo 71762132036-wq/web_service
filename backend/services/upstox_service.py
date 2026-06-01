@@ -44,11 +44,8 @@ def get_next_expiry(index_name: str, indices: dict = None) -> str:
     if not index_config:
         raise ValueError(f"Unknown index/stock: {index_name}")
 
-    # 1. Resolve Instrument Key for expiry lookup
-    # Indices use their own, stocks use RELIANCE as proxy for general equity derivatives series
+    # Use the instrument's own key for expiry lookup (ISIN format for stocks)
     lookup_key = index_config["instrument_key"]
-    if index_name not in ["Nifty", "BankNifty", "Sensex"]:
-        lookup_key = "NSE_EQ|RELIANCE" # Standard proxy for stock derivatives expiries
 
     # 2. Try fetching from API
     api_expiries = get_active_expiries(lookup_key)

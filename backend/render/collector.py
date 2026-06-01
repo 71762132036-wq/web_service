@@ -50,10 +50,8 @@ def get_next_expiry(index_name: str, indices: dict, access_token: str, cutoff_ho
     if not index_config:
         raise ValueError(f"Unknown index/stock: {index_name}")
 
-    # 1. API Lookup
+    # 1. API Lookup — use the instrument's own key (ISIN format for stocks)
     lookup_key = index_config["instrument_key"]
-    if index_name not in ["Nifty", "BankNifty", "Sensex"]:
-        lookup_key = "NSE_EQ|RELIANCE"
     
     api_expiries = get_active_expiries(lookup_key, access_token)
     if api_expiries:
