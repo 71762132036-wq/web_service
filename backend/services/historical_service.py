@@ -400,6 +400,166 @@ def get_vol_surface_history(index_name: str, expiry_date: str, n_files: int = 10
     }
 
 
+def get_daily_study(index_name: str, expiry_date: str) -> Dict[str, Any]:
+    """
+    Groups all snapshots by trading day and records:
+      - Morning setup: key GEX levels at market open (first snapshot of each day)
+      - Intraday spot path: price at every snapshot through the day
+      - Outcome: did the call wall hold? put wall? was the regime prediction accurate?
+
+    This is the validation tool to learn whether GEX theory actually works for Nifty.
+    Each day is one data point. Over months, patterns will emerge.
+    """
+    from services.calculations import (
+        calculate_flip_point, calculate_gex, calculate_max_pain
+    )
+
+    data_path = Path(DATA_DIR) / index_name / expiry_date
+    if not data_path.exists():
+        data_path = Path(DATA_DIR) / expiry_date
+        if not data_path.exists():
+            return {"error": "No historical data found."}
+
+    all_files = list(data_path.glob("*.parquet"))
+    if not all_files:
+        return {"error": "No snapshots found."}
+
+    # Group files by day (DD part of filename)
+    days_dict: Dict[str, List[Path]] = {}
+    for f in all_files:
+        parts = f.stem.split("_")
+        day = parts[0] if parts else "?"
+        days_dict.setdefault(day, []).append(f)
+
+    all_instruments = {**INDICES, **STOCKS}
+    lot_size = all_instruments.get(index_name, {}).get("lot_size", 75)
+
+    days_study = []
+
+    for day in sorted(days_dict.keys()):
+        day_files = sorted(days_dict[day], key=lambda f: f.name)
+        if not day_files:
+            continue
+
+        # ── Morning setup: first snapshot of the day ─────────────────────────
+        morning_df, err = load_data_file(str(day_files[0]))
+        if err or morning_df is None or morning_df.empty:
+            continue
+
+        try:
+            spot_open = float(morning_df["Spot"].iloc[0])
+            df_gex = calculate_gex(morning_df, lot_size=lot_size)
+            flip = float(calculate_flip_point(df_gex))
+            regime = "LONG GAMMA" if spot_open > flip else "SHORT GAMMA"
+
+            c_col = "Call_OI" if "Call_OI" in morning_df.columns else "call_oi"
+            p_col = "Put_OI" if "Put_OI" in morning_df.columns else "put_oi"
+
+            top_call_strike = float(morning_df.nlargest(1, c_col)["Strike"].iloc[0])
+            top_put_strike  = float(morning_df.nlargest(1, p_col)["Strike"].iloc[0])
+
+            pain     = calculate_max_pain(df_gex)
+            max_pain = float(pain["max_pain_strike"])
+
+            total_call = float(morning_df[c_col].sum())
+            total_put  = float(morning_df[p_col].sum())
+            pcr = round(total_put / total_call, 3) if total_call > 0 else 0.0
+
+        except Exception as e:
+            logger.error("[DAILY_STUDY] Morning setup failed day=%s: %s", day, e)
+            continue
+
+        # ── Intraday price path: all snapshots for this day ──────────────────
+        intraday = []
+        for f in day_files:
+            df, err = load_data_file(str(f))
+            if err or df is None or df.empty:
+                continue
+            try:
+                parts_f = f.stem.split("_")
+                t = parts_f[1] if len(parts_f) > 1 else "000000"
+                intraday.append({
+                    "time": f"{t[:2]}:{t[2:4]}",
+                    "spot": float(df["Spot"].iloc[0]),
+                })
+            except Exception:
+                continue
+
+        if not intraday:
+            continue
+
+        # ── Outcome ──────────────────────────────────────────────────────────
+        spots       = [s["spot"] for s in intraday]
+        day_high    = max(spots)
+        day_low     = min(spots)
+        day_close   = spots[-1]
+        day_range   = round(day_high - day_low, 2)
+
+        call_wall_held   = day_high < top_call_strike
+        put_wall_held    = day_low  > top_put_strike
+        stayed_in_range  = call_wall_held and put_wall_held
+
+        # Regime accuracy heuristic:
+        #   Long Gamma  → expect price to stay within a tight band (low range ratio)
+        #   Short Gamma → expect price to trend (large directional move)
+        predicted_range = max(top_call_strike - top_put_strike, 1)
+        range_ratio     = day_range / predicted_range
+        price_direction = day_close - spot_open
+
+        if regime == "LONG GAMMA":
+            regime_accurate = range_ratio < 0.6          # used <60% of the predicted band
+        else:
+            regime_accurate = abs(price_direction) > day_range * 0.35  # clear directional bias
+
+        days_study.append({
+            "day": day,
+            "morning": {
+                "spot":           spot_open,
+                "flip_point":     flip,
+                "regime":         regime,
+                "top_call_wall":  top_call_strike,
+                "top_put_wall":   top_put_strike,
+                "max_pain":       max_pain,
+                "pcr":            pcr,
+            },
+            "intraday": intraday,
+            "outcome": {
+                "high":              round(day_high, 2),
+                "low":               round(day_low, 2),
+                "close":             round(day_close, 2),
+                "range_pts":         day_range,
+                "price_direction":   round(price_direction, 2),
+                "call_wall_held":    call_wall_held,
+                "put_wall_held":     put_wall_held,
+                "stayed_in_range":   stayed_in_range,
+                "regime_accurate":   regime_accurate,
+                "range_ratio_pct":   round(range_ratio * 100, 1),
+            },
+        })
+
+    if not days_study:
+        return {"error": "No complete day data found."}
+
+    n          = len(days_study)
+    call_held  = sum(1 for d in days_study if d["outcome"]["call_wall_held"])
+    put_held   = sum(1 for d in days_study if d["outcome"]["put_wall_held"])
+    in_range   = sum(1 for d in days_study if d["outcome"]["stayed_in_range"])
+    regime_ok  = sum(1 for d in days_study if d["outcome"]["regime_accurate"])
+
+    return {
+        "index":   index_name,
+        "expiry":  expiry_date,
+        "days":    days_study,
+        "summary": {
+            "total_days":          n,
+            "call_wall_held_pct":  round(call_held / n * 100, 1),
+            "put_wall_held_pct":   round(put_held  / n * 100, 1),
+            "in_range_pct":        round(in_range  / n * 100, 1),
+            "regime_accuracy_pct": round(regime_ok / n * 100, 1),
+        },
+    }
+
+
 def get_oi_heatmap(index_name: str, expiry_date: str, n_files: int = 200) -> Dict[str, Any]:
     """
     Builds a 2D OI grid across (time x strike) for the full expiry.

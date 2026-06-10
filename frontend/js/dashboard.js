@@ -181,6 +181,20 @@ const DashboardPage = (() => {
       'System Gamma': [
         { key: 'system_gamma', label: 'Cross-Index', id: 'chart-system-gamma' },
       ]
+    },
+    'Study': {
+      'Daily Validation': [
+        { key: 'daily_study', label: 'Did GEX Work Today?', id: 'chart-daily-study' },
+      ],
+      'OI x Time': [
+        { key: 'oi_heatmap',         label: 'OI Heatmap (Calls)',  id: 'chart-oi-heatmap-call-s',    mode: 'call' },
+        { key: 'oi_heatmap',         label: 'OI Heatmap (Puts)',   id: 'chart-oi-heatmap-put-s',     mode: 'put'  },
+        { key: 'oi_importance',      label: 'Strike Rank (Calls)', id: 'chart-oi-importance-call-s', mode: 'call' },
+        { key: 'oi_importance',      label: 'Strike Rank (Puts)',  id: 'chart-oi-importance-put-s',  mode: 'put'  },
+        { key: 'oi_evolution',       label: 'OI Evolution',        id: 'chart-oi-evolution-s'               },
+        { key: 'oi_lifecycle',       label: 'OI Lifecycle + PCR',  id: 'chart-oi-lifecycle-s'               },
+        { key: 'max_pain_migration', label: 'Max Pain Migration',  id: 'chart-max-pain-migration-s'         },
+      ],
     }
   };
 

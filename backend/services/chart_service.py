@@ -2809,6 +2809,157 @@ def build_composite_signal_chart(signal_data: dict, index_name: str = "Index") -
 
 
 # ---------------------------------------------------------------------------
+# Daily Study — GEX Theory Validation
+# ---------------------------------------------------------------------------
+
+def build_daily_study_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    Multi-panel chart — one panel per trading day.
+    Each panel shows:
+      - Horizontal lines: call wall (red), put wall (green), flip point (white), max pain (yellow)
+      - Actual intraday spot price path
+      - Background tint: green = stayed in range, red = broke out
+    Summary panel at bottom: outcome accuracy across all days.
+    """
+    if "error" in data or not data.get("days"):
+        return {}
+
+    days    = data["days"]
+    summary = data.get("summary", {})
+    n       = len(days)
+    if n == 0:
+        return {}
+
+    # Build subplot grid: n day panels + 1 summary bar panel
+    subplot_titles = []
+    for d in days:
+        o = d["outcome"]
+        held = "IN RANGE" if o["stayed_in_range"] else "BROKE OUT"
+        regime_ok = "REGIME OK" if o["regime_accurate"] else "REGIME MISS"
+        subplot_titles.append(
+            f"Day {d['day']} | {d['morning']['regime']} | {held} | {regime_ok}"
+        )
+    subplot_titles.append("Outcome Summary")
+
+    row_heights = [0.85 / n] * n + [0.15]
+
+    fig = make_subplots(
+        rows=n + 1, cols=1,
+        shared_xaxes=False,
+        row_heights=row_heights,
+        subplot_titles=subplot_titles,
+        vertical_spacing=0.04,
+    )
+
+    for i, day_data in enumerate(days, start=1):
+        morning = day_data["morning"]
+        intraday = day_data["intraday"]
+        outcome  = day_data["outcome"]
+
+        times  = [s["time"] for s in intraday]
+        spots  = [s["spot"] for s in intraday]
+        if not times:
+            continue
+
+        # Background colour: green tint if in range, red tint if broke out
+        bg_color = "rgba(16,185,129,0.07)" if outcome["stayed_in_range"] else "rgba(244,63,94,0.07)"
+        fig.add_shape(
+            type="rect", xref=f"x{i}", yref=f"y{i}",
+            x0=times[0], x1=times[-1],
+            y0=min(spots) * 0.999, y1=max(spots) * 1.001,
+            fillcolor=bg_color, line_width=0, layer="below",
+            row=i, col=1,
+        )
+
+        # Horizontal key level lines
+        levels = [
+            (morning["top_call_wall"], "#F43F5E", f"Call Wall {morning['top_call_wall']:.0f}", "dash"),
+            (morning["top_put_wall"],  "#10B981", f"Put Wall  {morning['top_put_wall']:.0f}",  "dash"),
+            (morning["flip_point"],    "#F1F5F9", f"Flip      {morning['flip_point']:.0f}",    "dot"),
+            (morning["max_pain"],      "#FCD34D", f"MaxPain   {morning['max_pain']:.0f}",      "dashdot"),
+        ]
+        for level_val, color, label, dash in levels:
+            fig.add_shape(
+                type="line", xref=f"x{i}", yref=f"y{i}",
+                x0=times[0], x1=times[-1], y0=level_val, y1=level_val,
+                line=dict(color=color, width=1.5, dash=dash),
+                row=i, col=1,
+            )
+            # Label on left
+            fig.add_annotation(
+                x=times[0], y=level_val,
+                text=label, showarrow=False,
+                font=dict(size=9, color=color),
+                xanchor="left", yanchor="bottom",
+                row=i, col=1,
+                xref=f"x{i}", yref=f"y{i}",
+            )
+
+        # Actual price path
+        spot_color = C_POS if outcome["stayed_in_range"] else C_NEG
+        fig.add_trace(go.Scatter(
+            x=times, y=spots,
+            mode="lines",
+            name=f"Day {day_data['day']} Spot",
+            line=dict(color=spot_color, width=2.5),
+            showlegend=False,
+            hovertemplate="Time: %{x}<br>Spot: %{y:,.0f}<extra></extra>",
+        ), row=i, col=1)
+
+        # Mark open and close
+        for t, s, sym, clr, lbl in [
+            (times[0],  spots[0],  "circle",   C_SPOT,  f"Open {spots[0]:.0f}"),
+            (times[-1], spots[-1], "diamond",  "#94A3B8", f"Close {spots[-1]:.0f}"),
+        ]:
+            fig.add_trace(go.Scatter(
+                x=[t], y=[s], mode="markers+text",
+                marker=dict(symbol=sym, size=9, color=clr),
+                text=[lbl], textposition="top right",
+                textfont=dict(size=8, color=clr),
+                showlegend=False,
+            ), row=i, col=1)
+
+    # ── Summary panel ────────────────────────────────────────────────────────
+    metrics = ["Call Wall Held", "Put Wall Held", "In Range", "Regime Accurate"]
+    values  = [
+        summary.get("call_wall_held_pct", 0),
+        summary.get("put_wall_held_pct",  0),
+        summary.get("in_range_pct",       0),
+        summary.get("regime_accuracy_pct",0),
+    ]
+    bar_colors = ["#10B981" if v >= 60 else "#F59E0B" if v >= 40 else "#F43F5E" for v in values]
+
+    fig.add_trace(go.Bar(
+        x=metrics, y=values,
+        marker_color=bar_colors,
+        text=[f"{v:.0f}%" for v in values],
+        textposition="outside",
+        textfont=dict(color=FONT_CLR, size=11),
+        showlegend=False,
+        hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+    ), row=n + 1, col=1)
+
+    fig.add_hline(y=50, line_color="rgba(255,255,255,0.3)", line_dash="dot", row=n + 1, col=1)
+
+    layout = _base_layout(
+        f"{index_name} — Daily GEX Study: Did the Theory Hold? ({summary.get('total_days', 0)} days)"
+    )
+    layout["height"]     = max(700, n * 250 + 180)
+    layout["showlegend"] = False
+    layout["yaxis"]["title"] = "Spot Price"
+    fig.update_layout(**layout)
+
+    # Clean up y-axis labels per subplot
+    for i in range(1, n + 2):
+        axis_key = f"yaxis{i}" if i > 1 else "yaxis"
+        fig.update_layout(**{axis_key: dict(gridcolor=GRID_CLR, showgrid=True, tickformat=",")})
+        x_key = f"xaxis{i}" if i > 1 else "xaxis"
+        fig.update_layout(**{x_key: dict(gridcolor=GRID_CLR, tickangle=-45, tickfont=dict(size=9))})
+
+    return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
 # OI × Time Analytics
 # ---------------------------------------------------------------------------
 
