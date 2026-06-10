@@ -108,29 +108,37 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
     logger.info("[SYNC] Querying pending snapshots (paginated)…")
     try:
         from zoneinfo import ZoneInfo
-        today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+        from datetime import timedelta
 
-        PAGE_SIZE = 500          # well below Supabase's 1000-row cap
+        # Default: only fetch rows captured in the last 24 hours.
+        # This prevents pulling all 30K+ historical rows on every sync.
+        # The caller can pass body.since to override (e.g. for a backfill).
+        if body.since:
+            since_ts = body.since
+        else:
+            since_ts = (
+                datetime.now(ZoneInfo("Asia/Kolkata")) - timedelta(hours=24)
+            ).isoformat()
+
+        PAGE_SIZE = 500
         snapshots: list = []
         offset = 0
 
         while True:
-            base_query = (
+            page = (
                 client.table("option_snapshots")
                 .select("id, index_name, expiry_date, captured_at, data")
-                .gte("expiry_date", today_str)
+                .gte("captured_at", since_ts)
                 .order("captured_at", desc=False)
+                .range(offset, offset + PAGE_SIZE - 1)
+                .execute()
             )
-            if body.since:
-                base_query = base_query.gte("captured_at", body.since)
-
-            page = base_query.range(offset, offset + PAGE_SIZE - 1).execute()
             rows = page.data or []
             snapshots.extend(rows)
             logger.info("[SYNC] Page fetched: %d row(s) (total so far: %d)", len(rows), len(snapshots))
 
             if len(rows) < PAGE_SIZE:
-                break   # last page — no more rows
+                break
             offset += PAGE_SIZE
 
     except Exception as exc:
@@ -213,14 +221,20 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
         synced_ids.append(snap_id)
         saved_count += 1
 
-    # 3. Delete all processed rows from Supabase to keep the table lean
+    # 3. Delete processed rows from Supabase in chunks to avoid URL length limits.
+    # Supabase's .in_() becomes a query-string list; >500 IDs blows the URL limit.
+    CHUNK = 400
     if synced_ids:
-        logger.info("[SYNC] Deleting %d row(s) from Supabase…", len(synced_ids))
-        try:
-            client.table("option_snapshots").delete().in_("id", synced_ids).execute()
-            logger.info("[SYNC] Deleted %d row(s) from Supabase.", len(synced_ids))
-        except Exception as exc:
-            logger.warning("[SYNC] Failed to delete rows: %s", exc)
+        logger.info("[SYNC] Deleting %d row(s) from Supabase in chunks of %d…", len(synced_ids), CHUNK)
+        deleted = 0
+        for i in range(0, len(synced_ids), CHUNK):
+            chunk = synced_ids[i : i + CHUNK]
+            try:
+                client.table("option_snapshots").delete().in_("id", chunk).execute()
+                deleted += len(chunk)
+            except Exception as exc:
+                logger.warning("[SYNC] Chunk delete failed (ids %d-%d): %s", i, i + len(chunk), exc)
+        logger.info("[SYNC] Deleted %d row(s) from Supabase.", deleted)
 
     logger.info("[SYNC] ■ Sync complete — saved=%d, skipped=%d, total=%d", saved_count, skip_count, total)
 
