@@ -2806,3 +2806,312 @@ def build_composite_signal_chart(signal_data: dict, index_name: str = "Index") -
     layout["showlegend"] = False
     fig.update_layout(**layout)
     return fig.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# OI × Time Analytics
+# ---------------------------------------------------------------------------
+
+def build_oi_heatmap_chart(data: dict, index_name: str = "Index", mode: str = "net") -> dict:
+    """
+    2D heatmap of OI across (time x strike) for the full expiry.
+    mode: 'call' (Reds), 'put' (Greens), 'net' (RdYlGn, zmid=0)
+    """
+    if "error" in data:
+        return {}
+
+    strikes = data.get("strikes", [])
+    times = data.get("times", [])
+    if not strikes or not times:
+        return {}
+
+    grid_key = {"call": "call_oi_grid", "put": "put_oi_grid", "net": "net_oi_grid"}.get(mode, "net_oi_grid")
+    z = data.get(grid_key, [])
+
+    colorscale_map = {"call": "Reds", "put": "Greens", "net": "RdYlGn"}
+    colorscale = colorscale_map.get(mode, "RdYlGn")
+    label = {"call": "Call OI", "put": "Put OI", "net": "Net OI (Call - Put)"}.get(mode, "Net OI")
+
+    heatmap_kwargs = dict(
+        z=z,
+        x=strikes,
+        y=times,
+        colorscale=colorscale,
+        colorbar=dict(title=label, thickness=15),
+        hovertemplate="Time: %{y}<br>Strike: %{x}<br>OI: %{z:,.0f}<extra></extra>",
+    )
+    if mode == "net":
+        heatmap_kwargs["zmid"] = 0
+
+    fig = go.Figure(data=go.Heatmap(**heatmap_kwargs))
+
+    layout = _base_layout(f"{index_name} — OI Heatmap ({label}) — Full Expiry")
+    layout["xaxis"]["title"] = "Strike"
+    layout["yaxis"]["title"] = "Time (Day T HH:MM)"
+    layout["yaxis"]["autorange"] = "reversed"
+    layout["height"] = 700
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_strike_importance_chart(data: dict, index_name: str = "Index", mode: str = "call") -> dict:
+    """
+    Horizontal bar chart ranking strikes by how often they were in the top-N OI across snapshots.
+    mode: 'call' or 'put'
+    """
+    if "error" in data or not data:
+        return {}
+
+    ranking = data.get("call_ranking" if mode == "call" else "put_ranking", [])
+    if not ranking:
+        return {}
+
+    label = "Call OI" if mode == "call" else "Put OI"
+    bar_color = "#F43F5E" if mode == "call" else "#10B981"
+
+    strikes_y = [str(int(r["strike"])) for r in ranking]
+    pct_x = [r["pct_time"] for r in ranking]
+    hover = [
+        f"Strike: {int(r['strike'])}<br>In Top-5: {r['pct_time']:.1f}% of snapshots<br>"
+        f"Avg OI: {r['avg_oi']:,.0f}<br>Peak OI: {r['peak_oi']:,.0f}"
+        for r in ranking
+    ]
+
+    fig = go.Figure(go.Bar(
+        x=pct_x,
+        y=strikes_y,
+        orientation="h",
+        marker_color=bar_color,
+        opacity=0.85,
+        hovertext=hover,
+        hoverinfo="text",
+        text=[f"{p:.0f}%" for p in pct_x],
+        textposition="outside",
+        textfont=dict(color=FONT_CLR, size=10),
+    ))
+
+    top_strike = ranking[0]["strike"] if ranking else "N/A"
+    total = data.get("total_snapshots", 0)
+
+    fig.add_annotation(
+        text=f"Most Defended: {int(top_strike)}<br>Snapshots: {total}",
+        xref="paper", yref="paper", x=0.98, y=0.02,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=bar_color),
+        xanchor="right",
+    )
+
+    layout = _base_layout(f"{index_name} — Strike Importance: Top {label} Walls This Expiry")
+    layout["xaxis"]["title"] = "% of Snapshots in Top-5"
+    layout["yaxis"]["title"] = "Strike"
+    layout["height"] = max(400, len(ranking) * 35 + 150)
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_oi_evolution_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    Multi-line chart: OI over time for the top-5 call and top-5 put strikes.
+    """
+    if "error" in data or not data:
+        return {}
+
+    times = data.get("times", [])
+    spot_series = data.get("spot_series", [])
+    call_series = data.get("call_series", {})
+    put_series = data.get("put_series", {})
+
+    if not times:
+        return {}
+
+    call_palette = ["#F43F5E", "#FB7185", "#FDA4AF", "#FECDD3", "#FFF1F2"]
+    put_palette = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    for i, (strike, oi_vals) in enumerate(call_series.items()):
+        color = call_palette[i % len(call_palette)]
+        fig.add_trace(go.Scatter(
+            x=times, y=oi_vals,
+            mode="lines", name=f"Call {strike}",
+            line=dict(color=color, width=2),
+            connectgaps=False,
+        ), secondary_y=False)
+
+    for i, (strike, oi_vals) in enumerate(put_series.items()):
+        color = put_palette[i % len(put_palette)]
+        fig.add_trace(go.Scatter(
+            x=times, y=oi_vals,
+            mode="lines", name=f"Put {strike}",
+            line=dict(color=color, width=2),
+            connectgaps=False,
+        ), secondary_y=False)
+
+    if spot_series:
+        fig.add_trace(go.Scatter(
+            x=times, y=spot_series,
+            mode="lines", name="Spot",
+            line=dict(color=C_SPOT, width=1.5, dash="dot"),
+            opacity=0.7,
+        ), secondary_y=True)
+
+    layout = _base_layout(f"{index_name} — OI Evolution: Top Call & Put Strike Walls")
+    layout["yaxis"]["title"] = "Open Interest (Contracts)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Spot Price", overlaying="y", side="right", showgrid=False)
+    layout["hovermode"] = "x unified"
+    layout["xaxis"]["tickangle"] = -45
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_oi_lifecycle_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    2-panel chart: Call/Put OI totals + Spot (top), PCR bar (bottom), across full expiry.
+    """
+    if "error" in data or not data.get("history"):
+        return {}
+
+    history = data["history"]
+    times = [h["time"] for h in history]
+    call_oi = [h["call_oi"] for h in history]
+    put_oi = [h["put_oi"] for h in history]
+    pcr = [h["pcr"] for h in history]
+    spot = [h["spot"] for h in history]
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.62, 0.38],
+        subplot_titles=["Call OI vs Put OI", "Put-Call Ratio (PCR)"],
+        vertical_spacing=0.08,
+        specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+    )
+
+    # Panel 1 — Call OI (red area)
+    fig.add_trace(go.Scatter(
+        x=times, y=call_oi,
+        mode="lines", name="Total Call OI",
+        line=dict(color="#F43F5E", width=2),
+        fill="tozeroy", fillcolor="rgba(244,63,94,0.12)",
+    ), row=1, col=1, secondary_y=False)
+
+    # Panel 1 — Put OI (green area)
+    fig.add_trace(go.Scatter(
+        x=times, y=put_oi,
+        mode="lines", name="Total Put OI",
+        line=dict(color="#10B981", width=2),
+        fill="tozeroy", fillcolor="rgba(16,185,129,0.12)",
+    ), row=1, col=1, secondary_y=False)
+
+    # Panel 1 — Spot on secondary Y
+    fig.add_trace(go.Scatter(
+        x=times, y=spot,
+        mode="lines", name="Spot",
+        line=dict(color=C_SPOT, width=1.5, dash="dot"),
+        opacity=0.7,
+    ), row=1, col=1, secondary_y=True)
+
+    # Panel 2 — PCR bars (green>1, red<1)
+    pcr_colors = ["#10B981" if v >= 1.0 else "#F43F5E" for v in pcr]
+    fig.add_trace(go.Bar(
+        x=times, y=pcr,
+        marker_color=pcr_colors, name="PCR", opacity=0.85,
+    ), row=2, col=1)
+
+    # Reference line at PCR=1
+    fig.add_hline(y=1.0, line_color="rgba(255,255,255,0.4)", line_dash="dash", row=2, col=1)
+
+    # Add day-boundary vertical lines
+    prev_day = None
+    for t in times:
+        day_part = t.split("T")[0] if "T" in t else None
+        if day_part and day_part != prev_day and prev_day is not None:
+            fig.add_vline(x=t, line_color="rgba(255,255,255,0.15)", line_dash="dot", line_width=1)
+        prev_day = day_part
+
+    layout = _base_layout(f"{index_name} — OI Lifecycle + PCR: Full Expiry View")
+    layout["xaxis"]["tickangle"] = -45
+    layout["yaxis"]["title"] = "Total OI (Contracts)"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=False, title="Spot", overlaying="y", side="right", showgrid=False)
+    layout["hovermode"] = "x unified"
+    layout["height"] = 750
+    fig.update_layout(**layout)
+    return fig.to_dict()
+
+
+def build_max_pain_migration_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    Tracks max pain strike vs spot across the full expiry.
+    Shows convergence/divergence and pinning risk.
+    """
+    if "error" in data or not data.get("history"):
+        return {}
+
+    history = data["history"]
+    times = [h["time"] for h in history]
+    max_pain = [h["max_pain"] for h in history]
+    spot = [h["spot"] for h in history]
+    dist_pct = [h["distance_pct"] for h in history]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Max Pain line
+    fig.add_trace(go.Scatter(
+        x=times, y=max_pain,
+        mode="lines+markers", name="Max Pain",
+        line=dict(color=C_FLIP, width=3),
+        marker=dict(size=4),
+    ), secondary_y=False)
+
+    # Spot line
+    fig.add_trace(go.Scatter(
+        x=times, y=spot,
+        mode="lines", name="Spot",
+        line=dict(color=C_SPOT, width=2, dash="dot"),
+    ), secondary_y=False)
+
+    # Distance% bars on secondary Y
+    dist_colors = ["#10B981" if v < 0 else "#F43F5E" for v in dist_pct]
+    fig.add_trace(go.Bar(
+        x=times, y=dist_pct,
+        marker_color=dist_colors, name="Distance %",
+        opacity=0.5,
+    ), secondary_y=True)
+
+    # Zero line for distance
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.2)", line_width=1, secondary_y=True)
+
+    # Day boundary lines
+    prev_day = None
+    for t in times:
+        day_part = t.split("T")[0] if "T" in t else None
+        if day_part and day_part != prev_day and prev_day is not None:
+            fig.add_vline(x=t, line_color="rgba(255,255,255,0.15)", line_dash="dot", line_width=1)
+        prev_day = day_part
+
+    # Pinning annotation if latest distance is small
+    if dist_pct and abs(dist_pct[-1]) < 0.5:
+        fig.add_annotation(
+            text="PINNING",
+            x=times[-1], y=max_pain[-1],
+            showarrow=True, arrowcolor="#FCD34D",
+            font=dict(color="#FCD34D", size=13, weight=700),
+            bgcolor="rgba(0,0,0,0.6)",
+        )
+
+    latest = history[-1] if history else {}
+    fig.add_annotation(
+        text=f"Max Pain: {latest.get('max_pain', 0):.0f} | Distance: {latest.get('distance_pct', 0):+.2f}%",
+        xref="paper", yref="paper", x=0.02, y=0.98,
+        showarrow=False, bgcolor="rgba(0,0,0,0.5)",
+        font=dict(size=12, color=C_FLIP),
+    )
+
+    layout = _base_layout(f"{index_name} — Max Pain Migration: Is Price Converging?")
+    layout["yaxis"]["title"] = "Price Level"
+    layout["yaxis2"] = dict(gridcolor=GRID_CLR, zeroline=True, zerolinecolor="rgba(255,255,255,0.2)", title="Distance from Max Pain (%)", overlaying="y", side="right")
+    layout["hovermode"] = "x unified"
+    layout["xaxis"]["tickangle"] = -45
+    fig.update_layout(**layout)
+    return fig.to_dict()

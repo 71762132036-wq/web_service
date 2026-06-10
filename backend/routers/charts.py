@@ -101,23 +101,33 @@ from services.chart_service import (
     build_oi_asymmetry_chart,
     build_delta_acceleration_chart,
     build_composite_signal_chart,
+    build_oi_heatmap_chart,
+    build_strike_importance_chart,
+    build_oi_evolution_chart,
+    build_oi_lifecycle_chart,
+    build_max_pain_migration_chart,
 )
 from services.signal_engine import compute_signals
 from services.historical_service import (
-    get_level_migration, 
-    get_historical_prices, 
-    get_flow_momentum, 
-    get_systemic_pulse, 
-    get_intraday_iv_tracker, 
+    get_level_migration,
+    get_historical_prices,
+    get_flow_momentum,
+    get_systemic_pulse,
+    get_intraday_iv_tracker,
     get_vol_surface_history,
     get_intraday_oi_tracker,
+    get_oi_heatmap,
+    get_strike_importance,
+    get_oi_evolution,
+    get_oi_lifecycle,
+    get_max_pain_migration,
 )
 from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker", "vwgex", "spread_heatmap", "oi_buildup", "gex_decay", "hedge_flow", "max_pain", "gamma_range", "participant", "fii_alignment", "pcr_volume", "system_gamma", "sig_composite", "sig_flip", "sig_wall_decay", "sig_iv_divergence", "sig_oi_asymmetry", "sig_delta_accel"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker", "vwgex", "spread_heatmap", "oi_buildup", "gex_decay", "hedge_flow", "max_pain", "gamma_range", "participant", "fii_alignment", "pcr_volume", "system_gamma", "sig_composite", "sig_flip", "sig_wall_decay", "sig_iv_divergence", "sig_oi_asymmetry", "sig_delta_accel", "oi_heatmap", "oi_importance", "oi_evolution", "oi_lifecycle", "max_pain_migration"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -512,6 +522,49 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
                         "snapshots": sig_data.get("snapshots_analyzed", 0),
                     }
                 }
+        elif chart_type == "oi_heatmap":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            heatmap_data = get_oi_heatmap(index, expiry)
+            json_str = build_oi_heatmap_chart(heatmap_data, index, mode=mode)
+        elif chart_type == "oi_importance":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            importance_data = get_strike_importance(index, expiry)
+            json_str = build_strike_importance_chart(importance_data, index, mode=mode)
+            return {
+                "index": index, "chart_type": chart_type,
+                "figure": json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o) if isinstance(json_str, dict) else json_str,
+                "summary": {
+                    "top_call_strike": importance_data["call_ranking"][0]["strike"] if importance_data.get("call_ranking") else None,
+                    "top_put_strike": importance_data["put_ranking"][0]["strike"] if importance_data.get("put_ranking") else None,
+                    "snapshots": importance_data.get("total_snapshots", 0),
+                }
+            }
+        elif chart_type == "oi_evolution":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            evo_data = get_oi_evolution(index, expiry)
+            json_str = build_oi_evolution_chart(evo_data, index)
+        elif chart_type == "oi_lifecycle":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            lifecycle_data = get_oi_lifecycle(index, expiry)
+            json_str = build_oi_lifecycle_chart(lifecycle_data, index)
+        elif chart_type == "max_pain_migration":
+            expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
+            if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")
+            migration_data = get_max_pain_migration(index, expiry)
+            json_str = build_max_pain_migration_chart(migration_data, index)
+            latest = migration_data.get("history", [{}])[-1]
+            return {
+                "index": index, "chart_type": chart_type,
+                "figure": json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o) if isinstance(json_str, dict) else json_str,
+                "summary": {
+                    "current_max_pain": latest.get("max_pain"),
+                    "distance_pct": latest.get("distance_pct"),
+                }
+            }
         elif chart_type == "gex_dex_combined":
             cfg = {**INDICES, **STOCKS}.get(index, {})
             lot_size = cfg.get("lot_size", 75)
