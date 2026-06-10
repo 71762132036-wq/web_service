@@ -9,10 +9,12 @@ Route: POST /api/sync
 """
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
@@ -24,6 +26,37 @@ from core.config import (
     DATA_DIR, INDICES,
     SUPABASE_URL, SUPABASE_KEY,
 )
+
+# ---------------------------------------------------------------------------
+# Sync state — persists the latest captured_at we have synced so the next
+# sync only fetches rows we haven't seen yet.  Falls back to 7 days if the
+# state file is missing (first run / fresh install).
+# ---------------------------------------------------------------------------
+_STATE_FILE = Path(DATA_DIR) / ".sync_state.json"
+_FALLBACK_DAYS = 7   # how far back to look when no state exists
+
+
+def _load_since() -> str:
+    """Return the timestamp to start fetching from."""
+    if _STATE_FILE.exists():
+        try:
+            state = json.loads(_STATE_FILE.read_text())
+            ts = state.get("last_captured_at", "")
+            if ts:
+                return ts
+        except Exception:
+            pass
+    # No state → fall back to N days ago so a fresh install catches up
+    return (datetime.now(ZoneInfo("Asia/Kolkata")) - timedelta(days=_FALLBACK_DAYS)).isoformat()
+
+
+def _save_since(latest_captured_at: str) -> None:
+    """Persist the latest captured_at after a successful sync."""
+    try:
+        _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _STATE_FILE.write_text(json.dumps({"last_captured_at": latest_captured_at}))
+    except Exception as exc:
+        logger.warning("[SYNC] Could not save sync state: %s", exc)
 from services.calculations import calculate_gex
 
 # ---------------------------------------------------------------------------
@@ -107,18 +140,12 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
 
     logger.info("[SYNC] Querying pending snapshots (paginated)…")
     try:
-        from zoneinfo import ZoneInfo
-        from datetime import timedelta
-
-        # Default: only fetch rows captured in the last 24 hours.
-        # This prevents pulling all 30K+ historical rows on every sync.
-        # The caller can pass body.since to override (e.g. for a backfill).
-        if body.since:
-            since_ts = body.since
-        else:
-            since_ts = (
-                datetime.now(ZoneInfo("Asia/Kolkata")) - timedelta(hours=24)
-            ).isoformat()
+        # Use caller-supplied timestamp, or pick up from where we last left off.
+        # _load_since() returns the latest captured_at from the previous sync,
+        # so repeated syncs are always incremental regardless of how many days
+        # have passed.  A fresh install falls back to _FALLBACK_DAYS ago.
+        since_ts = body.since if body.since else _load_since()
+        logger.info("[SYNC] Fetching rows with captured_at >= %s", since_ts[:19])
 
         PAGE_SIZE = 500
         snapshots: list = []
@@ -221,7 +248,14 @@ def sync_from_supabase(body: SyncRequest = SyncRequest()):
         synced_ids.append(snap_id)
         saved_count += 1
 
-    # 3. Delete processed rows from Supabase in chunks to avoid URL length limits.
+    # 3. Persist the latest captured_at so the next sync starts from here.
+    if snapshots:
+        latest_captured_at = max(s.get("captured_at", "") for s in snapshots)
+        if latest_captured_at:
+            _save_since(latest_captured_at)
+            logger.info("[SYNC] Sync state saved: last_captured_at=%s", latest_captured_at[:19])
+
+    # 5. Delete processed rows from Supabase in chunks to avoid URL length limits.
     # Supabase's .in_() becomes a query-string list; >500 IDs blows the URL limit.
     CHUNK = 400
     if synced_ids:
