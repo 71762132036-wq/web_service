@@ -107,6 +107,7 @@ from services.chart_service import (
     build_oi_lifecycle_chart,
     build_max_pain_migration_chart,
     build_daily_study_chart,
+    build_cross_expiry_study_chart,
 )
 from services.signal_engine import compute_signals
 from services.historical_service import (
@@ -123,13 +124,14 @@ from services.historical_service import (
     get_oi_lifecycle,
     get_max_pain_migration,
     get_daily_study,
+    get_cross_expiry_study,
 )
 from services.calculations import calculate_realized_vol, calculate_greek_sensitivity_grid
 from services.flow_service import classify_option_flow
 
 router = APIRouter(prefix="/api", tags=["charts"])
 
-CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker", "vwgex", "spread_heatmap", "oi_buildup", "gex_decay", "hedge_flow", "max_pain", "gamma_range", "participant", "fii_alignment", "pcr_volume", "system_gamma", "sig_composite", "sig_flip", "sig_wall_decay", "sig_iv_divergence", "sig_oi_asymmetry", "sig_delta_accel", "oi_heatmap", "oi_importance", "oi_evolution", "oi_lifecycle", "max_pain_migration", "daily_study"}
+CHART_TYPES = {"gex", "dex", "vex", "cex", "cum_gex", "cum_dex", "cum_vex", "cum_cex", "regime", "iv_smile", "iv_cone", "rr_bf", "quant_power", "oi_dist", "oi_flow", "oi_change", "premium_flow", "compare_oi_change", "flow_intensity", "strike_pressure", "vtl", "migration", "vol_spread", "ignition", "momentum", "reflexivity", "liquidity", "stickiness", "apex", "gamma_profile", "gamma_density", "cum_steepness", "systemic_pulse", "total_gex", "total_dex", "iv_tracker", "vol_surface_3d", "gex_dex_combined", "bs_pricing", "oi_tracker", "vwgex", "spread_heatmap", "oi_buildup", "gex_decay", "hedge_flow", "max_pain", "gamma_range", "participant", "fii_alignment", "pcr_volume", "system_gamma", "sig_composite", "sig_flip", "sig_wall_decay", "sig_iv_divergence", "sig_oi_asymmetry", "sig_delta_accel", "oi_heatmap", "oi_importance", "oi_evolution", "oi_lifecycle", "max_pain_migration", "daily_study", "cross_expiry_study"}
 
 
 @router.get("/charts/compare/{index}/{chart_type}")
@@ -524,6 +526,17 @@ def get_chart(index: str, chart_type: str, mode: str = "net"):
                         "snapshots": sig_data.get("snapshots_analyzed", 0),
                     }
                 }
+        elif chart_type == "cross_expiry_study":
+            study_data = get_cross_expiry_study(index)
+            if "error" in study_data:
+                raise HTTPException(status_code=404, detail=study_data["error"])
+            json_str = build_cross_expiry_study_chart(study_data, index)
+            return {
+                "index": index, "chart_type": chart_type,
+                "figure": json.dumps(json_str, default=lambda o: float(o) if isinstance(o, (np.integer, np.floating)) else o) if isinstance(json_str, dict) else json_str,
+                "summary": study_data.get("overall", {}),
+                "max_pain": {k: v for k, v in study_data.get("max_pain", {}).items() if k != "records"},
+            }
         elif chart_type == "daily_study":
             expiry = df["expiry"].iloc[0] if "expiry" in df.columns else None
             if not expiry: raise HTTPException(status_code=400, detail="Expiry not found")

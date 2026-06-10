@@ -183,6 +183,9 @@ const DashboardPage = (() => {
       ]
     },
     'Study': {
+      'Cross-Expiry': [
+        { key: 'cross_expiry_study', label: 'Full Study (All Expiries)', id: 'chart-cross-expiry' },
+      ],
       'Daily Validation': [
         { key: 'daily_study', label: 'Did GEX Work Today?', id: 'chart-daily-study' },
       ],

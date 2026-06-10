@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from core.config import DATA_DIR, INDICES, STOCKS
-from services.upstox_service import load_data_file
+from services.upstox_service import load_data_file, get_available_files
 from services.calculations import calculate_flip_point, calculate_quant_power, calculate_vtl
 
 def _sort_parquet_files(files: List[Path], expiry_date_str: str) -> List[Path]:
@@ -397,6 +397,203 @@ def get_vol_surface_history(index_name: str, expiry_date: str, n_files: int = 10
         "strikes": shared_strikes,
         "times": times,
         "iv_grid": iv_grid
+    }
+
+
+def get_cross_expiry_study(index_name: str) -> Dict[str, Any]:
+    """
+    Runs the daily study across ALL available expiries for an instrument.
+    Returns aggregated validation stats + per-day records for deep analysis.
+
+    Key metrics computed:
+    - Call/Put wall hold rates
+    - Regime (Long/Short Gamma) prediction accuracy
+    - DTE-bucketed breakdowns
+    - Max pain accuracy on expiry days
+    - Wall break magnitude (how far does price go when it breaks?)
+    - Flip point proximity distribution
+    """
+    import statistics as _stats
+    from datetime import datetime as _dt
+
+    all_files = get_available_files(index_name, data_dir=DATA_DIR)
+    expiries  = sorted(all_files.keys())
+
+    all_days: List[Dict[str, Any]] = []
+
+    for exp in expiries:
+        day_data = get_daily_study(index_name, exp)
+        if "error" in day_data or not day_data.get("days"):
+            continue
+
+        exp_dt = _dt.strptime(exp, "%Y-%m-%d")
+
+        for d in day_data["days"]:
+            m = d["morning"]
+            o = d["outcome"]
+            # Compute DTE
+            try:
+                day_int = int(d["day"])
+                if day_int > exp_dt.day:
+                    pm = exp_dt.month - 1
+                    py = exp_dt.year
+                    if pm == 0:
+                        pm, py = 12, exp_dt.year - 1
+                    file_date = _dt(py, pm, day_int)
+                else:
+                    file_date = _dt(exp_dt.year, exp_dt.month, day_int)
+                dte = (exp_dt - file_date).days
+            except Exception:
+                dte = -1
+
+            all_days.append({
+                "expiry":          exp,
+                "day":             d["day"],
+                "dte":             dte,
+                "regime":          m["regime"],
+                "spot_open":       m["spot"],
+                "flip_point":      m["flip_point"],
+                "top_call_wall":   m["top_call_wall"],
+                "top_put_wall":    m["top_put_wall"],
+                "max_pain":        m["max_pain"],
+                "pcr":             m["pcr"],
+                "high":            o["high"],
+                "low":             o["low"],
+                "close":           o["close"],
+                "range_pts":       o["range_pts"],
+                "price_direction": o["price_direction"],
+                "call_wall_held":  o["call_wall_held"],
+                "put_wall_held":   o["put_wall_held"],
+                "stayed_in_range": o["stayed_in_range"],
+                "regime_accurate": o["regime_accurate"],
+                "range_ratio_pct": o["range_ratio_pct"],
+            })
+
+    n = len(all_days)
+    if n == 0:
+        return {"error": "No data found across expiries."}
+
+    def _pct(lst, key): return round(sum(1 for d in lst if d[key]) / len(lst) * 100, 1) if lst else 0
+    def _avg(lst, key): return round(_stats.mean(d[key] for d in lst), 1) if lst else 0
+
+    # ── Overall stats ─────────────────────────────────────────────────────────
+    overall = {
+        "total_expiries":      len(expiries),
+        "total_days":          n,
+        "call_wall_held_pct":  _pct(all_days, "call_wall_held"),
+        "put_wall_held_pct":   _pct(all_days, "put_wall_held"),
+        "in_range_pct":        _pct(all_days, "stayed_in_range"),
+        "regime_accuracy_pct": _pct(all_days, "regime_accurate"),
+        "avg_range_pts":       _avg(all_days, "range_pts"),
+    }
+
+    # ── By regime ─────────────────────────────────────────────────────────────
+    by_regime = {}
+    for regime in ["LONG GAMMA", "SHORT GAMMA"]:
+        bucket = [d for d in all_days if d["regime"] == regime]
+        if not bucket:
+            continue
+        by_regime[regime] = {
+            "days":                len(bucket),
+            "call_wall_held_pct":  _pct(bucket, "call_wall_held"),
+            "put_wall_held_pct":   _pct(bucket, "put_wall_held"),
+            "in_range_pct":        _pct(bucket, "stayed_in_range"),
+            "regime_accuracy_pct": _pct(bucket, "regime_accurate"),
+            "avg_range_pts":       _avg(bucket, "range_pts"),
+            "avg_move_pts":        round(_stats.mean(abs(d["price_direction"]) for d in bucket), 1),
+        }
+
+    # ── By DTE bucket ─────────────────────────────────────────────────────────
+    dte_buckets_def = [(0, 2, "DTE 0-2"), (3, 5, "DTE 3-5"), (6, 9, "DTE 6-9"), (10, 99, "DTE 10+")]
+    by_dte = {}
+    for lo, hi, label in dte_buckets_def:
+        bucket = [d for d in all_days if lo <= d["dte"] <= hi]
+        if not bucket:
+            continue
+        by_dte[label] = {
+            "days":               len(bucket),
+            "dte_range":          f"{lo}-{hi}",
+            "call_wall_held_pct": _pct(bucket, "call_wall_held"),
+            "put_wall_held_pct":  _pct(bucket, "put_wall_held"),
+            "in_range_pct":       _pct(bucket, "stayed_in_range"),
+            "avg_range_pts":      _avg(bucket, "range_pts"),
+        }
+
+    # ── Max pain accuracy on expiry days ──────────────────────────────────────
+    exp_days = [d for d in all_days if d["dte"] <= 2]
+    max_pain_records = []
+    for d in exp_days:
+        dist     = abs(d["close"] - d["max_pain"])
+        dist_pct = round(dist / max(d["max_pain"], 1) * 100, 3)
+        max_pain_records.append({
+            "expiry":    d["expiry"],
+            "dte":       d["dte"],
+            "close":     d["close"],
+            "max_pain":  d["max_pain"],
+            "dist_pts":  round(dist, 1),
+            "dist_pct":  dist_pct,
+            "pinned":    dist_pct < 0.5,
+            "near":      dist_pct < 1.0,
+        })
+
+    mp_n      = len(max_pain_records)
+    mp_pinned = sum(1 for r in max_pain_records if r["pinned"])
+    mp_near   = sum(1 for r in max_pain_records if r["near"])
+    max_pain_summary = {
+        "expiry_days_checked": mp_n,
+        "pinned_lt_0_5pct":    mp_pinned,
+        "near_lt_1_0pct":      mp_near,
+        "pinned_pct":          round(mp_pinned / mp_n * 100, 1) if mp_n else 0,
+        "near_pct":            round(mp_near   / mp_n * 100, 1) if mp_n else 0,
+        "avg_dist_pct":        round(_stats.mean(r["dist_pct"] for r in max_pain_records), 2) if max_pain_records else 0,
+        "records":             max_pain_records,
+    }
+
+    # ── Wall break analysis ───────────────────────────────────────────────────
+    cw_breaks = [d for d in all_days if not d["call_wall_held"]]
+    pw_breaks = [d for d in all_days if not d["put_wall_held"]]
+    wall_break_analysis = {
+        "call_breaks":          len(cw_breaks),
+        "put_breaks":           len(pw_breaks),
+        "avg_call_overshoot":   round(_stats.mean(d["high"] - d["top_call_wall"] for d in cw_breaks), 0) if cw_breaks else 0,
+        "avg_put_undershoot":   round(_stats.mean(d["top_put_wall"] - d["low"]    for d in pw_breaks), 0) if pw_breaks else 0,
+    }
+
+    # ── Flip point proximity ──────────────────────────────────────────────────
+    flip_dists = [abs(d["spot_open"] - d["flip_point"]) / max(d["flip_point"], 1) * 100 for d in all_days]
+    flip_proximity = {
+        "within_0_2pct": sum(1 for x in flip_dists if x < 0.2),
+        "within_0_5pct": sum(1 for x in flip_dists if x < 0.5),
+        "avg_dist_pct":  round(_stats.mean(flip_dists), 2),
+        "total":         n,
+    }
+
+    # ── Per-expiry summary for trend chart ───────────────────────────────────
+    per_expiry = []
+    for exp in expiries:
+        bucket = [d for d in all_days if d["expiry"] == exp]
+        if not bucket:
+            continue
+        per_expiry.append({
+            "expiry":              exp,
+            "days":                len(bucket),
+            "call_wall_held_pct":  _pct(bucket, "call_wall_held"),
+            "put_wall_held_pct":   _pct(bucket, "put_wall_held"),
+            "in_range_pct":        _pct(bucket, "stayed_in_range"),
+            "regime_accuracy_pct": _pct(bucket, "regime_accurate"),
+            "avg_range_pts":       _avg(bucket, "range_pts"),
+        })
+
+    return {
+        "index":               index_name,
+        "overall":             overall,
+        "by_regime":           by_regime,
+        "by_dte":              by_dte,
+        "max_pain":            max_pain_summary,
+        "wall_break_analysis": wall_break_analysis,
+        "flip_proximity":      flip_proximity,
+        "per_expiry":          per_expiry,
+        "all_days":            all_days,
     }
 
 

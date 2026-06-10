@@ -2812,6 +2812,181 @@ def build_composite_signal_chart(signal_data: dict, index_name: str = "Index") -
 # Daily Study — GEX Theory Validation
 # ---------------------------------------------------------------------------
 
+def build_cross_expiry_study_chart(data: dict, index_name: str = "Index") -> dict:
+    """
+    5-panel professional cross-expiry GEX validation chart:
+    Panel 1 — Overall accuracy summary (bar)
+    Panel 2 — Accuracy trend per expiry (lines)
+    Panel 3 — DTE breakdown: wall hold % vs average range (dual axis)
+    Panel 4 — Regime comparison (grouped bars)
+    Panel 5 — Max pain accuracy distribution (bar by expiry day)
+    """
+    if "error" in data or not data:
+        return {}
+
+    overall    = data.get("overall", {})
+    by_regime  = data.get("by_regime", {})
+    by_dte     = data.get("by_dte", {})
+    per_expiry = data.get("per_expiry", [])
+    max_pain   = data.get("max_pain", {})
+
+    fig = make_subplots(
+        rows=5, cols=1,
+        subplot_titles=[
+            f"Overall Accuracy  ({overall.get('total_days', 0)} days, {overall.get('total_expiries', 0)} expiries)",
+            "Accuracy per Expiry (trend over time)",
+            "DTE Breakdown: Wall Hold % vs Avg Range",
+            "Long Gamma vs Short Gamma Regime Comparison",
+            f"Max Pain Accuracy on Expiry Days  ({max_pain.get('near_pct', 0):.0f}% within 1%)",
+        ],
+        row_heights=[0.16, 0.22, 0.20, 0.20, 0.22],
+        vertical_spacing=0.07,
+        specs=[[{"secondary_y": False}]] * 4 + [[{"secondary_y": False}]],
+    )
+
+    # ── Panel 1: Overall accuracy ─────────────────────────────────────────────
+    metrics = ["Call Wall Held", "Put Wall Held", "In Range", "Regime Accurate"]
+    vals    = [
+        overall.get("call_wall_held_pct", 0),
+        overall.get("put_wall_held_pct",  0),
+        overall.get("in_range_pct",       0),
+        overall.get("regime_accuracy_pct",0),
+    ]
+    bar_col = ["#10B981" if v >= 75 else "#F59E0B" if v >= 55 else "#F43F5E" for v in vals]
+    fig.add_trace(go.Bar(
+        x=metrics, y=vals,
+        marker_color=bar_col,
+        text=[f"{v:.1f}%" for v in vals],
+        textposition="outside",
+        textfont=dict(size=12, color=FONT_CLR),
+        showlegend=False,
+    ), row=1, col=1)
+    fig.add_hline(y=75, line_color="rgba(16,185,129,0.4)", line_dash="dot", row=1, col=1)
+    fig.add_hline(y=55, line_color="rgba(245,158,11,0.4)", line_dash="dot", row=1, col=1)
+    fig.add_annotation(text="Green threshold (75%)", x=3.5, y=76, showarrow=False,
+                       font=dict(size=9, color="#10B981"), row=1, col=1,
+                       xref="x1", yref="y1")
+
+    # ── Panel 2: Accuracy trend per expiry ────────────────────────────────────
+    if per_expiry:
+        exp_labels = [e["expiry"][5:] for e in per_expiry]  # MM-DD
+        for metric, color, label in [
+            ("call_wall_held_pct",  "#F43F5E", "Call Wall Held"),
+            ("put_wall_held_pct",   "#10B981", "Put Wall Held"),
+            ("in_range_pct",        C_POS,     "In Range"),
+            ("regime_accuracy_pct", "#FCD34D", "Regime Accurate"),
+        ]:
+            fig.add_trace(go.Scatter(
+                x=exp_labels,
+                y=[e[metric] for e in per_expiry],
+                mode="lines+markers",
+                name=label,
+                line=dict(color=color, width=2),
+                marker=dict(size=6),
+            ), row=2, col=1)
+
+    # ── Panel 3: DTE breakdown ────────────────────────────────────────────────
+    if by_dte:
+        dte_labels   = list(by_dte.keys())
+        cw_vals_dte  = [by_dte[k]["call_wall_held_pct"] for k in dte_labels]
+        pw_vals_dte  = [by_dte[k]["put_wall_held_pct"]  for k in dte_labels]
+        range_vals   = [by_dte[k]["avg_range_pts"]       for k in dte_labels]
+        days_vals    = [by_dte[k]["days"]                for k in dte_labels]
+
+        fig.add_trace(go.Bar(
+            x=dte_labels, y=cw_vals_dte,
+            name="Call Wall Held %", marker_color="#F43F5E", opacity=0.85,
+            text=[f"CW {v:.0f}%" for v in cw_vals_dte], textposition="inside",
+            textfont=dict(size=10),
+        ), row=3, col=1)
+        fig.add_trace(go.Bar(
+            x=dte_labels, y=pw_vals_dte,
+            name="Put Wall Held %", marker_color="#10B981", opacity=0.85,
+            text=[f"PW {v:.0f}%" for v in pw_vals_dte], textposition="inside",
+            textfont=dict(size=10),
+        ), row=3, col=1)
+        # Avg range as text annotation
+        for i, (label, rng, days) in enumerate(zip(dte_labels, range_vals, days_vals)):
+            fig.add_annotation(
+                x=label, y=105,
+                text=f"Avg {rng:.0f}pts ({days}d)",
+                showarrow=False,
+                font=dict(size=9, color="#FCD34D"),
+                row=3, col=1, xref=f"x3", yref=f"y3",
+            )
+
+    # ── Panel 4: Regime comparison ────────────────────────────────────────────
+    if by_regime:
+        regimes = list(by_regime.keys())
+        grouped_metrics = ["call_wall_held_pct", "put_wall_held_pct", "in_range_pct", "regime_accuracy_pct"]
+        grouped_labels  = ["Call Wall", "Put Wall", "In Range", "Regime Ok"]
+        colors = [C_POS, "#10B981", C_SPOT, "#FCD34D"]
+
+        for metric, label, color in zip(grouped_metrics, grouped_labels, colors):
+            fig.add_trace(go.Bar(
+                name=label,
+                x=regimes,
+                y=[by_regime[r].get(metric, 0) for r in regimes],
+                marker_color=color,
+                opacity=0.85,
+                text=[f"{by_regime[r].get(metric, 0):.0f}%" for r in regimes],
+                textposition="inside",
+                textfont=dict(size=10),
+            ), row=4, col=1)
+
+        for r in regimes:
+            avg_rng = by_regime[r].get("avg_range_pts", 0)
+            days    = by_regime[r].get("days", 0)
+            fig.add_annotation(
+                x=r, y=108,
+                text=f"Avg range {avg_rng:.0f}pts | {days} days",
+                showarrow=False,
+                font=dict(size=9, color=FONT_CLR),
+                row=4, col=1, xref=f"x4", yref=f"y4",
+            )
+
+    # ── Panel 5: Max pain scatter ─────────────────────────────────────────────
+    mp_records = max_pain.get("records", [])
+    if mp_records:
+        mp_labels = [f"{r['expiry'][5:]} DTE{r['dte']}" for r in mp_records]
+        mp_dists  = [r["dist_pct"] for r in mp_records]
+        mp_colors = ["#10B981" if r["pinned"] else "#F59E0B" if r["near"] else "#F43F5E" for r in mp_records]
+
+        fig.add_trace(go.Bar(
+            x=mp_labels, y=mp_dists,
+            marker_color=mp_colors,
+            text=[f"{v:.2f}%" for v in mp_dists],
+            textposition="outside",
+            textfont=dict(size=9, color=FONT_CLR),
+            showlegend=False,
+        ), row=5, col=1)
+        fig.add_hline(y=0.5, line_color="rgba(16,185,129,0.5)", line_dash="dot", row=5, col=1)
+        fig.add_hline(y=1.0, line_color="rgba(245,158,11,0.5)", line_dash="dot", row=5, col=1)
+        fig.add_annotation(
+            text=f"Pinned (<0.5%): {max_pain.get('pinned_pct', 0):.0f}%  |  Near (<1%): {max_pain.get('near_pct', 0):.0f}%  |  Avg: {max_pain.get('avg_dist_pct', 0):.2f}%",
+            xref="paper", yref="paper", x=0.5, y=-0.01,
+            showarrow=False, font=dict(size=12, color="#FCD34D"),
+            xanchor="center",
+        )
+
+    # ── Layout ────────────────────────────────────────────────────────────────
+    layout = _base_layout(f"{index_name} — Cross-Expiry GEX Validation Study")
+    layout["height"] = 1400
+    layout["barmode"] = "group"
+    layout["hovermode"] = "x unified"
+    fig.update_layout(**layout)
+
+    # Y-axis ranges
+    for r in range(1, 5):
+        key = "yaxis" if r == 1 else f"yaxis{r}"
+        if r in [1, 3, 4]:
+            fig.update_layout(**{key: dict(range=[0, 115], gridcolor=GRID_CLR, ticksuffix="%")})
+        else:
+            fig.update_layout(**{key: dict(gridcolor=GRID_CLR)})
+
+    return fig.to_dict()
+
+
 def build_daily_study_chart(data: dict, index_name: str = "Index") -> dict:
     """
     Multi-panel chart — one panel per trading day.
