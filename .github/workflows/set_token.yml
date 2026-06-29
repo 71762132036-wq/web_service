@@ -28,15 +28,16 @@ jobs:
           pip install playwright pyotp requests python-dotenv
           playwright install chromium --with-deps
 
-      - name: Get Upstox access token
+      - name: Refresh Upstox token into Supabase
+        # The script logs in to Upstox and upserts the new token into the
+        # Supabase `tokens` table, which the collector reads first
+        # (cron_job.py → db.get_token).  No GitHub PAT is involved, so an
+        # expired personal token can never break the daily refresh.
         env:
           UPSTOX_PHONE:       ${{ secrets.UPSTOX_PHONE }}
           UPSTOX_PIN:         ${{ secrets.UPSTOX_PIN }}
           UPSTOX_TOTP_SECRET: ${{ secrets.UPSTOX_TOTP_SECRET }}
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
           HEADLESS:           "true"
         run: python scripts/upstox_auth.py
-
-      - name: Update GitHub secret
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: gh secret set UPSTOX_ACCESS_TOKEN --body "$NEW_ACCESS_TOKEN"

@@ -126,6 +126,39 @@ def exchange_token(code: str) -> str:
     return data["access_token"]
 
 
+def save_supabase(token: str) -> None:
+    """Upsert the token into the Supabase `tokens` table (id=1, single row).
+
+    This is the source of truth the collector reads first (cron_job.py →
+    db.get_token).  It needs only SUPABASE_URL / SUPABASE_KEY — no GitHub PAT —
+    so the daily refresh can never be broken by an expired personal token.
+    """
+    import datetime
+    import zoneinfo
+    import requests
+
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("SUPABASE_KEY", "").strip()
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL / SUPABASE_KEY not set — cannot save token to DB")
+
+    now_ist = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata")).isoformat()
+    resp = requests.post(
+        f"{url}/rest/v1/tokens",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            # Upsert on the primary key (id) — overwrites the single token row.
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        },
+        json=[{"id": 1, "token": token, "updated_at": now_ist}],
+        timeout=15,
+    )
+    resp.raise_for_status()
+    print("  Token saved to Supabase tokens table")
+
+
 def save_ci(token: str) -> None:
     """Export token to GITHUB_ENV so the next workflow step can use it."""
     github_env = os.environ.get("GITHUB_ENV")
@@ -165,6 +198,9 @@ def main():
 
         print("\n[3/3] Save...")
         if HEADLESS:
+            # Primary: write to Supabase (no PAT needed — collector reads this).
+            save_supabase(token)
+            # Also export to GITHUB_ENV for any later workflow step that wants it.
             save_ci(token)
         else:
             save_local(token)
